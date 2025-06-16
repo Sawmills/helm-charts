@@ -1,0 +1,33 @@
+{{- if .Values.kedaScaler.enabled }}
+{{- $deploymentName := printf "%s-keda-otel-scaler" (include "sawmills-collector.fullname" .) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $deploymentName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.kedaScaler.service.type }}
+  ports:
+    - port: {{ .Values.kedaScaler.service.otlpReceiverPort }}
+      targetPort: {{ .Values.kedaScaler.service.otlpReceiverPort }}
+      protocol: TCP
+      name: otlp-receiver
+    - port: {{ .Values.kedaScaler.service.kedaExternalScalerPort }}
+      targetPort: {{ .Values.kedaScaler.service.kedaExternalScalerPort }}
+      protocol: TCP
+      name: keda-scaler
+    - port: {{ .Values.kedaScaler.service.monitoringPort }}
+      targetPort: {{ .Values.kedaScaler.service.monitoringPort }}
+      protocol: TCP
+      name: monitoring
+    - port: {{ .Values.kedaScaler.service.otelPrometheusPort }}
+      targetPort: {{ .Values.kedaScaler.service.otelPrometheusPort }}
+      protocol: TCP
+      name: otel-prometheus
+  selector:
+      {{- $selectorLabels := include "sawmills-collector.selectorLabels" . | fromYaml }}
+      {{- $selectorResult := set $selectorLabels "app.kubernetes.io/name" $deploymentName }}
+      {{- toYaml $selectorLabels | nindent 6 }}
+{{- end }}

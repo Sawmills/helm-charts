@@ -1,0 +1,306 @@
+{{- if eq .Values.mode "daemonSet" }}
+apiVersion: apps/v1
+kind: DaemonSet
+{{- else }}
+apiVersion: apps/v1
+kind: Deployment
+{{- end }}
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+spec:
+  {{- if eq .Values.mode "deployment" }}
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  strategy:
+    {{- $strategyType := .Values.rollout.strategy }}
+    {{- if kindIs "map" .Values.rollout.strategy }}
+    {{- $strategyType = "RollingUpdate" }}
+    {{- end }}
+    {{- if eq $strategyType "RollingUpdate" }}
+    rollingUpdate:
+      {{- if .Values.rollout.rollingUpdate }}
+      {{- toYaml .Values.rollout.rollingUpdate | nindent 6 }}
+      {{- else if kindIs "map" .Values.rollout.strategy }}
+      {{- /* Support legacy format */}}
+      maxUnavailable: {{ .Values.rollout.strategy.maxUnavailable }}{{ if not (regexMatch "^[0-9]+$" (.Values.rollout.strategy.maxUnavailable | toString)) }}{{ else }}%{{ end }}
+      maxSurge: {{ .Values.rollout.strategy.maxSurge }}{{ if not (regexMatch "^[0-9]+$" (.Values.rollout.strategy.maxSurge | toString)) }}{{ else }}%{{ end }}
+      {{- end }}
+    {{- end }}
+    type: {{ $strategyType }}
+  minReadySeconds: {{ .Values.rollout.minReadySeconds }}
+  {{- end }}
+  {{- if eq .Values.mode "daemonSet" }}
+  updateStrategy:
+    {{- $strategyType := .Values.rollout.strategy }}
+    {{- if kindIs "map" .Values.rollout.strategy }}
+    {{- $strategyType = "RollingUpdate" }}
+    {{- end }}
+    {{- if eq $strategyType "RollingUpdate" }}
+    rollingUpdate:
+      {{- if .Values.rollout.rollingUpdate }}
+      maxUnavailable: {{ .Values.rollout.rollingUpdate.maxUnavailable }}
+      {{- else if kindIs "map" .Values.rollout.strategy }}
+      {{- /* Support legacy format */}}
+      maxUnavailable: {{ .Values.rollout.strategy.maxUnavailable }}{{ if not (regexMatch "^[0-9]+$" (.Values.rollout.strategy.maxUnavailable | toString)) }}{{ else }}%{{ end }}
+      {{- end }}
+    {{- end }}
+    type: {{ $strategyType }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "sawmills-collector.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "sawmills-collector.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName:  {{ include "sawmills-collector.serviceAccountName" . }}
+
+      terminationGracePeriodSeconds: {{ .Values.rollout.terminationGracePeriodSeconds }}
+      {{- if not (empty .Values.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if not (empty .Values.tolerations) }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if not (empty .Values.affinity) }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
+      {{- if .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- range .Values.topologySpreadConstraints }}
+        - maxSkew: 1
+          topologyKey: {{ . }}
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "sawmills-collector.selectorLabels" $ | nindent 14 }}
+        {{- end }}
+      {{- end }}
+      containers:
+        {{- if .Values.additionalContainers }}
+        {{- range $name, $container := .Values.additionalContainers }}
+        - name: {{ $name }}
+          {{- toYaml $container | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.haproxy.enabled }}
+        - name: haproxy
+          image: {{ .Values.haproxy.image }}
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          ports:
+          {{- range $name, $config := .Values.haproxy.mapping }}
+          - containerPort: {{ $config.from }}
+            name: {{ $name }}
+            protocol: {{ $config.to.protocol }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13135
+            initialDelaySeconds: {{ .Values.rollout.haproxy.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.haproxy.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.rollout.haproxy.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13135
+            initialDelaySeconds: {{ .Values.rollout.haproxy.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.haproxy.probes.readiness.periodSeconds }}
+          resources:
+            {{- toYaml .Values.haproxy.resources | nindent 12 }}
+          volumeMounts:
+          - name: haproxy-config
+            mountPath: /usr/local/etc/haproxy/haproxy.cfg
+            subPath: haproxy.cfg
+        {{- end }}
+        - name: telemetry-collector
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: public.ecr.aws/s7a5m1b4/sawmills-collector:{{ default "dev" .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            {{- if .Values.kedaScaler.enabled }}
+            - name: KEDA_SCALER_OTLP_RECEIVER_PORT
+              value: {{ .Values.kedaScaler.service.otlpReceiverPort | quote }}
+            - name: KEDA_SCALER_OTEL_PROMETHEUS_PORT
+              value: {{ .Values.kedaScaler.service.otelPrometheusPort | quote }}
+            {{- end }}
+            - name: COLLECTOR_NAME
+              value: {{ .Values.collectorName }}
+            - name: COLLECTOR_ID
+              value: {{ .Values.collectorId }}
+            - name: PROMETHEUS_PORT
+              value: {{ .Values.telemetry.prometheus.port | quote }}
+            - name: PROMETHEUS_REMOTE_WRITE_ENDPOINT
+              value: {{ .Values.prometheusremotewrite.endpoint }}
+            - name: PROMETHEUS_REMOTE_WRITE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
+            {{- if .Values.telemetryExtraEnv }}
+            {{- toYaml .Values.telemetryExtraEnv | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: prometheus
+              containerPort: {{ .Values.telemetry.prometheus.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13134
+            initialDelaySeconds: {{ .Values.rollout.telemetry.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.telemetry.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.rollout.telemetry.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13134
+            initialDelaySeconds: {{ .Values.rollout.telemetry.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.telemetry.probes.readiness.periodSeconds }}
+          resources:
+            {{- toYaml .Values.telemetry.resources | nindent 12 }}
+          volumeMounts:
+            - name: sawmills-telemetry-config
+              mountPath: /etc/otel/config.yaml
+              subPath: telemetry-config.yaml
+            - name: tmp
+              mountPath: /tmp
+        - name: main-collector
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: public.ecr.aws/s7a5m1b4/sawmills-collector:{{ default "dev" .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.otelConfig.s3path }}
+          args:
+            - "--config={{ .Values.otelConfig.s3path }}@{{ .Values.otelConfig.encryptionKey }}"
+          {{- end }}
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: FOLDER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sawmills-collector.fullname" . }}-secret
+                  key: folder-name
+            - name: S3_BUCKET
+              value: {{ .Values.quotamgmtprocessor.s3_bucket }}
+            - name: COLLECTOR_NAME
+              value: {{ .Values.collectorName }}
+            - name: AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
+            {{- if .Values.extraEnv }}
+            {{- toYaml .Values.extraEnv | nindent 12 }}
+            {{- end }}
+          ports:
+            {{- range $name, $config := .Values.ports }}
+            - name: {{ $name }}
+              containerPort: {{ $config.port }}
+              protocol: {{ $config.protocol }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13133
+            initialDelaySeconds: {{ .Values.rollout.main.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.main.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.rollout.main.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13133
+            initialDelaySeconds: {{ .Values.rollout.main.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.main.probes.readiness.periodSeconds }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+          {{- if not .Values.otelConfig.s3path }}
+            - name: sawmills-collector-config
+              mountPath: /etc/otel/config.yaml
+              subPath: config.yaml
+          {{- end }}
+            - name: sawmills-livetail-config
+              mountPath: /etc/livetail-config/
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        {{- if .Values.haproxy.enabled }}
+        - name: haproxy-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-haproxy-config
+        {{- end }}
+        {{- if not .Values.otelConfig.s3path }}
+        - name: sawmills-collector-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-config
+            items:
+              - key: config.yaml
+                path: config.yaml
+        {{- end }}
+        - name: sawmills-telemetry-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-telemetry-config
+            items:
+              - key: telemetry-config.yaml
+                path: telemetry-config.yaml
+        - name: sawmills-livetail-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-livetail-config
+        - name: tmp
+          emptyDir: {}
+        {{- with .Values.additionalVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
