@@ -1,0 +1,50 @@
+# KEDA HPA logic using the top-level 'keda' section 
+{{- if .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-keda-hpa
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/revision: {{ .Release.Revision | quote }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "sawmills-collector.fullname" . }}
+  minReplicaCount: {{ .Values.keda.minReplicas }}
+  maxReplicaCount: {{ .Values.keda.maxReplicas }}
+  pollingInterval: {{ .Values.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.keda.cooldownPeriod }}
+  triggers:
+    {{- if .Values.keda.scaling.prometheus.enabled }}
+    - type: prometheus
+      metricType: {{ .Values.keda.scaling.prometheus.metricType }}
+      metadata:
+        {{- range $key, $value := .Values.keda.scaling.prometheus.metadata }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+    {{- end }}
+    {{- if .Values.keda.scaling.external.enabled }}
+    - type: external
+      metricType: {{ .Values.keda.scaling.external.metricType }}
+      metadata:
+        {{- range $key, $value := .Values.keda.scaling.external.metadata }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+    {{- end }}
+    {{- if .Values.keda.scaling.cpu.enabled }}
+    - type: cpu
+      metadata:
+        type: Utilization
+        value: {{ .Values.keda.scaling.cpu.targetUtilization | quote }}
+    {{- end }}
+    {{- if .Values.keda.scaling.memory.enabled }}
+    - type: memory
+      metadata:
+        type: Utilization
+        value: {{ .Values.keda.scaling.memory.targetUtilization | quote }}
+    {{- end }}
+{{- end }}

@@ -1,0 +1,176 @@
+suite: test deployment affinity configuration
+templates:
+  - deployment.yaml
+tests:
+  - it: should render default pod anti-affinity configuration
+    values:
+      - ../values.yaml
+    asserts:
+      - exists:
+          path: spec.template.spec.affinity
+      - exists:
+          path: spec.template.spec.affinity.podAntiAffinity
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 100
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.labelSelector.matchExpressions[0].key
+          value: app.kubernetes.io/name
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.labelSelector.matchExpressions[0].operator
+          value: In
+      - contains:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.labelSelector.matchExpressions[0].values
+          content: sawmills-collector-chart
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey
+          value: kubernetes.io/hostname
+
+  - it: should allow overriding default affinity with empty configuration
+    set:
+      affinity: null
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity
+
+  - it: should allow adding node affinity alongside default pod anti-affinity
+    set:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - custom-node
+    asserts:
+      - exists:
+          path: spec.template.spec.affinity.nodeAffinity
+      - exists:
+          path: spec.template.spec.affinity.podAntiAffinity
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]
+          value: custom-node
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 100
+
+  - it: should allow adding preferred node affinity alongside default pod anti-affinity
+    set:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 80
+            preference:
+              matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - high-memory
+    asserts:
+      - exists:
+          path: spec.template.spec.affinity.podAntiAffinity
+      - exists:
+          path: spec.template.spec.affinity.nodeAffinity
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 80
+
+  - it: should work with daemonSet mode and default affinity
+    set:
+      mode: daemonSet
+    asserts:
+      - equal:
+          path: kind
+          value: DaemonSet
+      - exists:
+          path: spec.template.spec.affinity.podAntiAffinity
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 100
+
+  - it: should work with deployment mode and default affinity
+    set:
+      mode: deployment
+    asserts:
+      - equal:
+          path: kind
+          value: Deployment
+      - exists:
+          path: spec.template.spec.affinity.podAntiAffinity
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey
+          value: kubernetes.io/hostname
+
+  - it: should allow customizing the weight in default configuration
+    set:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - sawmills-collector-chart
+                topologyKey: kubernetes.io/hostname
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 50
+
+  - it: should allow customizing the topology key
+    set:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - sawmills-collector-chart
+                topologyKey: topology.kubernetes.io/zone
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey
+          value: topology.kubernetes.io/zone
+
+  - it: should work with multiple pod anti-affinity rules
+    set:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - sawmills-collector-chart
+                topologyKey: kubernetes.io/hostname
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/component
+                      operator: In
+                      values:
+                        - collector
+                topologyKey: topology.kubernetes.io/zone
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution
+          count: 2
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 100
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[1].weight
+          value: 50 

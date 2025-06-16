@@ -1,0 +1,12 @@
+{{- if .Values.haproxy.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-haproxy-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+data:
+  haproxy.cfg: |
+    {{- include "sawmills-collector.haproxy.config" . | nindent 4 }}
+{{- end }}

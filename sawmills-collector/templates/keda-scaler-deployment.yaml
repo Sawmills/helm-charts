@@ -1,0 +1,105 @@
+{{- if .Values.kedaScaler.enabled }}
+{{- $deploymentName := printf "%s-keda-otel-scaler" (include "sawmills-collector.fullname" .) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $deploymentName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- $selectorLabels := include "sawmills-collector.selectorLabels" . | fromYaml }}
+      {{- $selectorResult := set $selectorLabels "app.kubernetes.io/name" $deploymentName }}
+      {{- toYaml $selectorLabels | nindent 6 }}
+  template:
+    metadata:
+    {{- with .Values.podAnnotations }}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- $podLabels := include "sawmills-collector.labels" . | fromYaml }}
+        {{- $podResult := set $podLabels "app.kubernetes.io/name" $deploymentName }}
+        {{- toYaml $podLabels | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "sawmills-collector.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.kedaScaler.podSecurityContext | nindent 8 }}
+      containers:
+        - name: otel-scaler
+          image: public.ecr.aws/s7a5m1b4/sawmills-collector:{{ default "dev" .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.kedaScaler.imagePullPolicy }}
+          ports:
+            - name: otlp-receiver
+              containerPort: {{ .Values.kedaScaler.service.otlpReceiverPort }}
+              protocol: TCP
+            - name: keda-scaler
+              containerPort: {{ .Values.kedaScaler.service.kedaExternalScalerPort }}
+              protocol: TCP
+            - name: monitoring
+              containerPort: {{ .Values.kedaScaler.service.monitoringPort }}
+              protocol: TCP
+            - name: otel-prometheus
+              containerPort: {{ .Values.kedaScaler.service.otelPrometheusPort }}
+              protocol: TCP
+          env:
+            - name: KEDA_EXTERNAL_SCALER_PORT
+              value: {{ .Values.kedaScaler.service.kedaExternalScalerPort | quote }}
+            - name: OTLP_RECEIVER_PORT
+              value: {{ .Values.kedaScaler.service.otlpReceiverPort | quote }}
+            - name: HEALTHCHECK_PORT
+              value: {{ .Values.kedaScaler.service.healthcheckPort | quote }}
+            - name: MONITORING_PORT
+              value: {{ .Values.kedaScaler.service.monitoringPort | quote }}
+            - name: OTEL_PROMETHEUS_PORT
+              value: {{ .Values.kedaScaler.service.otelPrometheusPort | quote }}
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: {{ .Values.kedaScaler.service.healthcheckPort }}
+            initialDelaySeconds: {{ .Values.kedaScaler.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.kedaScaler.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.kedaScaler.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: {{ .Values.kedaScaler.service.healthcheckPort }}
+            initialDelaySeconds: {{ .Values.kedaScaler.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.kedaScaler.probes.readiness.periodSeconds }}
+          resources:
+            {{- toYaml .Values.kedaScaler.resources | nindent 12 }}
+          volumeMounts:
+            - name: otel-config
+              mountPath: /etc/otel/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: otel-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-otel-scaler-config
+            items:
+              - key: config.yaml
+                path: config.yaml
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
