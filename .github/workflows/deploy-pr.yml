@@ -1,0 +1,82 @@
+name: Update Helm Chart
+
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  build-helm-chart:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push Sawmills Collector Helm chart
+        uses: Sawmills/actions/push-helm@main
+        with:
+          chart-path: deploy/helm-charts/sawmills-collector
+          chart-repo: public.ecr.aws/s7a5m1b4
+          chart-name: sawmills-collector-chart
+          aws_region: ${{ vars.AWS_REGION }}
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          tag: ${{ needs.tag.outputs.tag }}
+      - name: Clean temporary directory
+        run: rm -rf /home/runner/work/_temp/charts
+      - name: Push Sawmills Collector Infra Helm chart
+        uses: Sawmills/actions/push-helm@main
+        with:
+          chart-path: deploy/helm-charts/infra-charts
+          chart-repo: public.ecr.aws/s7a5m1b4
+          chart-name: sawmills-collector-infra-chart
+          aws_region: ${{ vars.AWS_REGION }}
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          tag: ${{ needs.tag.outputs.tag }}
+
+  deploy-helm-chart-staging:
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/deploy-helm.yml
+    needs: [build-helm-chart]
+    with:
+      environment: staging
+      chart_version: ${{ needs.tag.outputs.tag }}
+    secrets:
+      API_KEY: ${{ secrets.API_KEY }}
+      QMP_FOLDER: ${{ secrets.QMP_FOLDER }}
+      O11Y_API_KEY: ${{ secrets.O11Y_API_KEY }}
+      O11Y_QMP_FOLDER: ${{ secrets.O11Y_QMP_FOLDER }}
+  deploy-helm-chart-preprod:
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/deploy-helm.yml
+    needs: [build-helm-chart]
+    with:
+      environment: preprod
+      chart_version: ${{ needs.tag.outputs.tag }}
+    secrets:
+      API_KEY: ${{ secrets.API_KEY }}
+      QMP_FOLDER: ${{ secrets.QMP_FOLDER }}
+      O11Y_API_KEY: ${{ secrets.O11Y_API_KEY }}
+      O11Y_QMP_FOLDER: ${{ secrets.O11Y_QMP_FOLDER }}
+  deploy-helm-chart-prod:
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/deploy-helm.yml
+    needs: [build-helm-chart]
+    with:
+      environment: prod
+      chart_version: ${{ needs.tag.outputs.tag }}
+    secrets:
+      API_KEY: ${{ secrets.API_KEY }}
+      QMP_FOLDER: ${{ secrets.QMP_FOLDER }}
+      O11Y_API_KEY: ${{ secrets.O11Y_API_KEY }}
+      O11Y_QMP_FOLDER: ${{ secrets.O11Y_QMP_FOLDER }}
