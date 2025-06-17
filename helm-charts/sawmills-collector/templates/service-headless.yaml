@@ -1,0 +1,30 @@
+{{- if .Values.service.headless.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-headless
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+  {{- if .Values.service.annotations }}
+  annotations:
+    {{- toYaml .Values.service.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  clusterIP: None
+  {{- if .Values.service.internalTrafficPolicy }}
+  internalTrafficPolicy: {{ .Values.service.internalTrafficPolicy }}
+  {{- end }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.telemetry.prometheus.port }}
+      targetPort: {{ .Values.telemetry.prometheus.port }}
+      name: prometheus
+    {{- range $name, $config := .Values.service.ports }}
+    - protocol: {{ $config.to.protocol }}
+      port: {{ $config.to.port }}
+      targetPort: {{ $config.from }}
+      name: {{ $name }}
+    {{- end }}
+  selector:
+    {{- include "sawmills-collector.selectorLabels" . | nindent 4 }}
+{{- end }}
