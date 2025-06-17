@@ -1,0 +1,95 @@
+# Test values file demonstrating additionalContainers feature
+mode: deployment
+replicaCount: 1
+
+# Example of adding multiple sidecar containers
+additionalContainers:
+  # Fluent-bit for log forwarding
+  fluent-bit:
+    image: fluent/fluent-bit:2.1
+    imagePullPolicy: IfNotPresent
+    command: ["/fluent-bit/bin/fluent-bit"]
+    args: ["-c", "/fluent-bit/etc/fluent-bit.conf"]
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 2000
+      readOnlyRootFilesystem: true
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "100m"
+      limits:
+        memory: "128Mi"
+        cpu: "200m"
+    volumeMounts:
+      - name: fluent-bit-config
+        mountPath: /fluent-bit/etc/
+      - name: varlog
+        mountPath: /var/log
+        readOnly: true
+
+  # Prometheus node-exporter for hardware metrics
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    imagePullPolicy: IfNotPresent
+    args:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/host/root
+      - --web.listen-address=:9100
+    ports:
+      - name: metrics
+        containerPort: 9100
+        protocol: TCP
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      readOnlyRootFilesystem: true
+    resources:
+      requests:
+        memory: "32Mi"
+        cpu: "100m"
+      limits:
+        memory: "64Mi"
+        cpu: "200m"
+    volumeMounts:
+      - name: proc
+        mountPath: /host/proc
+        readOnly: true
+      - name: sys
+        mountPath: /host/sys
+        readOnly: true
+      - name: root
+        mountPath: /host/root
+        readOnly: true
+        mountPropagation: HostToContainer
+
+# Additional volumes needed by the sidecar containers
+additionalVolumes:
+  - name: fluent-bit-config
+    configMap:
+      name: fluent-bit-config
+  - name: varlog
+    hostPath:
+      path: /var/log
+  - name: proc
+    hostPath:
+      path: /proc
+  - name: sys
+    hostPath:
+      path: /sys
+  - name: root
+    hostPath:
+      path: /
+
+# Rest of the standard sawmills-collector configuration
+collectorName: test-sawmills-collector
+quotamgmtprocessor:
+  s3_bucket: test-bucket
+  folder_name: TEST_ORG
+
+prometheusremotewrite:
+  endpoint: https://test.sawmills.ai
+  api_key_secret:
+    name: test-sawmills-secret
+    key: api-key
