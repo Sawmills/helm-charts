@@ -14,6 +14,20 @@ jobs:
   update-chart-version:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Get main branch version
+        id: get_main_version
+        run: |
+          MAIN_VERSION=$(grep "^version:" helm-charts/sawmills-collector/Chart.yaml | cut -d' ' -f2)
+          echo "main_version=${MAIN_VERSION}" >> $GITHUB_OUTPUT
+          echo "Main branch Chart.yaml version: ${MAIN_VERSION}"
+      
       - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
@@ -21,19 +35,24 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
       
-      - name: Get next version
-        id: get_version
-        uses: anothrNick/github-tag-action@1.71.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: false
-          DRY_RUN: true
-          RELEASE_BRANCHES: main
-          INITIAL_VERSION: 2.0.0
+      - name: Calculate next version
+        id: calc_version
+        run: |
+          MAIN_VERSION="${{ steps.get_main_version.outputs.main_version }}"
+          
+          # Parse semantic version (assuming format like 2.1.0)
+          IFS='.' read -r major minor patch <<< "$MAIN_VERSION"
+          
+          # Default to patch increment (can be made smarter by analyzing PR labels/commits)
+          new_minor=$((minor + 1))
+          NEXT_VERSION="${major}.${new_minor}.0"
+          
+          echo "next_version=${NEXT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Calculated next version: ${NEXT_VERSION} (from main: ${MAIN_VERSION})"
       
       - name: Update Chart.yaml version
         run: |
-          NEXT_VERSION="${{ steps.get_version.outputs.new_tag }}"
+          NEXT_VERSION="${{ steps.calc_version.outputs.next_version }}"
           CURRENT_VERSION=$(grep "^version:" helm-charts/sawmills-collector/Chart.yaml | cut -d' ' -f2)
           
           echo "Current version: $CURRENT_VERSION"
@@ -58,5 +77,5 @@ jobs:
           fi
           
           git add helm-charts/sawmills-collector/Chart.yaml
-          git commit -m "Update Chart.yaml version to ${{ steps.get_version.outputs.new_tag }}"
+          git commit -m "Update Chart.yaml version to ${{ steps.calc_version.outputs.next_version }}"
           git push origin ${{ github.head_ref }} 
