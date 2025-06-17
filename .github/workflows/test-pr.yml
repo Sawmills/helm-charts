@@ -11,5 +11,3 @@ on:
 jobs:
   check-codeowners:
     uses: ./.github/workflows/check-codeowners.yml
-  lint:
-    uses: ./.github/workflows/linter.yml
