@@ -1,0 +1,61 @@
+name: Update Chart Version on PR
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
+
+jobs:
+  update-chart-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Get next version
+        id: get_version
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: false
+          DRY_RUN: true
+          RELEASE_BRANCHES: main
+          INITIAL_VERSION: 2.0.0
+      
+      - name: Update Chart.yaml version
+        run: |
+          NEXT_VERSION="${{ steps.get_version.outputs.new_tag }}"
+          CURRENT_VERSION=$(grep "^version:" helm-charts/sawmills-collector/Chart.yaml | cut -d' ' -f2)
+          
+          echo "Current version: $CURRENT_VERSION"
+          echo "Next version: $NEXT_VERSION"
+          
+          if [ "$CURRENT_VERSION" != "$NEXT_VERSION" ]; then
+            sed -i "s/^version: .*/version: ${NEXT_VERSION}/" helm-charts/sawmills-collector/Chart.yaml
+            echo "Updated Chart.yaml version to: $NEXT_VERSION"
+          else
+            echo "Version already up to date"
+            exit 0
+          fi
+      
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if git diff --quiet helm-charts/sawmills-collector/Chart.yaml; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git add helm-charts/sawmills-collector/Chart.yaml
+          git commit -m "Update Chart.yaml version to ${{ steps.get_version.outputs.new_tag }}"
+          git push 

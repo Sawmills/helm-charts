@@ -1,4 +1,4 @@
-name: Update Helm Chart
+name: Deploy Helm Chart
 
 permissions:
   id-token: write
@@ -30,40 +30,9 @@ jobs:
           RELEASE_BRANCHES: main
           INITIAL_VERSION: 2.0.0
 
-  update-chart-version:
-    if: github.event.pull_request.merged == true
-    needs: tag
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-      
-      - name: Update Chart.yaml version
-        run: |
-          # Extract version without 'v' prefix
-          VERSION="${{ needs.tag.outputs.tag }}"
-          VERSION_NO_V="${VERSION#v}"
-          
-          # Update the version in Chart.yaml
-          sed -i "s/^version: .*/version: ${VERSION_NO_V}/" helm-charts/sawmills-collector/Chart.yaml
-          
-          echo "Updated Chart.yaml:"
-          grep -E "^version:" helm-charts/sawmills-collector/Chart.yaml
-      
-      - name: Commit Chart.yaml changes
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add helm-charts/sawmills-collector/Chart.yaml
-          git commit -m "Update Chart.yaml version to ${{ needs.tag.outputs.tag }}" || exit 0
-          git push
-  
   build-helm-chart:
     if: github.event.pull_request.merged == true
-    needs: [tag, update-chart-version]
+    needs: [tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
