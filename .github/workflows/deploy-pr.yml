@@ -28,6 +28,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WITH_V: true
           RELEASE_BRANCHES: main
+          INITIAL_VERSION: 1.570.0 
   
   build-helm-chart:
     if: github.event.pull_request.merged == true
