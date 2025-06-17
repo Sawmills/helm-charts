@@ -17,18 +17,29 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.bump_version.outputs.tag }}
+      tag: ${{ steps.create_tag.outputs.tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Bump version and create tag
-        id: bump_version
-        uses: anothrNick/github-tag-action@1.71.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: true
-          RELEASE_BRANCHES: main
-          INITIAL_VERSION: 2.0.0
+      
+      - name: Get version from Chart.yaml
+        id: get_chart_version
+        run: |
+          CHART_VERSION=$(grep "^version:" helm-charts/sawmills-collector/Chart.yaml | cut -d' ' -f2)
+          echo "version=${CHART_VERSION}" >> $GITHUB_OUTPUT
+          echo "Chart.yaml version: ${CHART_VERSION}"
+      
+      - name: Create git tag
+        id: create_tag
+        run: |
+          TAG="v${{ steps.get_chart_version.outputs.version }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Creating tag: ${TAG}"
+          
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"
 
   build-helm-chart:
     if: github.event.pull_request.merged == true
