@@ -1,10 +1,6 @@
 .vscode/
 .idea/
-/bin/otelcol-custom
 dist/
-cmd/sawmills-otelcol/sawmills-otelcol
-cmd/sawmills-otelcol/sawmills-collector
-cmd/sawmills-otelcol/__debug_*
 .temp/
 local/
 bin/
