@@ -22,19 +22,19 @@ This repository contains official Helm charts for Sawmills platform services. Th
 ### Prerequisites
 - Kubernetes cluster (v1.19+)
 - Helm 3.x
-- Access to Sawmills container registry
+- Access to this private repository
+- Access to Sawmills container registry (`public.ecr.aws/s7a5m1b4`)
 
 ### Installation
 
+#### Install from Local Repository
 ```bash
-# Add the Sawmills Helm repository
-helm repo add sawmills https://public.ecr.aws/s7a5m1b4
-
-# Update repository cache
-helm repo update
+# Clone this repository
+git clone https://github.com/Sawmills/helm-charts.git
+cd helm-charts
 
 # Install the Sawmills Collector
-helm install my-collector sawmills/sawmills-collector-chart \
+helm install my-collector ./helm-charts/sawmills-collector \
   --namespace sawmills-system \
   --create-namespace \
   --set prometheusremotewrite.endpoint="https://your-endpoint.com" \
