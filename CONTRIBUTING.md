@@ -302,10 +302,6 @@ What actually happens.
 - Sanitize logs and error messages
 - Review template outputs for data leaks
 
-### Security Review
-- All PRs undergo security review
-- Report security issues privately to security@sawmills.ai
-- Follow responsible disclosure practices
 
 ## 🎉 Recognition
 
@@ -328,11 +324,6 @@ Outstanding contributors may be featured in:
 - **GitHub Issues**: Technical issues and bugs
 - **GitHub Discussions**: Questions and general help
 - **Direct Contact**: Tag `@sawmills/engineers` in PRs/issues
-
-### Response Times
-- **Critical Issues**: Same day response
-- **General Issues**: 2 business day response
-- **Feature Requests**: 1 week response
 
 ## 📋 Release Process
 

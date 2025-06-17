@@ -240,7 +240,6 @@ This repository contains configurations for production systems. Please:
 - Do not commit sensitive information (secrets, keys, passwords)
 - Use Kubernetes secrets for sensitive data
 - Follow security best practices for Helm charts
-- Report security issues privately to security@sawmills.ai
 
 ---
 
