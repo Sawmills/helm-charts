@@ -1,0 +1,32 @@
+{{- if and (eq .Values.ingress.type "haproxy") .Values.ingress.haproxy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-haproxy-ingress
+  namespace: {{ .Release.Namespace }}
+  {{- with .Values.ingress.haproxy.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.haproxy.className }}
+  {{- if .Values.ingress.haproxy.tls }}
+  tls:
+    {{- toYaml .Values.ingress.haproxy.tls | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.haproxy.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "sawmills-collector.fullname" $ }}
+                port:
+                  number: {{ $.Values.ingress.haproxy.port }}
+          {{- end }}
+    {{- end }}
+{{- end }} 

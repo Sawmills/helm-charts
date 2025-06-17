@@ -1,0 +1,15 @@
+name: Lint and test
+
+permissions:
+  id-token: write
+  contents: write
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-codeowners:
+    uses: ./.github/workflows/check-codeowners.yml
+  lint:
+    uses: ./.github/workflows/linter.yml

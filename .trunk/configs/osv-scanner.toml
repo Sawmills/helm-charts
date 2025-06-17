@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "CVE-2025-22871"
+ignoreUntil = 2025-05-22
+reason = "No fix available as of yet"

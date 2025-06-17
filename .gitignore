@@ -1,0 +1,7 @@
+.vscode/
+.idea/
+dist/
+.temp/
+local/
+bin/
+.DS_Store
