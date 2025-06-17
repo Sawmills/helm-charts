@@ -1,49 +1,67 @@
-name: Deploy Helm Chart
+name: Update Helm Chart
 
 permissions:
   id-token: write
   contents: write
   packages: write
-
 on:
   pull_request:
     types:
       - closed
     branches:
       - main
-
 jobs:
   tag:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.create_tag.outputs.tag }}
+      tag: ${{ steps.bump_version.outputs.tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Get version from Chart.yaml
-        id: get_chart_version
+      - name: Bump version and create tag
+        id: bump_version
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          RELEASE_BRANCHES: main
+          INITIAL_VERSION: 2.0.0
+
+  update-chart-version:
+    if: github.event.pull_request.merged == true
+    needs: tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Update Chart.yaml version
         run: |
-          CHART_VERSION=$(grep "^version:" helm-charts/sawmills-collector/Chart.yaml | cut -d' ' -f2)
-          echo "version=${CHART_VERSION}" >> $GITHUB_OUTPUT
-          echo "Chart.yaml version: ${CHART_VERSION}"
-      
-      - name: Create git tag
-        id: create_tag
-        run: |
-          TAG="v${{ steps.get_chart_version.outputs.version }}"
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "Creating tag: ${TAG}"
+          # Extract version without 'v' prefix
+          VERSION="${{ needs.tag.outputs.tag }}"
+          VERSION_NO_V="${VERSION#v}"
           
+          # Update the version in Chart.yaml
+          sed -i "s/^version: .*/version: ${VERSION_NO_V}/" helm-charts/sawmills-collector/Chart.yaml
+          
+          echo "Updated Chart.yaml:"
+          grep -E "^version:" helm-charts/sawmills-collector/Chart.yaml
+      
+      - name: Commit Chart.yaml changes
+        run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git tag -a "${TAG}" -m "Release ${TAG}"
-          git push origin "${TAG}"
-
+          git add helm-charts/sawmills-collector/Chart.yaml
+          git commit -m "Update Chart.yaml version to ${{ needs.tag.outputs.tag }}" || exit 0
+          git push
+  
   build-helm-chart:
     if: github.event.pull_request.merged == true
-    needs: [tag]
+    needs: [tag, update-chart-version]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
