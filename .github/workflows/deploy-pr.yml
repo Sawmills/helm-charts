@@ -13,6 +13,22 @@ on:
       - main
 
 jobs:
+  tag:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.bump_version.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Bump version and create tag
+        id: bump_version
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          RELEASE_BRANCHES: main
+  
   build-helm-chart:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
@@ -21,6 +37,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Authenticate with AWS and ECR
+        id: aws-auth
+        uses: Sawmills/actions/aws-auth@main
+        with:
+          aws_region: us-east-1
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
       - name: Push Sawmills Collector Helm chart
         uses: Sawmills/actions/push-helm@main
         with:
