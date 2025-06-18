@@ -27,8 +27,8 @@ Common labels
 {{- define "sawmills-collector.labels" -}}
 helm.sh/chart: {{ include "sawmills-collector.chart" . }}
 {{ include "sawmills-collector.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- if .Values.image.tag }}
+app.kubernetes.io/version: {{ .Values.image.tag | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
