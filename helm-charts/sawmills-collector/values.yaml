@@ -131,6 +131,8 @@ telemetryExtraEnv: []
 # The image pull policy the Sawmills collector
 image:
   pullPolicy: IfNotPresent
+  tag: 1.558.0
+
 
 # The node selector for the Sawmills collector
 nodeSelector: {}

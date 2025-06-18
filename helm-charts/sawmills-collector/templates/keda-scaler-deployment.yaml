@@ -30,7 +30,7 @@ spec:
         {{- toYaml .Values.kedaScaler.podSecurityContext | nindent 8 }}
       containers:
         - name: otel-scaler
-          image: public.ecr.aws/s7a5m1b4/sawmills-collector:{{ default "dev" .Chart.AppVersion }}
+          image: public.ecr.aws/s7a5m1b4/sawmills-collector:{{ default "dev" .Values.image.tag }}
           imagePullPolicy: {{ .Values.kedaScaler.imagePullPolicy }}
           ports:
             - name: otlp-receiver
