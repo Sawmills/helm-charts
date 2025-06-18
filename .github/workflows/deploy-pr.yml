@@ -78,7 +78,7 @@ jobs:
       - name: Push Sawmills Collector Helm chart
         uses: Sawmills/actions/push-helm@main
         with:
-          chart-path: deploy/helm-charts/sawmills-collector
+          chart-path: helm-charts/sawmills-collector
           chart-repo: public.ecr.aws/s7a5m1b4
           chart-name: sawmills-collector-chart
           aws_region: ${{ vars.AWS_REGION }}
