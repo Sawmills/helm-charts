@@ -12,7 +12,7 @@
 
 ## Version Impact
 <!-- REQUIRED: Select the appropriate version bump type -->
-**Add one of these labels to this PR:**
+**Add one of these labelss to this PR:**
 - `version:patch` - Bug fixes, small improvements (2.1.0 → 2.1.1)
 - `version:minor` - New features, backwards compatible (2.1.0 → 2.2.0)  
 - `version:major` - Breaking changes (2.1.0 → 3.0.0)
