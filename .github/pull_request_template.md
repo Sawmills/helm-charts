@@ -10,6 +10,15 @@
 - [ ] Configuration change
 - [ ] Performance improvement
 
+## Version Impact
+<!-- REQUIRED: Select the appropriate version bump type -->
+**Add one of these labelss to this PR:**
+- `version:patch` - Bug fixes, small improvements (2.1.0 → 2.1.1)
+- `version:minor` - New features, backwards compatible (2.1.0 → 2.2.0)  
+- `version:major` - Breaking changes (2.1.0 → 3.0.0)
+
+> ⚠️ **If no version label is added, this will default to a minor bump**
+
 ## Testing Performed
 <!-- Check all that apply -->
 - [ ] Helm template validation (`helm template --debug`)
@@ -69,6 +78,7 @@
 - [ ] I have read the [contribution guidelines](README.md#contributing)
 - [ ] I have tested my changes thoroughly
 - [ ] I have updated documentation as needed
+- [ ] I have added the appropriate version label (`version:patch`, `version:minor`, or `version:major`)
 - [ ] I have tagged @sawmills/engineers for review
 - [ ] I have provided clear commit messages
 
