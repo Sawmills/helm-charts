@@ -21,7 +21,7 @@ rollout:
   # Global rollout settings
   terminationGracePeriodSeconds: 10
   minReadySeconds: 5
-  
+
   # Deployment strategy configuration
   # For Deployment mode:
   # - RollingUpdate (default): Gradually replaces old pods with new ones
@@ -50,12 +50,12 @@ rollout:
     # Maximum number of pods that can be unavailable during the update
     # Can be specified as a number or percentage (e.g., "25%" or "1")
     maxUnavailable: 33%
-    
+
     # Maximum number of pods that can be scheduled above the desired number of pods
     # Can be specified as a number or percentage (e.g., "25%" or "1")
     # Only applicable for Deployment mode, not for DaemonSet
     maxSurge: 50%
-  
+
   # LEGACY FORMAT SUPPORT:
   # If you have existing configurations using this format, they will continue to work:
   # rollout:
@@ -116,7 +116,6 @@ quotamgmtprocessor:
 
 prometheusremotewrite:
   endpoint: https://ingress.sawmills.ai
-  
 
 # extra environment variables for the collector
 # for example:
@@ -132,7 +131,6 @@ telemetryExtraEnv: []
 image:
   pullPolicy: IfNotPresent
   tag: 1.558.0
-
 
 # The node selector for the Sawmills collector
 nodeSelector: {}
@@ -226,7 +224,7 @@ autoscaling:
 
 # KEDA-based autoscaling (separate from standard HPA)
 keda:
-  enabled: false  
+  enabled: false
   minReplicas: 1
   maxReplicas: 100
   pollingInterval: 30
@@ -244,9 +242,15 @@ keda:
       enabled: false
       metricType: Value
       metadata:
-        scalerAddress: "sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418"
-        query: "histogram_quantile(0.95, sum(rate(http_server_duration_bucket[2m])) by (le))"
-        targetValue: "2000"
+        scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
+        # Query by 95p latency
+        # query: "histogram_quantile(0.95, sum(rate(http_server_duration_bucket[2m])) by (le))"
+        # Query by fallback requests
+        query: >-
+          sum(increase(haproxy_server_http_responses_total{server="fallback"}[2m]))
+          /
+          sum(increase(haproxy_server_http_responses_total[2m]))
+        targetValue: "0.005"
     cpu:
       enabled: true
       targetUtilization: 80
@@ -524,7 +528,8 @@ haproxy:
 
 haproxyConfig:
   receivers:
-    prometheus:
+    # Scrape the haproxy sidecar so we can have these metrics
+    prometheus/haproxy:
       config:
         scrape_configs:
           - job_name: haproxy
@@ -533,9 +538,12 @@ haproxyConfig:
               - targets: ["${env:MY_POD_IP}:8405"]
   service:
     pipelines:
-      metrics/prometheus:
-        receivers: [prometheus]
-        exporters: [prometheusremotewrite]
+      metrics/haproxy:
+        receivers: [prometheus/haproxy]
+        processors:
+          - memory_limiter
+          - batch
+        exporters: [forward]
 
 telemetryConfig:
   receivers:
@@ -680,7 +688,6 @@ telemetryConfig:
                   temporality_preference: delta
                   compression: gzip
 
-
 # deprecated, use serviceAccount.name instead
 serviceAccountName: ""
 serviceAccount:
@@ -740,13 +747,16 @@ kedaScaler:
             - job_name: keda_scaler
               scrape_interval: 15s
               static_configs:
-                - targets: ["${env:MY_POD_IP}:${env:KEDA_SCALER_OTEL_PROMETHEUS_PORT}"]
+                - targets:
+                    ["${env:MY_POD_IP}:${env:KEDA_SCALER_OTEL_PROMETHEUS_PORT}"]
     processors:
       filter/keda:
         error_mode: ignore
         metrics:
           metric:
-            - name != "http.server.duration"
+            # Only pass to the collector used to export metrics to Keda metrics that can be used
+            # for fallback and latency of requests.
+            - name != "haproxy_server_http_responses_total" and name != "http.server.duration"
     exporters:
       otlp/keda:
         endpoint: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}
