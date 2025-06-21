@@ -247,10 +247,11 @@ keda:
         # query: "histogram_quantile(0.95, sum(rate(http_server_duration_bucket[2m])) by (le))"
         # Query by fallback requests
         query: >-
-          sum(increase(haproxy_server_http_responses_total{server="fallback"}[2m]))
+          (sum(increase(haproxy_server_http_responses_total{server="fallback"}[2m]))
           /
-          sum(increase(haproxy_server_http_responses_total[2m]))
-        targetValue: "0.005"
+          sum(increase(haproxy_server_http_responses_total[2m])))
+          * 100
+        targetValue: "5"
     cpu:
       enabled: true
       targetUtilization: 80
