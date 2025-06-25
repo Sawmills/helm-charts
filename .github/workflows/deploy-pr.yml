@@ -130,3 +130,13 @@ jobs:
           aws_role: ${{ vars.AWS_ROLE }}
           ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
           tag: ${{ needs.tag-and-version.outputs.tag }}
+      - name: Push Sawmills Remote Operator Helm chart
+        uses: Sawmills/actions/push-helm@main
+        with:
+          chart-path: helm-charts/sawmills-remote-operator
+          chart-repo: public.ecr.aws/s7a5m1b4
+          chart-name: sawmills-remote-operator-chart
+          aws_region: ${{ vars.AWS_REGION }}
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          tag: ${{ needs.tag-and-version.outputs.tag }}
