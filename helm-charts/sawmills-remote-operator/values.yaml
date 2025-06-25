@@ -1,0 +1,111 @@
+# Number of replicas for the Sawmills operator
+replicaCount: 3
+
+# RBAC configuration
+rbac:
+  # Whether to create ServiceAccount
+  createServiceAccount: true
+  # Whether to create Role
+  createRole: true
+  # Whether to create RoleBinding
+  createRoleBinding: true
+  # The name of the ServiceAccount to use (if not creating one)
+  serviceAccountName: sawmills-operator-sa
+  # The name of the Role to use (if not creating one)
+  roleName: sawmills-role
+  # The name of the RoleBinding to create
+  roleBindingName: sawmills-operator-rolebinding
+
+# DEPRECATED: The API key for the Sawmills operator
+apiKey: ""
+
+# The existing secret for the Sawmills operator, will override the deprecated `apiKey`
+apiKeyExistingSecret: ""
+
+# The key for the API key in the existing secret
+apiKeyExistingSecretKey: api-key
+
+# The collector name of the Sawmills operator
+collectorName: ""
+
+# The image pull policy the Sawmills operator
+image:
+  pullPolicy: Always
+
+# The address of the Sawmills operator
+operatorAddress: https://controller.sawmills.ai
+
+# enable grpc tracing, by default it is disabled
+grpcTrace: ""
+
+# The cache is used for storing the state of the operator
+cacheVolume:
+  sizeLimit: 500Mi
+
+# The resources for the Sawmills operator
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 250m
+  limits:
+    memory: 1Gi
+    cpu: 500m
+
+# The security context for the Sawmills operator
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+
+# The log level for the Sawmills operator
+logLevel: info
+
+# Affinity settings for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+# Example:
+# affinity:
+#   nodeAffinity:
+#     requiredDuringSchedulingIgnoredDuringExecution:
+#       nodeSelectorTerms:
+#       - matchExpressions:
+#         - key: kubernetes.io/e2e-az-name
+#           operator: In
+#           values:
+#           - e2e-az1
+#           - e2e-az2
+#   podAntiAffinity:
+#     preferredDuringSchedulingIgnoredDuringExecution:
+#     - weight: 100
+#       podAffinityTerm:
+#         labelSelector:
+#           matchExpressions:
+#           - key: app.kubernetes.io/name
+#             operator: In
+#             values:
+#             - sawmills-remote-operator
+#         topologyKey: kubernetes.io/hostname
+affinity: {}
+
+# Node selector for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+# Example:
+# nodeSelector:
+#   kubernetes.io/os: linux
+#   node-type: worker
+nodeSelector: {}
+
+# Tolerations for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+# Example:
+# tolerations:
+# - key: "key"
+#   operator: "Equal"
+#   value: "value"
+#   effect: "NoSchedule"
+tolerations: []
+
+# Values managed by the operator for sub helm charts.
+managedCharts:
+  sawmills-collector:
+    # affinity: {}
+    # nodeSelector: {}
+    # tolerations: []
