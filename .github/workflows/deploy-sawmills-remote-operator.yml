@@ -1,5 +1,10 @@
 name: Deploy Sawmills Remote Operator Helm Chart
 
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+
 on:
   pull_request:
     types:
