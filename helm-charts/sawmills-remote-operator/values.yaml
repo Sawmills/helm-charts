@@ -31,7 +31,7 @@ collectorName: ""
 # The image pull policy the Sawmills operator
 image:
   pullPolicy: Always
-  tag: 0.176.0
+  tag: 0.176.0 # Sawmills Remote Operator image version
 
 # The address of the Sawmills operator
 operatorAddress: https://controller.sawmills.ai
