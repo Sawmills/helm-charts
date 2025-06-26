@@ -15,14 +15,41 @@ on:
       - 'helm-charts/sawmills-collector/**'
 
 jobs:
-  deploy-collector:
+  version-and-tag:
     if: github.event.pull_request.merged == true
     uses: ./.github/workflows/deploy-helm-chart.yml
     with:
       chart_path: helm-charts/sawmills-collector
       chart_name: sawmills-collector
-      chart_repo_name: sawmills-collector-chart
       tag_prefix: collector
       default_bump_type: patch
       version_has_quotes: false
-    secrets: inherit 
+    secrets: inherit
+
+  build-and-deploy:
+    if: github.event.pull_request.merged == true
+    needs: [version-and-tag]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Authenticate with AWS and ECR
+        id: aws-auth
+        uses: Sawmills/actions/aws-auth@main
+        with:
+          aws_region: us-east-1
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+      - name: Push Sawmills Collector Helm chart
+        uses: Sawmills/actions/push-helm@main
+        with:
+          chart-path: helm-charts/sawmills-collector
+          chart-repo: public.ecr.aws/s7a5m1b4
+          chart-name: sawmills-collector-chart
+          aws_region: ${{ vars.AWS_REGION }}
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          tag: ${{ needs.version-and-tag.outputs.tag }} 
