@@ -36,13 +36,6 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Authenticate with AWS and ECR
-        id: aws-auth
-        uses: Sawmills/actions/aws-auth@main
-        with:
-          aws_region: us-east-1
-          aws_role: ${{ vars.AWS_ROLE }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
       - name: Push Sawmills Collector Helm chart
         uses: Sawmills/actions/push-helm@main
         with:
