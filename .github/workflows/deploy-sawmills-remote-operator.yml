@@ -15,14 +15,41 @@ on:
       - 'helm-charts/sawmills-remote-operator/**'
 
 jobs:
-  deploy-remote-operator:
+  version-and-tag:
     if: github.event.pull_request.merged == true
     uses: ./.github/workflows/deploy-helm-chart.yml
     with:
       chart_path: helm-charts/sawmills-remote-operator
       chart_name: sawmills-remote-operator
-      chart_repo_name: sawmills-remote-operator-chart
       tag_prefix: remote-operator
       default_bump_type: patch
       version_has_quotes: true
-    secrets: inherit 
+    secrets: inherit
+
+  build-and-deploy:
+    if: github.event.pull_request.merged == true
+    needs: [version-and-tag]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Authenticate with AWS and ECR
+        id: aws-auth
+        uses: Sawmills/actions/aws-auth@main
+        with:
+          aws_region: us-east-1
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+      - name: Push Sawmills Remote Operator Helm chart
+        uses: Sawmills/actions/push-helm@main
+        with:
+          chart-path: helm-charts/sawmills-remote-operator
+          chart-repo: public.ecr.aws/s7a5m1b4
+          chart-name: sawmills-remote-operator-chart
+          aws_region: ${{ vars.AWS_REGION }}
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          tag: ${{ needs.version-and-tag.outputs.tag }} 

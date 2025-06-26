@@ -11,10 +11,6 @@ on:
         description: 'Name of the Helm chart'
         required: true
         type: string
-      chart_repo_name:
-        description: 'Name of the chart in the ECR repository'
-        required: true
-        type: string
       tag_prefix:
         description: 'Prefix for git tags (e.g., "collector" or "remote-operator")'
         required: true
@@ -32,7 +28,10 @@ on:
     outputs:
       tag:
         description: 'The created git tag'
-        value: ${{ jobs.tag-and-version.outputs.tag }}
+        value: ${{ jobs.version-and-tag.outputs.tag }}
+      new_version:
+        description: 'The new version number'
+        value: ${{ jobs.version-and-tag.outputs.new_version }}
 
 permissions:
   id-token: write
@@ -40,10 +39,11 @@ permissions:
   packages: write
 
 jobs:
-  tag-and-version:
+  version-and-tag:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.create_tag.outputs.tag }}
+      new_version: ${{ steps.get_version.outputs.new_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -160,31 +160,4 @@ jobs:
           echo "Creating tag: ${TAG}"
           
           git tag -a "${TAG}" -m "Release ${{ inputs.chart_name }} ${TAG} (${{ steps.bump_type.outputs.bump_type }} bump)"
-          git push origin "${TAG}"
-
-  build-helm-chart:
-    needs: [tag-and-version]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-      - name: Authenticate with AWS and ECR
-        id: aws-auth
-        uses: Sawmills/actions/aws-auth@main
-        with:
-          aws_region: us-east-1
-          aws_role: ${{ vars.AWS_ROLE }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-      - name: Push Helm chart
-        uses: Sawmills/actions/push-helm@main
-        with:
-          chart-path: ${{ inputs.chart_path }}
-          chart-repo: public.ecr.aws/s7a5m1b4
-          chart-name: ${{ inputs.chart_repo_name }}
-          aws_region: ${{ vars.AWS_REGION }}
-          aws_role: ${{ vars.AWS_ROLE }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-          tag: ${{ needs.tag-and-version.outputs.tag }} 
+          git push origin "${TAG}" 
