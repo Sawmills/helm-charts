@@ -1,0 +1,23 @@
+name: Deploy Sawmills Remote Operator Helm Chart
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+    paths:
+      - 'helm-charts/sawmills-remote-operator/**'
+
+jobs:
+  deploy-remote-operator:
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/deploy-helm-chart.yml
+    with:
+      chart_path: helm-charts/sawmills-remote-operator
+      chart_name: sawmills-remote-operator
+      chart_repo_name: sawmills-remote-operator-chart
+      tag_prefix: remote-operator
+      default_bump_type: patch
+      version_has_quotes: true
+    secrets: inherit 

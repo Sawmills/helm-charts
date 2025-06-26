@@ -1,0 +1,23 @@
+name: Deploy Sawmills Collector Helm Chart
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+    paths:
+      - 'helm-charts/sawmills-collector/**'
+
+jobs:
+  deploy-collector:
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/deploy-helm-chart.yml
+    with:
+      chart_path: helm-charts/sawmills-collector
+      chart_name: sawmills-collector
+      chart_repo_name: sawmills-collector-chart
+      tag_prefix: collector
+      default_bump_type: patch
+      version_has_quotes: false
+    secrets: inherit 

@@ -1,0 +1,9 @@
+{{- if .Values.rbac.createServiceAccount }}
+{{- if not .Values.rbac.serviceAccountName }}
+{{- fail "serviceAccountName must be set when createServiceAccount is true" }}
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.rbac.serviceAccountName }}
+{{- end }}

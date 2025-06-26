@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sawmills-remote-operator.fullname" . }}
+  labels:
+    {{- include "sawmills-remote-operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "sawmills-remote-operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
+      labels:
+        {{- include "sawmills-remote-operator.labels" . | nindent 8 }}
+      name: remote-operator
+    spec:
+      serviceAccountName: {{ .Values.rbac.serviceAccountName }}
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: remote-operator
+        image: public.ecr.aws/s7a5m1b4/sawmills-remote-operator: {{- .Chart.AppVersion }}
+        command: [/remote-operator]
+        args: [operator]
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports: []
+        volumeMounts:
+        - mountPath: /cache
+          name: cache-volume
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: OPERATOR_ADDRESS
+          value: {{ .Values.operatorAddress }}
+        {{ if .Values.grpcTrace }}
+        - name: GRPC_TRACE
+          value: {{ .Values.grpcTrace }}
+        {{ end }}
+        - name: OPERATOR_NAME
+          value: {{ .Values.collectorName }}/$(POD_NAME)
+        {{- if .Values.apiKeyExistingSecret }}
+        - name: LEVEL
+          value: {{ .Values.logLevel }}
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.apiKeyExistingSecret | quote }}
+              key: {{ .Values.apiKeyExistingSecretKey | quote }}
+        {{- else }}
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: remote-operator
+              key: api-key
+        {{- end }}
+        - name: OPERATOR_KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: MANAGED_CHARTS_VALUES
+          value: {{ .Values.managedCharts | toJson | quote }}
+        resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 8086
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /ready # separate to a readiness check with /ready
+            port: 8086
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: cache-volume
+        emptyDir:
+          sizeLimit: {{ .Values.cacheVolume.sizeLimit }}

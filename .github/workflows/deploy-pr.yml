@@ -1,9 +1,7 @@
-name: Deploy Helm Chart
+name: General PR Actions
 
 permissions:
-  id-token: write
-  contents: write
-  packages: write
+  contents: read
 
 on:
   pull_request:
@@ -11,122 +9,37 @@ on:
       - closed
     branches:
       - main
+    paths-ignore:
+      - 'helm-charts/sawmills-collector/**'
+      - 'helm-charts/sawmills-remote-operator/**'
 
 jobs:
-  tag-and-version:
+  general-actions:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.create_tag.outputs.tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
       
-      - name: Determine version bump type
-        id: bump_type
+      - name: Identify changed areas
         run: |
-          # Get PR labels
-          LABELS="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
-          echo "PR Labels: $LABELS"
+          echo "PR merged with changes outside of Helm charts"
+          echo "Changed files:"
+          git diff --name-only HEAD~1 HEAD
           
-          # Determine bump type based on labels
-          if echo "$LABELS" | grep -q "version:major"; then
-            BUMP_TYPE="major"
-          elif echo "$LABELS" | grep -q "version:minor"; then
-            BUMP_TYPE="minor"
-          elif echo "$LABELS" | grep -q "version:patch"; then
-            BUMP_TYPE="patch"
-          else
-            # Default to minor if no label specified
-            BUMP_TYPE="minor"
-            echo "⚠️ No version label found. Defaulting to minor bump."
-            echo "💡 Use labels: version:major, version:minor, or version:patch"
+          # Identify what type of changes were made
+          if git diff --name-only HEAD~1 HEAD | grep -q "^\.github/workflows/"; then
+            echo "🔧 GitHub Actions workflows were modified"
           fi
           
-          echo "bump_type=${BUMP_TYPE}" >> $GITHUB_OUTPUT
-          echo "Version bump type: ${BUMP_TYPE}"
-      
-      - name: Get next version
-        id: get_version
-        uses: anothrNick/github-tag-action@1.71.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: false
-          DRY_RUN: true
-          RELEASE_BRANCHES: main
-          INITIAL_VERSION: 2.0.0
-          DEFAULT_BUMP: ${{ steps.bump_type.outputs.bump_type }}
-
-      - name: Update Chart.yaml version
-        run: |
-          NEXT_VERSION="${{ steps.get_version.outputs.new_tag }}"
-          
-          echo "Updating Chart.yaml version to: ${NEXT_VERSION}"
-          sed -i "s/^version: .*/version: ${NEXT_VERSION}/" helm-charts/sawmills-collector/Chart.yaml
-          
-          echo "Updated Chart.yaml:"
-          grep -E "^version:" helm-charts/sawmills-collector/Chart.yaml
-
-      - id: create_token
-        name: Create token
-        uses: tibdex/github-app-token@v2
-        with:
-          app_id: ${{ vars.SAWMILLS_REPO_APP_ID }}
-          private_key: ${{ secrets.SAWMILLS_APP_PRIVATE_KEY }}
-
-      - name: Commit Chart.yaml changes
-        env:
-          GIT_TOKEN: ${{ steps.create_token.outputs.token }}
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          if git diff --quiet helm-charts/sawmills-collector/Chart.yaml; then
-            echo "No changes to commit"
-          else
-            git add helm-charts/sawmills-collector/Chart.yaml
-            git commit -m "Update Chart.yaml version to ${{ steps.get_version.outputs.new_tag }} (${{ steps.bump_type.outputs.bump_type }} bump)"
-            git push origin main
+          if git diff --name-only HEAD~1 HEAD | grep -q "^scripts/"; then
+            echo "📜 Scripts were modified"
           fi
-      
-      - name: Create git tag
-        env:
-          GIT_TOKEN: ${{ steps.create_token.outputs.token }}
-        id: create_tag
-        run: |
-          TAG="v${{ steps.get_version.outputs.new_tag }}"
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "Creating tag: ${TAG}"
           
-          git tag -a "${TAG}" -m "Release ${TAG} (${{ steps.bump_type.outputs.bump_type }} bump)"
-          git push origin "${TAG}"
-
-  build-helm-chart:
-    if: github.event.pull_request.merged == true
-    needs: [tag-and-version]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-      - name: Authenticate with AWS and ECR
-        id: aws-auth
-        uses: Sawmills/actions/aws-auth@main
-        with:
-          aws_region: us-east-1
-          aws_role: ${{ vars.AWS_ROLE }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-      - name: Push Sawmills Collector Helm chart
-        uses: Sawmills/actions/push-helm@main
-        with:
-          chart-path: helm-charts/sawmills-collector
-          chart-repo: public.ecr.aws/s7a5m1b4
-          chart-name: sawmills-collector-chart
-          aws_region: ${{ vars.AWS_REGION }}
-          aws_role: ${{ vars.AWS_ROLE }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-          tag: ${{ needs.tag-and-version.outputs.tag }}
+          if git diff --name-only HEAD~1 HEAD | grep -q -E "^(README|CONTRIBUTING|LICENSE)"; then
+            echo "📚 Documentation was modified"
+          fi
+          
+          echo "✅ No Helm chart deployments needed for these changes" 
