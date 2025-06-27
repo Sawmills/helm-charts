@@ -45,14 +45,32 @@ runs:
     - name: Prepare Helm chart
       shell: bash
       run: |
-        appVersion=${{ inputs.tag }}
-        # remove the 'v' prefix
-        appVersion=${appVersion#v}
-        version=${appVersion}
+        tag="${{ inputs.tag }}"
+        echo "Input tag: $tag"
+        
+        # Extract version from tag (handles both "v1.2.3" and "prefix-v1.2.3" formats)
+        if [[ $tag =~ -v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          # Format: prefix-v1.2.3 -> 1.2.3
+          version="${BASH_REMATCH[1]}"
+          appVersion="${BASH_REMATCH[1]}"
+        elif [[ $tag =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          # Format: v1.2.3 -> 1.2.3
+          version="${BASH_REMATCH[1]}"
+          appVersion="${BASH_REMATCH[1]}"
+        else
+          # Fallback: use tag as-is
+          version="$tag"
+          appVersion="$tag"
+        fi
+        
+        echo "Extracted version: $version"
+        echo "App version: $appVersion"
+        
         dst=${{ runner.temp }}/charts
         package=${{ runner.temp }}/charts/${{ inputs.chart-name }}
         mkdir ${{ runner.temp }}/charts
         cp -r ${{ inputs.chart-path }} ${{ runner.temp }}/charts
+        
         # in case the last part of the path of chart-path is not equal to chart-name rename to chart-name
         chart_path_basename=$(basename "${{ inputs.chart-path }}")
         if [[ $chart_path_basename != ${{ inputs.chart-name }} ]]; then
