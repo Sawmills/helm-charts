@@ -37,7 +37,7 @@ jobs:
           ref: main
           fetch-depth: 0
       - name: Push Sawmills Collector Helm chart
-        uses: Sawmills/actions/push-helm@main
+        uses: ./.github/actions/push-helm
         with:
           chart-path: helm-charts/sawmills-collector
           chart-repo: public.ecr.aws/s7a5m1b4
