@@ -1,0 +1,72 @@
+name: push-helm
+description: 'Pushes Helm chart to Helm repository'
+inputs:
+  chart-path:
+    description: 'Path to the Helm chart'
+    required: true
+  chart-repo:
+    description: 'Helm repository name (the registry URL)'
+    required: true
+  chart-name:
+    description: 'Helm chart name'
+    required: true
+  tag:
+    description: 'Docker image tag'
+    required: true
+  aws_region:
+    description: 'AWS region'
+    required: true
+  aws_role:
+    description: 'AWS role'
+    required: true
+  ecr_account_id:
+    description: 'ECR account ID'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Authenticate with AWS
+      uses: ./.github/actions/aws-auth
+      with:
+        aws_region: ${{ inputs.aws_region }}
+        aws_role: ${{ inputs.aws_role }}
+        ecr_account_id: ${{ inputs.ecr_account_id }}
+    - name: Set up Helm
+      shell: bash
+      run: |
+        curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        chmod 700 get_helm.sh
+        ./get_helm.sh
+    - name: Prepare Helm chart
+      shell: bash
+      run: |
+        appVersion=${{ inputs.tag }}
+        # remove the 'v' prefix
+        appVersion=${appVersion#v}
+        version=${appVersion}
+        dst=${{ runner.temp }}/charts
+        package=${{ runner.temp }}/charts/${{ inputs.chart-name }}
+        mkdir ${{ runner.temp }}/charts
+        cp -r ${{ inputs.chart-path }} ${{ runner.temp }}/charts
+        # in case the last part of the path of chart-path is not equal to chart-name rename to chart-name
+        chart_path_basename=$(basename "${{ inputs.chart-path }}")
+        if [[ $chart_path_basename != ${{ inputs.chart-name }} ]]; then
+          mv ${{ runner.temp }}/charts/$chart_path_basename ${{ runner.temp }}/charts/${{ inputs.chart-name }}
+        fi
+
+        helm package ${package} \
+          --version ${version} \
+          --app-version ${appVersion} \
+          --destination ${{ runner.temp }}/charts
+
+        aws ecr-public get-login-password \
+          --region ${{ inputs.aws_region }} | helm registry login \
+          --username AWS \
+          --password-stdin ${{ inputs.chart-repo }}
+
+        helm push ${package}-${version}.tgz oci://${{ inputs.chart-repo }} 

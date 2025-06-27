@@ -1,0 +1,37 @@
+name: aws-auth
+description: Authenticate with AWS and ECR
+
+inputs:
+  aws_region:
+    description: AWS region (overrides local environments)
+    required: true
+    default: us-east-1
+  aws_role:
+    description: AWS role to assume (overrides local environments)
+    required: true
+  ecr_account_id:
+    description: ECR account ID
+    required: true
+outputs:
+  registry:
+    description: The ECR registry URL
+    value: ${{ steps.login-ecr.outputs.registry }}
+
+runs:
+  using: "composite"
+  steps:
+  - name: Configure AWS Credentials
+    uses: aws-actions/configure-aws-credentials@v4.0.2
+    with:
+      role-to-assume: ${{ inputs.aws_role }}
+      aws-region: ${{ inputs.aws_region }}
+  - name: Login to Amazon ECR
+    id: login-ecr
+    uses: aws-actions/amazon-ecr-login@v2
+    with:
+      registries: "${{ inputs.ecr_account_id }}"
+  - name: Login to Amazon ECR Public
+    id: login-ecr-public
+    uses: aws-actions/amazon-ecr-login@v2
+    with:
+      registry-type: public 
