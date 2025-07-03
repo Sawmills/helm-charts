@@ -18,6 +18,16 @@ spec:
   maxReplicaCount: {{ .Values.keda.maxReplicas }}
   pollingInterval: {{ .Values.keda.pollingInterval }}
   cooldownPeriod: {{ .Values.keda.cooldownPeriod }}
+  {{- with .Values.keda.advanced }}
+  advanced:
+    {{- with .horizontalPodAutoscalerConfig }}
+    horizontalPodAutoscalerConfig:
+      {{- with .behavior }}
+      behavior:
+        {{ toYaml . | nindent 12 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
   triggers:
     {{- if .Values.keda.scaling.prometheus.enabled }}
     - type: prometheus
