@@ -52,7 +52,7 @@ spec:
           value: {{ .Values.grpcTrace }}
         {{ end }}
         - name: OPERATOR_NAME
-          value: {{ .Values.collectorName }}/$(POD_NAME)
+          value: {{ tpl .Values.collectorName $ }}/$(POD_NAME)
         {{- if .Values.apiKeyExistingSecret }}
         - name: LEVEL
           value: {{ .Values.logLevel }}
@@ -73,7 +73,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: MANAGED_CHARTS_VALUES
-          value: {{ .Values.managedCharts | toJson | quote }}
+          value: {{ tpl (.Values.managedCharts | toJson | quote) $ }}
         resources:
             {{- toYaml .Values.resources | nindent 12 }}
         livenessProbe:
