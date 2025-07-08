@@ -141,9 +141,12 @@ jobs:
         run: |
           git config --global url."https://x-access-token:${GIT_TOKEN}@github.com/".insteadOf "https://github.com/"
 
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.create_token.outputs.token }}
+
       - name: Commit Chart.yaml changes
-        env:
-          GIT_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           if git diff --quiet ${{ inputs.chart_path }}/Chart.yaml; then
             echo "No changes to commit"
