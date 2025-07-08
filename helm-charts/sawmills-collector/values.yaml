@@ -281,7 +281,7 @@ keda:
 
 # Ingress configuration
 ingress:
-  # Type of ingress to use (nginx or haproxy)
+  # Type of ingress to use (nginx or haproxy).
   type: nginx
 
   # Nginx ingress configuration
