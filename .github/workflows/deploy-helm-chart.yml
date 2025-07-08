@@ -135,6 +135,12 @@ jobs:
           app_id: ${{ vars.SAWMILLS_REPO_APP_ID }}
           private_key: ${{ secrets.SAWMILLS_APP_PRIVATE_KEY }}
 
+      - name: Configure git to use GitHub token
+        env:
+          GIT_TOKEN: ${{ steps.create_token.outputs.token }}
+        run: |
+          git config --global url."https://x-access-token:${GIT_TOKEN}@github.com/".insteadOf "https://github.com/"
+
       - name: Commit Chart.yaml changes
         env:
           GIT_TOKEN: ${{ steps.create_token.outputs.token }}
