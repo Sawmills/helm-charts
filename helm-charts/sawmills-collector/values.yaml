@@ -776,7 +776,7 @@ kedaScaler:
         metrics:
           metric:
             # Only pass to the collector used to export metrics to Keda metrics that can be used
-            # for fallback and latency of requests
+            # for fallback and latency of requests.
             - name != "haproxy_server_http_responses_total" and name != "http.server.duration"
     exporters:
       otlp/keda:
