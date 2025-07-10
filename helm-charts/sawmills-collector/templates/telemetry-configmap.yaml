@@ -15,5 +15,11 @@ data:
       {{- if .Values.kedaScaler.enabled }}
         {{- $config = merge $config .Values.kedaScaler.telemetryConfig }}
       {{- end }}
+      {{- if .Values.telemetryConfigProm.enabled }}
+        {{- $config = merge $config .Values.telemetryConfigProm.config }}
+      {{- end }}
+      {{- if .Values.telemetryConfigArrow.enabled }}
+        {{- $config = merge $config .Values.telemetryConfigArrow.config }}
+      {{- end }}
       {{- toYaml $config | nindent 6 }}
     {{- end }} 
