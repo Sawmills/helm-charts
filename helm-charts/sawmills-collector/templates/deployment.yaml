@@ -127,7 +127,9 @@ spec:
             initialDelaySeconds: {{ .Values.rollout.haproxy.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.haproxy.probes.readiness.periodSeconds }}
           resources:
+            {{- if .Values.haproxy.resources }}
             {{- toYaml .Values.haproxy.resources | nindent 12 }}
+            {{- end }}
           volumeMounts:
           - name: haproxy-config
             mountPath: /usr/local/etc/haproxy/haproxy.cfg
@@ -195,7 +197,9 @@ spec:
             initialDelaySeconds: {{ .Values.rollout.telemetry.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.telemetry.probes.readiness.periodSeconds }}
           resources:
+            {{- if .Values.telemetry.resources }}
             {{- toYaml .Values.telemetry.resources | nindent 12 }}
+            {{- end }}
           volumeMounts:
             - name: sawmills-telemetry-config
               mountPath: /etc/otel/config.yaml
@@ -265,7 +269,9 @@ spec:
             initialDelaySeconds: {{ .Values.rollout.main.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.main.probes.readiness.periodSeconds }}
           resources:
+            {{- if .Values.resources }}
             {{- toYaml .Values.resources | nindent 12 }}
+            {{- end }}
           volumeMounts:
           {{- if not .Values.otelConfig.s3path }}
             - name: sawmills-collector-config
