@@ -174,17 +174,19 @@ affinity:
 topologySpreadConstraints: []
 
 # The resources for the Sawmills collector
-# To disable resource limits (no CPU/memory limits), set limits to null:
+# To disable resource limits (no CPU/memory limits), set limits.enabled: false:
 # resources:
 #   requests:
 #     memory: 512Mi
 #     cpu: 250m
-#   limits: null
+#   limits:
+#     enabled: false
 resources:
   requests:
     memory: 512Mi
     cpu: 250m
   limits:
+    enabled: true
     memory: 2.5Gi
     cpu: 3000m
 
@@ -199,8 +201,8 @@ telemetry:
     requests:
       memory: 256Mi
       cpu: 250m
-    # Set limits to null to disable resource limits
     limits:
+      enabled: true
       memory: 2.5Gi
       cpu: 3000m
   # Prometheus port for the telemetry collector, can be used by customers to scrape metrics
@@ -489,10 +491,11 @@ haproxy:
     requests:
       memory: 128Mi
       cpu: 50m
-    # Set limits to null to disable resource limits
     limits:
+      enabled: true
       memory: 256Mi
       cpu: 100m
+    # Set limits to null to disable resource limits
     # limits: null
 
   # Optional: Override global section
