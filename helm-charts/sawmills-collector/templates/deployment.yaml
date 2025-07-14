@@ -182,7 +182,7 @@ spec:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
             - name: COLLECTOR_GATEWAY_ENDPOINT
-              value: {{ .Values.collector_gateway_endpoint.endpoint }}
+              value: {{ .Values.collector_gateway.endpoint }}
             - name: COLLECTOR_GATEWAY_API_KEY
               valueFrom:
                 secretKeyRef:

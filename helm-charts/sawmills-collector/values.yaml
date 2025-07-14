@@ -117,7 +117,7 @@ quotamgmtprocessor:
 prometheusremotewrite:
   endpoint: https://ingress.sawmills.ai
 
-collector_gateway_endpoint:
+collector_gateway:
   endpoint: https://ingress.sawmills.ai
 
 # extra environment variables for the collector
@@ -578,24 +578,21 @@ haproxyConfig:
           - batch
         exporters: [forward]
 
-telemetryConfigProm:
-  enabled: true
-  config:
+telemetryExternalConfig:
+  type: "prometheus"
+  prometheusConfig:
     service:
       pipelines:
         metrics/external/prometheusremotewrite:
-          receivers: [forward]
-          exporters: [prometheusremotewrite]
-telemetryConfigArrow:
-  enabled: false
-  config:
+          receivers: [ forward ]
+          exporters: [ prometheusremotewrite ]
+  arrowConfig:
     service:
       pipelines:
         metrics/external/otelarrow:
-          receivers: [forward]
-          processors: [transform/external_labels]
-          exporters: [otelarrow]
-
+          receivers: [ forward ]
+          processors: [ transform/external_labels ]
+          exporters: [ otelarrow ]
 telemetryConfig:
   receivers:
     otlp/customer_collector:

@@ -15,11 +15,10 @@ data:
       {{- if .Values.kedaScaler.enabled }}
         {{- $config = merge $config .Values.kedaScaler.telemetryConfig }}
       {{- end }}
-      {{- if .Values.telemetryConfigProm.enabled }}
-        {{- $config = merge $config .Values.telemetryConfigProm.config }}
-      {{- end }}
-      {{- if .Values.telemetryConfigArrow.enabled }}
-        {{- $config = merge $config .Values.telemetryConfigArrow.config }}
+      {{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
+        {{- $config = merge $config .Values.telemetryExternalConfig.prometheusConfig }}
+      {{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
+        {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
       {{- end }}
       {{- toYaml $config | nindent 6 }}
     {{- end }} 
