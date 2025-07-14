@@ -584,15 +584,15 @@ telemetryExternalConfig:
     service:
       pipelines:
         metrics/external/prometheusremotewrite:
-          receivers: [ forward ]
-          exporters: [ prometheusremotewrite ]
+          receivers: [forward]
+          exporters: [prometheusremotewrite]
   arrowConfig:
     service:
       pipelines:
         metrics/external/otelarrow:
-          receivers: [ forward ]
-          processors: [ transform/external_labels ]
-          exporters: [ otelarrow ]
+          receivers: [forward]
+          processors: [transform/external_labels]
+          exporters: [otelarrow]
 telemetryConfig:
   receivers:
     otlp/customer_collector:
