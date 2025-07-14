@@ -177,6 +177,12 @@ affinity:
 topologySpreadConstraints: []
 
 # The resources for the Sawmills collector
+# To disable resource limits (no CPU/memory limits), set limits to null:
+# resources:
+#   requests:
+#     memory: 512Mi
+#     cpu: 250m
+#   limits: null
 resources:
   requests:
     memory: 512Mi
@@ -196,6 +202,7 @@ telemetry:
     requests:
       memory: 256Mi
       cpu: 250m
+    # Set limits to null to disable resource limits
     limits:
       memory: 2.5Gi
       cpu: 3000m
@@ -485,9 +492,11 @@ haproxy:
     requests:
       memory: 128Mi
       cpu: 50m
+    # Set limits to null to disable resource limits
     limits:
       memory: 256Mi
       cpu: 100m
+    # limits: null
 
   # Optional: Override global section
   global: {}

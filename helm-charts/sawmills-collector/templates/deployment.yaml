@@ -127,7 +127,14 @@ spec:
             initialDelaySeconds: {{ .Values.rollout.haproxy.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.haproxy.probes.readiness.periodSeconds }}
           resources:
-            {{- toYaml .Values.haproxy.resources | nindent 12 }}
+            {{- if .Values.haproxy.resources.requests }}
+            requests:
+              {{- toYaml .Values.haproxy.resources.requests | nindent 14 }}
+            {{- end }}
+            {{- if and .Values.haproxy.resources.limits (not (eq .Values.haproxy.resources.limits nil)) }}
+            limits:
+              {{- toYaml .Values.haproxy.resources.limits | nindent 14 }}
+            {{- end }}
           volumeMounts:
           - name: haproxy-config
             mountPath: /usr/local/etc/haproxy/haproxy.cfg
@@ -201,7 +208,14 @@ spec:
             initialDelaySeconds: {{ .Values.rollout.telemetry.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.telemetry.probes.readiness.periodSeconds }}
           resources:
-            {{- toYaml .Values.telemetry.resources | nindent 12 }}
+            {{- if .Values.telemetry.resources.requests }}
+            requests:
+              {{- toYaml .Values.telemetry.resources.requests | nindent 14 }}
+            {{- end }}
+            {{- if and .Values.telemetry.resources.limits (not (eq .Values.telemetry.resources.limits nil)) }}
+            limits:
+              {{- toYaml .Values.telemetry.resources.limits | nindent 14 }}
+            {{- end }}
           volumeMounts:
             - name: sawmills-telemetry-config
               mountPath: /etc/otel/config.yaml
@@ -271,7 +285,14 @@ spec:
             initialDelaySeconds: {{ .Values.rollout.main.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.main.probes.readiness.periodSeconds }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- if .Values.resources.requests }}
+            requests:
+              {{- toYaml .Values.resources.requests | nindent 14 }}
+            {{- end }}
+            {{- if and .Values.resources.limits (not (eq .Values.resources.limits nil)) }}
+            limits:
+              {{- toYaml .Values.resources.limits | nindent 14 }}
+            {{- end }}
           volumeMounts:
           {{- if not .Values.otelConfig.s3path }}
             - name: sawmills-collector-config
