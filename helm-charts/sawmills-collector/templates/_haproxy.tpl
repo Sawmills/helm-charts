@@ -70,6 +70,7 @@ backend healthcheck_backend
 {{- end }}
 
 {{- range $name, $config := .Values.haproxy.mapping }}
+{{ $fc := get $config.to "fallback_config" }}
 {{ $mode := $config.to.mode | default "http" }}
 {{ $proto := "" }}
 {{ if eq $mode "grpc" }}
@@ -86,6 +87,11 @@ frontend logs_http_frontend_{{ $config.from }}
   {{- range $option := $config.options }}
   option {{ $option }}
   {{- end }}
+  {{- with $fc }}
+  {{- if .timeout }}
+  {{ if .timeout.client }}timeout client {{ .timeout.client }}{{- end }}
+  {{- end }}
+  {{- end }}
   default_backend logs_http_{{ $config.from }}
 
 backend logs_http_{{ $config.from }}
@@ -96,8 +102,18 @@ backend logs_http_{{ $config.from }}
   {{- if not $config.backend_options }}
   {{ if not (eq $mode "grpc") }}option httpchk{{ end }}
   {{- end }}
+  {{- with $fc }}
+  {{- if .timeout }}
+  {{ if .timeout.connect }}timeout connect {{ .timeout.connect }}{{- end }}
+  {{ if .timeout.server }}timeout server {{ .timeout.server }}{{- end }}
+  {{- end }}
+  {{- end }}
   {{- if $config.to.fallback_endpoint }}
-  server otel "$MY_POD_IP":{{ $config.to.port }} {{ $proto }} check port 13133 inter 2000 rise 10 fall 1 observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $.Values.haproxy.error_limit }} on-error mark-down
+  {{- $server := get $fc "server" -}}
+  {{- $interval := default 2000 (get $server "interval") -}}
+  {{- $rise := default 10 (get $server "rise") -}}
+  {{- $fall := default 1 (get $server "fall") -}}
+  server otel "$MY_POD_IP":{{ $config.to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $.Values.haproxy.error_limit }} on-error mark-down
   server fallback {{ $config.to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $config.to "fallback_ssl")) $config.to.fallback_ssl) }}ssl verify none{{ end }}
   {{- else }}
   server otel "$MY_POD_IP":{{ $config.to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
