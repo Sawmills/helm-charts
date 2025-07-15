@@ -117,6 +117,9 @@ quotamgmtprocessor:
 prometheusremotewrite:
   endpoint: https://ingress.sawmills.ai
 
+collector_gateway:
+  endpoint: https://ingress.sawmills.ai
+
 # extra environment variables for the collector
 # for example:
 # - name: DD_API_KEY
@@ -577,6 +580,21 @@ haproxyConfig:
           - batch
         exporters: [forward]
 
+telemetryExternalConfig:
+  type: "prometheus"
+  prometheusConfig:
+    service:
+      pipelines:
+        metrics/external/prometheusremotewrite:
+          receivers: [forward]
+          exporters: [prometheusremotewrite]
+  arrowConfig:
+    service:
+      pipelines:
+        metrics/external/otelarrow:
+          receivers: [forward]
+          processors: [transform/external_labels]
+          exporters: [otelarrow]
 telemetryConfig:
   receivers:
     otlp/customer_collector:
@@ -605,7 +623,10 @@ telemetryConfig:
     prometheus:
       endpoint: ${env:MY_POD_IP}:${env:PROMETHEUS_PORT}
       metric_expiration: 1m
-
+    otelarrow:
+      endpoint: ${env:COLLECTOR_GATEWAY_ENDPOINT}
+      headers:
+        X-API-KEY: ${env:COLLECTOR_GATEWAY_API_KEY}
     prometheusremotewrite:
       endpoint: ${env:PROMETHEUS_REMOTE_WRITE_ENDPOINT}
       headers:
@@ -615,6 +636,14 @@ telemetryConfig:
         collector_name: ${env:COLLECTOR_NAME}
         collector_id: ${env:COLLECTOR_ID}
   processors:
+    transform/external_labels:
+      error_mode: ignore
+      metric_statements:
+        - context: datapoint
+          statements:
+            - set(attributes["collector_id"], "${env:COLLECTOR_ID}") where attributes["collector_id"] == nil
+            - set(attributes["collector_name"], "${env:COLLECTOR_NAME}") where attributes["collector_name"] == nil
+            - set(attributes["pod_name"], "${env:MY_POD_NAME}") where attributes["pod_name"] == nil
     memory_limiter:
       check_interval: 1s
       limit_mib: 0
@@ -692,10 +721,6 @@ telemetryConfig:
       metrics/system:
         receivers: [routing]
         exporters: [prometheus]
-
-      metrics/external:
-        receivers: [forward]
-        exporters: [prometheusremotewrite]
 
     telemetry:
       resource:

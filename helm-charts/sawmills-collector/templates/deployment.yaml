@@ -181,6 +181,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
+            - name: COLLECTOR_GATEWAY_ENDPOINT
+              value: {{ .Values.collector_gateway.endpoint }}
+            - name: COLLECTOR_GATEWAY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
             {{- if .Values.telemetryExtraEnv }}
             {{- toYaml .Values.telemetryExtraEnv | nindent 12 }}
             {{- end }}
