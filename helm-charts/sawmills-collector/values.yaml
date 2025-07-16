@@ -177,16 +177,17 @@ affinity:
 topologySpreadConstraints: []
 
 # The resources for the Sawmills collector
-# To disable resource limits (no CPU/memory limits), set limits to null:
+# To disable resource limits (no CPU/memory limits), set disableLimits: true:
 # resources:
 #   requests:
 #     memory: 512Mi
 #     cpu: 250m
-#   limits: null
+#   disableLimits: true
 resources:
   requests:
     memory: 512Mi
     cpu: 250m
+  disableLimits: false
   limits:
     memory: 2.5Gi
     cpu: 3000m
@@ -202,7 +203,7 @@ telemetry:
     requests:
       memory: 256Mi
       cpu: 250m
-    # Set limits to null to disable resource limits
+    disableLimits: false
     limits:
       memory: 2.5Gi
       cpu: 3000m
@@ -492,10 +493,11 @@ haproxy:
     requests:
       memory: 128Mi
       cpu: 50m
-    # Set limits to null to disable resource limits
+    disableLimits: false
     limits:
       memory: 256Mi
       cpu: 100m
+    # Set limits to null to disable resource limits
     # limits: null
 
   # Optional: Override global section
@@ -624,7 +626,7 @@ telemetryConfig:
     otelarrow:
       endpoint: ${env:COLLECTOR_GATEWAY_ENDPOINT}
       headers:
-        X-API-KEY: ${env:COLLECTOR_GATEWAY_API_KEY}
+        Authorization: Bearer ${env:COLLECTOR_GATEWAY_API_KEY}
     prometheusremotewrite:
       endpoint: ${env:PROMETHEUS_REMOTE_WRITE_ENDPOINT}
       headers:
