@@ -224,18 +224,18 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
   # Add behavior configuration for faster scaling
   behavior:
-    scaleDown:
-      policies:
-      - periodSeconds: 300
-        type: Pods
-        value: 1
-      stabilizationWindowSeconds: 0
     scaleUp:
+      stabilizationWindowSeconds: 120
       policies:
-      - periodSeconds: 600
-        type: Pods
-        value: 10
-      stabilizationWindowSeconds: 0
+        - type: Percent
+          value: 50
+          periodSeconds: 120
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 120
 
 # KEDA-based autoscaling (separate from standard HPA)
 keda:
