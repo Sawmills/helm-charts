@@ -196,7 +196,7 @@ resources:
     memory: 2.5Gi
     cpu: 3000m
 
-# Priority class name for the collector pods
+# Priority class name for the collector pods.
 # This determines the scheduling priority of the pods
 # Useful for ensuring collector pods are scheduled before other pods
 # Example: system-node-critical, system-cluster-critical
