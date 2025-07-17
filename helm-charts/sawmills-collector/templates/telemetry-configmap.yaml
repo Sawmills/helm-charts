@@ -20,5 +20,9 @@ data:
       {{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
         {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
       {{- end }}
+      {{- /* Inject external_labels from top-level prometheusremotewrite config */ -}}
+      {{- if and $config.exporters.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
+        {{- $_ := set $config.exporters.prometheusremotewrite "external_labels" .Values.prometheusremotewrite.external_labels }}
+      {{- end }}
       {{- toYaml $config | nindent 6 }}
     {{- end }} 
