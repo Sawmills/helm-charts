@@ -116,6 +116,10 @@ quotamgmtprocessor:
 
 prometheusremotewrite:
   endpoint: https://ingress.sawmills.ai
+  external_labels:
+    pod_name: ${env:MY_POD_NAME}
+    collector_name: ${env:COLLECTOR_NAME}
+    collector_id: ${env:COLLECTOR_ID}
 
 collector_gateway:
   endpoint: https://ingress.sawmills.ai
@@ -631,10 +635,6 @@ telemetryConfig:
       endpoint: ${env:PROMETHEUS_REMOTE_WRITE_ENDPOINT}
       headers:
         X-API-KEY: ${env:PROMETHEUS_REMOTE_WRITE_API_KEY}
-      external_labels:
-        pod_name: ${env:MY_POD_NAME}
-        collector_name: ${env:COLLECTOR_NAME}
-        collector_id: ${env:COLLECTOR_ID}
   processors:
     transform/external_labels:
       error_mode: ignore
