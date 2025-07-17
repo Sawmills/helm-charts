@@ -224,26 +224,26 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
   # Add behavior configuration for faster scaling
   behavior:
-    scaleUp:
-      stabilizationWindowSeconds: 120
-      policies:
-        - type: Percent
-          value: 50
-          periodSeconds: 120
     scaleDown:
-      stabilizationWindowSeconds: 300
       policies:
-        - type: Percent
-          value: 25
-          periodSeconds: 120
+      - periodSeconds: 300
+        type: Pods
+        value: 1
+      stabilizationWindowSeconds: 0
+    scaleUp:
+      policies:
+      - periodSeconds: 600
+        type: Pods
+        value: 10
+      stabilizationWindowSeconds: 0
 
 # KEDA-based autoscaling (separate from standard HPA)
 keda:
   enabled: false
-  minReplicas: 1
+  minReplicas: 2
   maxReplicas: 100
   pollingInterval: 30
-  cooldownPeriod: 300
+  cooldownPeriod: 0
   # Advanced HPA configuration for KEDA (optional)
   # This block allows you to specify advanced HorizontalPodAutoscaler behavior,
   # such as custom scaleUp/scaleDown policies and stabilization windows.
@@ -278,15 +278,9 @@ keda:
       metricType: Value
       metadata:
         scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
-        # Query by 95p latency
-        # query: "histogram_quantile(0.95, sum(rate(http_server_duration_bucket[2m])) by (le))"
-        # Query by fallback requests
         query: >-
-          (sum(increase(haproxy_server_http_responses_total{server="fallback"}[2m]))
-          /
-          sum(increase(haproxy_server_http_responses_total[2m])))
-          * 100
-        targetValue: "5"
+          quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) > 6000 or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) < 3500 or vector(5000)
+        targetValue: "5000"
     cpu:
       enabled: true
       targetUtilization: 80
