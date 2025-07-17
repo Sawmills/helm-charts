@@ -8,21 +8,5 @@ metadata:
 data:
   telemetry-config.yaml: |
     {{- if .Values.telemetryConfig }}
-      {{- $config := .Values.telemetryConfig }}
-      {{- if .Values.haproxy.enabled }}
-        {{- $config = merge $config .Values.haproxyConfig }}
-      {{- end }}
-      {{- if .Values.kedaScaler.enabled }}
-        {{- $config = merge $config .Values.kedaScaler.telemetryConfig }}
-      {{- end }}
-      {{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
-        {{- $config = merge $config .Values.telemetryExternalConfig.prometheusConfig }}
-      {{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
-        {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
-      {{- end }}
-      {{- /* Inject external_labels from top-level prometheusremotewrite config */ -}}
-      {{- if and $config.exporters.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
-        {{- $_ := set $config.exporters.prometheusremotewrite "external_labels" .Values.prometheusremotewrite.external_labels }}
-      {{- end }}
-      {{- toYaml $config | nindent 6 }}
+      {{- include "sawmills-collector.telemetryConfig" . | nindent 6 }}
     {{- end }} 

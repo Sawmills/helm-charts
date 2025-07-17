@@ -74,4 +74,54 @@ key: {{ .key }}
 name: sawmills-secret
 key: api-key
 {{- end -}}
+{{- end -}}
+
+{{/*
+Generate external labels transform processor configuration
+*/}}
+{{- define "sawmills-collector.externalLabelsProcessor" -}}
+{{- $hasLabels := false -}}
+{{- if .Values.prometheusremotewrite -}}
+  {{- if .Values.prometheusremotewrite.external_labels -}}
+    {{- $hasLabels = true -}}
+  {{- end -}}
+{{- end -}}
+{{- if $hasLabels -}}
+error_mode: ignore
+metric_statements:
+- context: datapoint
+  statements:
+  {{- range $key, $value := .Values.prometheusremotewrite.external_labels }}
+  - set(attributes["{{ $key }}"], "{{ $value }}")
+  {{- end }}
+{{- else -}}
+error_mode: ignore
+metric_statements: []
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate merged telemetry configuration with external labels
+*/}}
+{{- define "sawmills-collector.telemetryConfig" -}}
+{{- if .Values.telemetryConfig }}
+{{- $config := .Values.telemetryConfig }}
+{{- if .Values.haproxy.enabled }}
+  {{- $config = merge $config .Values.haproxyConfig }}
+{{- end }}
+{{- if .Values.kedaScaler.enabled }}
+  {{- $config = merge $config .Values.kedaScaler.telemetryConfig }}
+{{- end }}
+{{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
+  {{- $config = merge $config .Values.telemetryExternalConfig.prometheusConfig }}
+{{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
+  {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
+{{- end }}
+{{- /* Override transform/external_labels processor with dynamic config */ -}}
+{{- if and (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
+  {{- $processor := include "sawmills-collector.externalLabelsProcessor" . | fromYaml }}
+  {{- $_ := set $config.processors "transform/external_labels" $processor }}
+{{- end }}
+{{- toYaml $config }}
+{{- end }}
 {{- end -}}  

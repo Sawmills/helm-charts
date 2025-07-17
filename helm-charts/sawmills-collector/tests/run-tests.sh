@@ -30,6 +30,10 @@ echo "📋 Running integration tests..."
 helm unittest . -f 'tests/deployment_integration_test.yaml' --color
 
 echo ""
+echo "📋 Running external labels helper tests..."
+helm unittest . -f 'tests/helpers_external_labels_test.yaml' --color
+
+echo ""
 echo "📋 Running all tests..."
 helm unittest . --color
 
@@ -39,5 +43,6 @@ echo ""
 echo "📊 Test Summary:"
 echo "  - Affinity configuration tests: ✅"
 echo "  - Integration tests: ✅"
+echo "  - External labels helper tests: ✅"
 echo ""
 echo "🚀 You can now deploy the chart with confidence that the affinity configuration works correctly!" 
