@@ -244,7 +244,7 @@ keda:
   maxReplicas: 100
   pollingInterval: 30
   cooldownPeriod: 300
-  # Advanced HPA configuration for KEDA (optional)
+  # Advanced HPA configuration for KEDA (optional).
   # This block allows you to specify advanced HorizontalPodAutoscaler behavior,
   # such as custom scaleUp/scaleDown policies and stabilization windows.
   # See: https://keda.sh/docs/2.14/concepts/scaling-deployments/#advanced-horizontal-pod-autoscaler-configuration
