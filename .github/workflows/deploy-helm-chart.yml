@@ -74,33 +74,24 @@ jobs:
           echo "bump_type=${BUMP_TYPE}" >> $GITHUB_OUTPUT
           echo "Version bump type: ${BUMP_TYPE}"
 
-      - name: Authenticate with AWS
-        uses: ./.github/actions/aws-auth
-        with:
-          aws_region: ${{ vars.AWS_REGION }}
-          aws_role: ${{ vars.AWS_ROLE }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-
-      - name: Get current chart version from ECR
+      - name: Get latest version for specific chart
         id: current_version
         run: |
-          echo "Fetching latest version for ${{ inputs.chart_name }} from ECR..."
+          # Get the latest tag for this specific chart
+          LATEST_TAG=$(git tag --sort=-version:refname | grep "^${{ inputs.tag_prefix }}-v" | head -n 1)
           
-          # List all tags for the chart and find the latest version
-          LATEST_VERSION=$(aws ecr-public describe-images \
-            --repository-name ${{ inputs.chart_name }}-chart \
-            --region ${{ vars.AWS_REGION }} \
-            --query 'imageDetails[].imageTags[]' \
-            --output text | tr '\t' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
-          
-          if [ -z "$LATEST_VERSION" ]; then
-            echo "No version found in ECR, using 0.0.0 as base"
-            LATEST_VERSION="0.0.0"
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No existing tags found for ${{ inputs.tag_prefix }}, starting with 0.0.0"
+            CURRENT_VERSION="0.0.0"
+          else
+            # Extract version from tag (remove prefix and 'v')
+            CURRENT_VERSION="${LATEST_TAG#${{ inputs.tag_prefix }}-v}"
+            echo "Latest tag for ${{ inputs.tag_prefix }}: ${LATEST_TAG}"
+            echo "Current version: ${CURRENT_VERSION}"
           fi
           
-          echo "current_version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
-          echo "Latest ${{ inputs.chart_name }} version in ECR: ${LATEST_VERSION}"
-      
+          echo "current_version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+
       - name: Calculate next version
         id: get_version
         run: |
