@@ -73,17 +73,33 @@ jobs:
           
           echo "bump_type=${BUMP_TYPE}" >> $GITHUB_OUTPUT
           echo "Version bump type: ${BUMP_TYPE}"
-      
-      - name: Get current chart version
+
+      - name: Authenticate with AWS
+        uses: ./.github/actions/aws-auth
+        with:
+          aws_region: ${{ vars.AWS_REGION }}
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+
+      - name: Get current chart version from ECR
         id: current_version
         run: |
-          if [ "${{ inputs.version_has_quotes }}" = "true" ]; then
-            CURRENT_VERSION=$(grep "^version:" ${{ inputs.chart_path }}/Chart.yaml | cut -d' ' -f2 | tr -d '"')
-          else
-            CURRENT_VERSION=$(grep "^version:" ${{ inputs.chart_path }}/Chart.yaml | cut -d' ' -f2)
+          echo "Fetching latest version for ${{ inputs.chart_name }} from ECR..."
+          
+          # List all tags for the chart and find the latest version
+          LATEST_VERSION=$(aws ecr-public describe-images \
+            --repository-name ${{ inputs.chart_name }}-chart \
+            --region ${{ vars.AWS_REGION }} \
+            --query 'imageDetails[].imageTags[]' \
+            --output text | tr '\t' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "No version found in ECR, using 0.0.0 as base"
+            LATEST_VERSION="0.0.0"
           fi
-          echo "current_version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
-          echo "Current ${{ inputs.chart_name }} version: ${CURRENT_VERSION}"
+          
+          echo "current_version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
+          echo "Latest ${{ inputs.chart_name }} version in ECR: ${LATEST_VERSION}"
       
       - name: Calculate next version
         id: get_version
@@ -170,4 +186,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "${TAG}" -m "Release ${{ inputs.chart_name }} ${TAG} (${{ steps.bump_type.outputs.bump_type }} bump)"
-          git push origin "${TAG}" 
+          git push origin "${TAG}"
