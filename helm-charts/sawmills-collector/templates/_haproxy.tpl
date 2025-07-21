@@ -70,8 +70,9 @@ backend healthcheck_backend
 {{- end }}
 
 {{- range $name, $config := .Values.haproxy.mapping }}
-{{ $fc := get $config.to "fallback_config" }}
-{{ $mode := $config.to.mode | default "http" }}
+{{ $to := $config.to | default dict }}
+{{ $fc := $to.fallback_config | default dict }}
+{{ $mode := $to.mode | default "http" }}
 {{ $proto := "" }}
 {{ if eq $mode "grpc" }}
   {{ $proto = "proto h2" }}
@@ -108,15 +109,15 @@ backend logs_http_{{ $config.from }}
   {{ if .timeout.server }}timeout server {{ .timeout.server }}{{- end }}
   {{- end }}
   {{- end }}
-  {{- if $config.to.fallback_endpoint }}
-  {{- $server := get $fc "server" -}}
-  {{- $interval := default 2000 (get $server "interval") -}}
-  {{- $rise := default 10 (get $server "rise") -}}
-  {{- $fall := default 1 (get $server "fall") -}}
-  server otel "$MY_POD_IP":{{ $config.to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $.Values.haproxy.error_limit }} on-error mark-down
-  server fallback {{ $config.to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $config.to "fallback_ssl")) $config.to.fallback_ssl) }}ssl verify none{{ end }}
+  {{- if $to.fallback_endpoint }}
+  {{- $server := $fc.server | default dict -}}
+  {{- $interval := default 2000 $server.interval -}}
+  {{- $rise := default 10 $server.rise -}}
+  {{- $fall := default 1 $server.fall -}}
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $.Values.haproxy.error_limit }} on-error mark-down
+  server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
   {{- else }}
-  server otel "$MY_POD_IP":{{ $config.to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
   {{- end }}
 {{- end }}
 {{- end -}} 
