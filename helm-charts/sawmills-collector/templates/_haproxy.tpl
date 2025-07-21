@@ -101,7 +101,9 @@ backend logs_http_{{ $config.from }}
   option {{ $option }}
   {{- end }}
   {{- if not $config.backend_options }}
-  {{ if not (eq $mode "grpc") }}option httpchk{{ end }}
+  {{- if not (eq $mode "grpc") }}
+  option httpchk
+  {{- end }}
   {{- end }}
   {{- with $fc }}
   {{- if .timeout }}
