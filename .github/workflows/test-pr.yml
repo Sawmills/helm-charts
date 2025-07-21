@@ -7,7 +7,13 @@ permissions:
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 jobs:
   check-codeowners:
     uses: ./.github/workflows/check-codeowners.yml
+
+  helm-test:
+    name: Helm Chart Tests
+    uses: ./.github/workflows/helm-test.yml
