@@ -92,7 +92,7 @@ metric_statements:
 - context: datapoint
   statements:
   {{- range $key, $value := .Values.prometheusremotewrite.external_labels }}
-  - set(attributes["{{ $key }}"], "{{ $value }}")
+  - set(attributes["{{ $key }}"], "{{ $value }}") where attributes["{{ $key }}"] == nil
   {{- end }}
 {{- else -}}
 error_mode: ignore
