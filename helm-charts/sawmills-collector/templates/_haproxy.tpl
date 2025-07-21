@@ -70,7 +70,7 @@ backend healthcheck_backend
 {{- end }}
 
 {{- range $name, $config := .Values.haproxy.mapping }}
-{{ $fc := get $config.to "fallback_config" }}
+{{ $fc := $config.to.fallback_config | default dict }}
 {{ $mode := $config.to.mode | default "http" }}
 {{ $proto := "" }}
 {{ if eq $mode "grpc" }}
@@ -109,10 +109,10 @@ backend logs_http_{{ $config.from }}
   {{- end }}
   {{- end }}
   {{- if $config.to.fallback_endpoint }}
-  {{- $server := get $fc "server" -}}
-  {{- $interval := default 2000 (get $server "interval") -}}
-  {{- $rise := default 10 (get $server "rise") -}}
-  {{- $fall := default 1 (get $server "fall") -}}
+  {{- $server := $fc.server | default dict -}}
+  {{- $interval := default 2000 $server.interval -}}
+  {{- $rise := default 10 $server.rise -}}
+  {{- $fall := default 1 $server.fall -}}
   server otel "$MY_POD_IP":{{ $config.to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $.Values.haproxy.error_limit }} on-error mark-down
   server fallback {{ $config.to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $config.to "fallback_ssl")) $config.to.fallback_ssl) }}ssl verify none{{ end }}
   {{- else }}
