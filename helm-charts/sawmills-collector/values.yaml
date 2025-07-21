@@ -278,7 +278,7 @@ keda:
       metricType: Value
       metadata:
         scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
-        # Query by 99p latency of the 9p slowest pod
+        # Query by 99p latency of the 90p slowest pod
         query: >-
           quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) > 6000 
           or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) < 3500 
