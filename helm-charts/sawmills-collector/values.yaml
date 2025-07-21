@@ -244,7 +244,7 @@ keda:
   maxReplicas: 100
   pollingInterval: 30
   cooldownPeriod: 300
-  # Advanced HPA configuration for KEDA (optional)
+  # Advanced HPA configuration for KEDA (optional).
   # This block allows you to specify advanced HorizontalPodAutoscaler behavior,
   # such as custom scaleUp/scaleDown policies and stabilization windows.
   # See: https://keda.sh/docs/2.14/concepts/scaling-deployments/#advanced-horizontal-pod-autoscaler-configuration
@@ -280,7 +280,7 @@ keda:
         scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
         # Query by 95p latency
         # query: "histogram_quantile(0.95, sum(rate(http_server_duration_bucket[2m])) by (le))"
-        # Query by fallback requests
+        # Query by fallback requests.
         query: >-
           (sum(increase(haproxy_server_http_responses_total{server="fallback"}[2m]))
           /
