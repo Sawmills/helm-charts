@@ -71,7 +71,7 @@ backend healthcheck_backend
 
 {{- range $name, $config := .Values.haproxy.mapping }}
 {{ $to := $config.to | default dict }}
-{{ $fc := $to.fallback_config | default dict }}
+{{ $fc := $to.fallback_config | default $.Values.haproxy.fallback_config | default dict }}
 {{ $mode := $to.mode | default "http" }}
 {{ $proto := "" }}
 {{ if eq $mode "grpc" }}
