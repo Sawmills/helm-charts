@@ -68,6 +68,8 @@ spec:
               name: remote-operator
               key: api-key
         {{- end }}
+        - name: REMOTE_WRITE_URL
+          value: {{ .Values.remoteWriteUrl }}
         - name: OPERATOR_KUBERNETES_NAMESPACE
           valueFrom:
             fieldRef:
