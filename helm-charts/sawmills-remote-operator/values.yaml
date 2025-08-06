@@ -36,6 +36,9 @@ image:
 # The address of the Sawmills operator
 operatorAddress: https://controller.sawmills.ai
 
+# The remote write URL for the Sawmills operator
+remoteWriteUrl: https://ingress.sawmills.ai
+
 # enable grpc tracing, by default it is disabled
 grpcTrace: ""
 
