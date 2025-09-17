@@ -158,6 +158,14 @@ tolerations: []
 #   prometheus.io/scrape: "true"
 podAnnotations: {}
 
+# Pod labels for the Sawmills collector
+# These labels will be added to the pod template metadata
+# Example:
+# podLabels:
+#   foo: bar
+#   prometheus.io/scrape: "true"
+podLabels: {}
+
 # Node affinity settings for the Sawmills collector pods
 # Default configuration spreads pods across nodes to ensure high availability
 affinity:
