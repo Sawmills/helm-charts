@@ -104,6 +104,17 @@ rollout:
         initialDelaySeconds: 5
         periodSeconds: 5
 
+  # LoadBalancer specific settings
+  loadBalancer:
+    probes:
+      liveness:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        failureThreshold: 5
+      readiness:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+
 # Configuration for the Sawmills collector
 quotamgmtprocessor:
   s3_bucket: sawmills-plat-ue1-prod-quotas
@@ -895,3 +906,37 @@ kedaScaler:
             - stdout
         metrics:
           address: ${env:MY_POD_IP}:${env:OTEL_PROMETHEUS_PORT}
+
+loadBalancer:
+  enabled: false
+  replicas: 3
+  podAnnotations: {}
+  terminationGracePeriodSeconds: 10
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  priorityClassName: ""
+  topologySpreadConstraints: []
+  additionalContainers: {}
+  otelConfig:
+    s3path: ""
+    encryptionKey: ""
+  extraEnv: []
+  ports: {}
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 250m
+    disableLimits: false
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  additionalVolumes: []
+  storageClassName: "standard"
+  service:
+    type: ClusterIP
+    headless:
+      enabled: true
+    internalTrafficPolicy: ""
+    annotations: {}
+    ports: {}

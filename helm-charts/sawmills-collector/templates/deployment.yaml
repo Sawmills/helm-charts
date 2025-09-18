@@ -99,7 +99,7 @@ spec:
           {{- toYaml $container | nindent 10 }}
         {{- end }}
         {{- end }}
-        {{- if .Values.haproxy.enabled }}
+        {{- if and .Values.haproxy.enabled (not .Values.loadBalancer.enabled) }}
         - name: haproxy
           image: {{ .Values.haproxy.image }}
           env:
@@ -306,7 +306,7 @@ spec:
             - name: tmp
               mountPath: /tmp
       volumes:
-        {{- if .Values.haproxy.enabled }}
+        {{- if and .Values.haproxy.enabled (not .Values.loadBalancer.enabled) }}
         - name: haproxy-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-haproxy-config

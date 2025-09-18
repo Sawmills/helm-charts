@@ -42,6 +42,26 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Common labels
+*/}}
+{{- define "sawmills-collector.loadBalancerLabels" -}}
+helm.sh/chart: {{ include "sawmills-collector.chart" . }}
+{{ include "sawmills-collector.loadBalancerSelectorLabels" . }}
+{{- if .Values.image.tag }}
+app.kubernetes.io/version: {{ .Values.image.tag | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Selector labels
+*/}}
+{{- define "sawmills-collector.loadBalancerSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "sawmills-collector.name" . }}-lb
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "sawmills-collector.serviceAccountName" -}}
