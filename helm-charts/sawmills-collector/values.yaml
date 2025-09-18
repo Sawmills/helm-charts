@@ -385,6 +385,15 @@ additionalContainers: {}
 #       name: sidecar-config
 additionalVolumes: []
 
+# Additional volume mounts to be mounted by the main container.
+# This allows you to specify where to mount volumes that can be mounted by the main container.
+#
+# Example:
+# additionalVolumeMounts:
+#   - name: config-volume
+#     mountPath: /etc/config
+additionalVolumeMounts: []
+
 ports: {}
 # Example of adding a port
 # grpc:

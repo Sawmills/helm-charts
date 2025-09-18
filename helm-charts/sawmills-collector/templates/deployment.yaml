@@ -308,6 +308,9 @@ spec:
               mountPath: /etc/hot-reload-notifications/
             - name: tmp
               mountPath: /tmp
+            {{- with .Values.additionalVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         {{- if .Values.haproxy.enabled }}
         - name: haproxy-config
