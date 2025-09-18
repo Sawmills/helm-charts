@@ -385,9 +385,8 @@ additionalContainers: {}
 #       name: sidecar-config
 additionalVolumes: []
 
-# Additional volume mounts to be mounted by additional containers
-# This allows you to add volume mounts that can be mounted by sidecar containers.
-# For detailed examples, see the examples directory.
+# Additional volume mounts to be mounted by the main container.
+# This allows you to specify where to mount volumes that can be mounted by the main container.
 #
 # Example:
 # additionalVolumeMounts:
