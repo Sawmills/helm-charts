@@ -197,6 +197,7 @@ spec:
         {{- with .Values.additionalVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+  {{- if .Values.loadBalancer.storage.enabled }}
   volumeClaimTemplates:
     - metadata:
         name: {{ include "sawmills-collector.name" . }}-lb
@@ -205,6 +206,7 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 1Gi
-        storageClassName: {{ .Values.loadBalancer.storageClassName }}
+            storage: {{ .Values.loadBalancer.storage.size }}
+        storageClassName: {{ .Values.loadBalancer.storage.className }}
+  {{- end }}
 {{- end }}

@@ -949,7 +949,10 @@ loadBalancer:
       memory: 512Mi
       cpu: 500m
   additionalVolumes: []
-  storageClassName: "standard"
+  storage:
+    enabled: true
+    size: 1Gi
+    className: "standard"
   service:
     type: ClusterIP
     headless:
