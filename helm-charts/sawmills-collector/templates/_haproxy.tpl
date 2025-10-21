@@ -14,18 +14,40 @@ global
 
 defaults
 {{- with .Values.haproxy.defaults }}
-  {{- if .mode }}mode {{ .mode }}{{- end }}
+  {{- if .mode }}
+  mode {{ .mode }}
+  {{- end }}
   {{- if .timeout }}
-  {{- if .timeout.connect }}timeout connect {{ .timeout.connect }}{{- else }}timeout connect 5s{{- end }}
-  {{- if .timeout.client }}timeout client {{ .timeout.client }}{{- else }}timeout client 5s{{- end }}
-  {{- if .timeout.server }}timeout server {{ .timeout.server }}{{- else }}timeout server 5s{{- end }}
+  {{- if .timeout.connect }}
+  timeout connect {{ .timeout.connect }}
+  {{- else }}
+  timeout connect 5s
+  {{- end }}
+  {{- if .timeout.client }}
+  timeout client {{ .timeout.client }}
+  {{- else }}
+  timeout client 5s
+  {{- end }}
+  {{- if .timeout.server }}
+  timeout server {{ .timeout.server }}
+  {{- else }}
+  timeout server 5s
+  {{- end }}
   {{- else }}
   timeout connect 5s
   timeout client 5s
   timeout server 5s
   {{- end }}
-  {{- if .retries }}retries {{ .retries }}{{- else }}retries 3{{- end }}
-  {{- if .log }}log {{ .log }}{{- else }}log global{{- end }}
+  {{- if .retries }}
+  retries {{ .retries }}
+  {{- else }}
+  retries 3
+  {{- end }}
+  {{- if .log }}
+  log {{ .log }}
+  {{- else }}
+  log global
+  {{- end }}
   {{- range .options }}
   option {{ . }}
   {{- end }}
