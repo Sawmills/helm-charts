@@ -33,11 +33,17 @@ defaults
   {{- else }}
   timeout server 5s
   {{- end }}
+  {{- if .timeout.http-request }}
+  timeout http-request {{ .timeout.http-request }}
   {{- else }}
+  timeout http-request 10s
+  {{- end }}
+{{- else }}
   timeout connect 5s
   timeout client 5s
   timeout server 5s
-  {{- end }}
+  timeout http-request 10s
+{{- end }}
   {{- if .retries }}
   retries {{ .retries }}
   {{- else }}
