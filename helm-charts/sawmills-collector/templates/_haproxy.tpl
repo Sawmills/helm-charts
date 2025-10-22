@@ -33,8 +33,8 @@ defaults
   {{- else }}
   timeout server 5s
   {{- end }}
-  {{- if .timeout.http-request }}
-  timeout http-request {{ .timeout.http-request }}
+  {{- if (index .timeout "http-request") }}
+  timeout http-request {{ index .timeout "http-request" }}
   {{- else }}
   timeout http-request 10s
   {{- end }}
