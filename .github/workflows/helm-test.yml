@@ -70,7 +70,7 @@ jobs:
 
           # Test with DaemonSet mode
           echo "Testing with LoadBalancer mode..."
-          helm template test-release . --values values.yaml --set loadBalancer.enabled=true > /dev/
+          helm template test-release . --values values.yaml --set loadBalancer.enabled=true > /dev/null
 
           echo "✅ All configuration variations validated"
 
