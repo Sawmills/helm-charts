@@ -143,9 +143,6 @@ spec:
               containerPort: {{ $config.port }}
               protocol: {{ $config.protocol }}
             {{- end }}
-            - name: prometheus
-              containerPort: {{ .Values.telemetry.prometheus.port }}
-              protocol: TCP
           livenessProbe:
             httpGet:
               path: /healthcheck
@@ -178,6 +175,88 @@ spec:
               mountPath: /tmp
             - name: {{ include "sawmills-collector.name" . }}-lb
               mountPath: /data
+        - name: telemetry-collector
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: public.ecr.aws/s7a5m1b4/sawmills-collector:{{ default "dev" .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            {{- if .Values.kedaScaler.enabled }}
+            - name: KEDA_SCALER_OTLP_RECEIVER_PORT
+              value: {{ .Values.kedaScaler.service.otlpReceiverPort | quote }}
+            - name: KEDA_SCALER_OTEL_PROMETHEUS_PORT
+              value: {{ .Values.kedaScaler.service.otelPrometheusPort | quote }}
+            {{- end }}
+            - name: COLLECTOR_NAME
+              value: {{ .Values.collectorName }}
+            - name: COLLECTOR_ID
+              value: {{ .Values.collectorId }}
+            - name: PROMETHEUS_PORT
+              value: {{ .Values.telemetry.prometheus.port | quote }}
+            - name: PROMETHEUS_REMOTE_WRITE_ENDPOINT
+              value: {{ .Values.prometheusremotewrite.endpoint }}
+            - name: PROMETHEUS_REMOTE_WRITE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
+            - name: COLLECTOR_GATEWAY_ENDPOINT
+              value: {{ .Values.collector_gateway.endpoint }}
+            - name: COLLECTOR_GATEWAY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
+            {{- if .Values.telemetryExtraEnv }}
+            {{- toYaml .Values.telemetryExtraEnv | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: prometheus
+              containerPort: {{ .Values.telemetry.prometheus.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13134
+            initialDelaySeconds: {{ .Values.rollout.telemetry.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.telemetry.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.rollout.telemetry.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13134
+            initialDelaySeconds: {{ .Values.rollout.telemetry.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.telemetry.probes.readiness.periodSeconds }}
+          resources:
+            {{- if .Values.telemetry.resources.requests }}
+            requests:
+              {{- toYaml .Values.telemetry.resources.requests | nindent 14 }}
+            {{- end }}
+            {{- if not .Values.telemetry.resources.disableLimits }}
+            limits:
+              {{- toYaml .Values.telemetry.resources.limits | nindent 14 }}
+            {{- end }}
+          volumeMounts:
+            - name: sawmills-load-balancer-telemetry-config
+              mountPath: /etc/otel/config.yaml
+              subPath: telemetry-config.yaml
+            - name: tmp
+              mountPath: /tmp
       volumes:
         {{- if .Values.haproxy.enabled }}
         - name: haproxy-config
@@ -192,6 +271,12 @@ spec:
               - key: config.yaml
                 path: config.yaml
         {{- end }}
+        - name: sawmills-load-balancer-telemetry-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-load-balancer-telemetry-config
+            items:
+              - key: telemetry-config.yaml
+                path: telemetry-config.yaml
         - name: tmp
           emptyDir: {}
         {{- with .Values.additionalVolumes }}

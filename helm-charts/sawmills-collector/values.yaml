@@ -303,6 +303,14 @@ keda:
           or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) < 3500 
           or vector(5000)
         targetValue: "5000"
+      loadBalancerMetadata:
+        scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
+        # Query by queue utilization - scale up if any queue is 70% full
+        query: >-
+          max((otelcol_exporter_queue_size / otelcol_exporter_queue_capacity) * 100) > 20
+          or max((otelcol_exporter_queue_size / otelcol_exporter_queue_capacity) * 100) < 5
+          or vector(10)
+        targetValue: "10"
     cpu:
       enabled: true
       targetUtilization: 80
@@ -836,7 +844,7 @@ kedaScaler:
           metric:
             # Only pass to the collector used to export metrics to Keda metrics that can be used
             # for fallback and latency of requests.
-            - name != "haproxy_server_http_responses_total" and name != "http.server.duration"
+            - name != "haproxy_server_http_responses_total" and name != "http.server.duration" and name != "otelcol_exporter_queue_size" and name != "otelcol_exporter_queue_capacity"
     exporters:
       otlp/keda:
         endpoint: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}

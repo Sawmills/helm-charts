@@ -41,8 +41,14 @@ spec:
     - type: external
       metricType: {{ .Values.keda.scaling.external.metricType }}
       metadata:
+        {{- if .Values.loadBalancer.enabled }}
+        {{- range $key, $value := .Values.keda.scaling.external.loadBalancerMetadata }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+        {{- else}}
         {{- range $key, $value := .Values.keda.scaling.external.metadata }}
         {{ $key }}: {{ $value | quote }}
+        {{- end }}
         {{- end }}
     {{- end }}
     {{- if .Values.keda.scaling.cpu.enabled }}
