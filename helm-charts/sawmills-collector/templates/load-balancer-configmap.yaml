@@ -1,4 +1,4 @@
-{{- if not .Values.loadBalancer.otelConfig.s3path }}
+{{- if and .Values.loadBalancer.enabled (not .Values.loadBalancer.otelConfig.s3path) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
