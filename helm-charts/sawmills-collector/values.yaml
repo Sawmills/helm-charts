@@ -958,7 +958,7 @@ loadBalancer:
       cpu: 500m
   additionalVolumes: []
   storage:
-    enabled: true
+    enabled: false
     size: 1Gi
     className: "standard"
   service:

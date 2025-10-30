@@ -1,6 +1,10 @@
 {{- if .Values.loadBalancer.enabled }}
 apiVersion: apps/v1
+{{- if .Values.loadBalancer.storage.enabled }}
 kind: StatefulSet
+{{- else }}
+kind: Deployment
+{{- end }}
 metadata:
   name: {{ include "sawmills-collector.fullname" . }}-lb
   namespace: {{ .Release.Namespace }}
@@ -173,8 +177,10 @@ spec:
           {{- end }}
             - name: tmp
               mountPath: /tmp
+          {{- if .Values.loadBalancer.storage.enabled }}
             - name: {{ include "sawmills-collector.name" . }}-lb
               mountPath: /data
+          {{- end }}
         - name: telemetry-collector
           securityContext:
             runAsNonRoot: true
