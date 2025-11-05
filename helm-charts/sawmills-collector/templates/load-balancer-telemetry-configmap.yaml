@@ -1,0 +1,14 @@
+{{- if .Values.loadBalancer.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-load-balancer-telemetry-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+data:
+  telemetry-config.yaml: |
+    {{- if .Values.telemetryConfig }}
+      {{- include "sawmills-collector.loadBalancerTelemetryConfig" . | nindent 6 }}
+    {{- end }} 
+{{- end }}

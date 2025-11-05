@@ -1,0 +1,14 @@
+{{- if and .Values.loadBalancer.enabled (not .Values.loadBalancer.otelConfig.s3path) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-load-balancer-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- if .Values.loadBalancer.otelCollectorConfig }}
+      {{- toYaml .Values.loadBalancer.otelCollectorConfig | nindent 6 }}
+    {{- end }}
+{{- end }}

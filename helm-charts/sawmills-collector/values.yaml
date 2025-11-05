@@ -104,6 +104,17 @@ rollout:
         initialDelaySeconds: 5
         periodSeconds: 5
 
+  # LoadBalancer specific settings
+  loadBalancer:
+    probes:
+      liveness:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        failureThreshold: 5
+      readiness:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+
 # Configuration for the Sawmills collector
 quotamgmtprocessor:
   s3_bucket: sawmills-plat-ue1-prod-quotas
@@ -292,6 +303,14 @@ keda:
           or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) < 3500 
           or vector(5000)
         targetValue: "5000"
+      loadBalancerMetadata:
+        scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
+        # Query by queue utilization - scale up if any queue is 70% full
+        query: >-
+          max((otelcol_exporter_queue_size / otelcol_exporter_queue_capacity) * 100) > 20
+          or max((otelcol_exporter_queue_size / otelcol_exporter_queue_capacity) * 100) < 5
+          or vector(10)
+        targetValue: "10"
     cpu:
       enabled: true
       targetUtilization: 80
@@ -825,7 +844,7 @@ kedaScaler:
           metric:
             # Only pass to the collector used to export metrics to Keda metrics that can be used
             # for fallback and latency of requests.
-            - name != "haproxy_server_http_responses_total" and name != "http.server.duration"
+            - name != "haproxy_server_http_responses_total" and name != "http.server.duration" and name != "otelcol_exporter_queue_size" and name != "otelcol_exporter_queue_capacity"
     exporters:
       otlp/keda:
         endpoint: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}
@@ -912,3 +931,40 @@ kedaScaler:
             - stdout
         metrics:
           address: ${env:MY_POD_IP}:${env:OTEL_PROMETHEUS_PORT}
+
+loadBalancer:
+  enabled: false
+  replicas: 3
+  podAnnotations: {}
+  terminationGracePeriodSeconds: 10
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  priorityClassName: ""
+  topologySpreadConstraints: []
+  additionalContainers: {}
+  otelConfig:
+    s3path: ""
+    encryptionKey: ""
+  extraEnv: []
+  ports: {}
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 250m
+    disableLimits: false
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  additionalVolumes: []
+  storage:
+    enabled: false
+    size: 1Gi
+    className: "standard"
+  service:
+    type: ClusterIP
+    headless:
+      enabled: true
+    internalTrafficPolicy: ""
+    annotations: {}
+    ports: {}

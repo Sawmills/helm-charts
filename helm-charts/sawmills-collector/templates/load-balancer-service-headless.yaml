@@ -1,0 +1,30 @@
+{{- if and .Values.loadBalancer.enabled .Values.loadBalancer.service.headless.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-headless
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+  {{- if .Values.loadBalancer.service.annotations }}
+  annotations:
+    {{- toYaml .Values.loadBalancer.service.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  ClusterIP: None
+  {{- if .Values.loadBalancer.service.internalTrafficPolicy }}
+  internalTrafficPolicy: {{ .Values.loadBalancer.service.internalTrafficPolicy }}
+  {{- end }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.telemetry.prometheus.port }}
+      targetPort: {{ .Values.telemetry.prometheus.port }}
+      name: prometheus
+    {{- range $name, $config := .Values.loadBalancer.service.ports }}
+    - protocol: {{ $config.to.protocol }}
+      port: {{ $config.to.port }}
+      targetPort: {{ $config.from }}
+      name: {{ $name }}
+    {{- end }}
+  selector:
+    {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 4 }}
+{{- end }}

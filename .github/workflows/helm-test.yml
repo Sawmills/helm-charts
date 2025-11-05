@@ -4,14 +4,14 @@ on:
   workflow_call:
     inputs:
       chart-path:
-        description: 'Path to the Helm chart'
+        description: "Path to the Helm chart"
         required: false
-        default: 'helm-charts/sawmills-collector'
+        default: "helm-charts/sawmills-collector"
         type: string
       helm-version:
-        description: 'Helm version to use'
+        description: "Helm version to use"
         required: false
-        default: '3.14.0'
+        default: "3.14.0"
         type: string
 
 permissions:
@@ -21,7 +21,7 @@ jobs:
   helm-test:
     name: Test Helm Chart
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -55,19 +55,23 @@ jobs:
         run: |
           cd ${{ inputs.chart-path }}
           echo "🔍 Testing chart with different configurations..."
-          
+
           # Test with HAProxy enabled
           echo "Testing with HAProxy enabled..."
           helm template test-release . --values values.yaml --set haproxy.enabled=true > /dev/null
-          
+
           # Test with KEDA enabled
           echo "Testing with KEDA enabled..."
           helm template test-release . --values values.yaml --set keda.enabled=true > /dev/null
-          
+
           # Test with DaemonSet mode
           echo "Testing with DaemonSet mode..."
           helm template test-release . --values values.yaml --set mode=daemonSet > /dev/null
-          
+
+          # Test with DaemonSet mode
+          echo "Testing with LoadBalancer mode..."
+          helm template test-release . --values values.yaml --set loadBalancer.enabled=true > /dev/null
+
           echo "✅ All configuration variations validated"
 
       - name: Generate test summary
@@ -88,4 +92,4 @@ jobs:
           echo "- External labels configuration (transform processor, no duplication)" >> $GITHUB_STEP_SUMMARY
           echo "- Affinity and anti-affinity rules" >> $GITHUB_STEP_SUMMARY
           echo "- Chart renders correctly with HAProxy, KEDA, and DaemonSet modes" >> $GITHUB_STEP_SUMMARY
-          echo "- Helper function behavior with various configurations" >> $GITHUB_STEP_SUMMARY 
+          echo "- Helper function behavior with various configurations" >> $GITHUB_STEP_SUMMARY

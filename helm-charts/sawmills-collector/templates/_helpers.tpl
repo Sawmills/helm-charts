@@ -42,6 +42,26 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Common labels
+*/}}
+{{- define "sawmills-collector.loadBalancerLabels" -}}
+helm.sh/chart: {{ include "sawmills-collector.chart" . }}
+{{ include "sawmills-collector.loadBalancerSelectorLabels" . }}
+{{- if .Values.image.tag }}
+app.kubernetes.io/version: {{ .Values.image.tag | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Selector labels
+*/}}
+{{- define "sawmills-collector.loadBalancerSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "sawmills-collector.name" . }}-lb
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "sawmills-collector.serviceAccountName" -}}
@@ -106,6 +126,32 @@ Generate merged telemetry configuration with external labels
 {{- define "sawmills-collector.telemetryConfig" -}}
 {{- if .Values.telemetryConfig }}
 {{- $config := .Values.telemetryConfig }}
+{{- if and .Values.haproxy.enabled (not .Values.loadBalancer.enabled) }}
+  {{- $config = merge $config .Values.haproxyConfig }}
+{{- end }}
+{{- if .Values.kedaScaler.enabled }}
+  {{- $config = merge $config .Values.kedaScaler.telemetryConfig }}
+{{- end }}
+{{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
+  {{- $config = merge $config .Values.telemetryExternalConfig.prometheusConfig }}
+{{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
+  {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
+{{- end }}
+{{- /* Override transform/external_labels processor with dynamic config */ -}}
+{{- if and (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
+  {{- $processor := include "sawmills-collector.externalLabelsProcessor" . | fromYaml }}
+  {{- $_ := set $config.processors "transform/external_labels" $processor }}
+{{- end }}
+{{- toYaml $config }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Generate merged telemetry configuration with external labels
+*/}}
+{{- define "sawmills-collector.loadBalancerTelemetryConfig" -}}
+{{- if .Values.telemetryConfig }}
+{{- $config := .Values.telemetryConfig }}
 {{- if .Values.haproxy.enabled }}
   {{- $config = merge $config .Values.haproxyConfig }}
 {{- end }}
@@ -124,4 +170,4 @@ Generate merged telemetry configuration with external labels
 {{- end }}
 {{- toYaml $config }}
 {{- end }}
-{{- end -}}  
+{{- end -}}
