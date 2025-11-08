@@ -60,3 +60,15 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Resolve NO_PROXY regardless of whether the user supplies a string or list.
+*/}}
+{{- define "sawmills-remote-operator.noProxyValue" -}}
+{{- $value := .Values.proxy.noProxy -}}
+{{- if kindIs "slice" $value }}
+{{- join "," $value -}}
+{{- else }}
+{{- default "" $value -}}
+{{- end -}}
+{{- end }}

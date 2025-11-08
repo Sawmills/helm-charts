@@ -39,6 +39,14 @@ operatorAddress: https://controller.sawmills.ai
 # The remote write URL for the Sawmills operator
 remoteWriteUrl: https://ingress.sawmills.ai
 
+# Configure outbound HTTP/HTTPS proxies for all traffic sent to Sawmills services.
+# When set, the chart writes the values into HTTP_PROXY / HTTPS_PROXY / NO_PROXY env vars
+# that the operator binary consumes automatically.
+proxy:
+  http: ""
+  https: ""
+  noProxy: []
+
 # enable grpc tracing, by default it is disabled
 grpcTrace: ""
 
