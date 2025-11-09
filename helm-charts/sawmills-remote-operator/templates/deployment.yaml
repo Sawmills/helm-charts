@@ -70,6 +70,19 @@ spec:
         {{- end }}
         - name: REMOTE_WRITE_URL
           value: {{ .Values.remoteWriteUrl }}
+        {{- with .Values.proxy.http }}
+        - name: HTTP_PROXY
+          value: {{ tpl . $ | quote }}
+        {{- end }}
+        {{- with .Values.proxy.https }}
+        - name: HTTPS_PROXY
+          value: {{ tpl . $ | quote }}
+        {{- end }}
+        {{- $noProxy := include "sawmills-remote-operator.noProxyValue" . }}
+        {{- if $noProxy }}
+        - name: NO_PROXY
+          value: {{ $noProxy | quote }}
+        {{- end }}
         - name: OPERATOR_KUBERNETES_NAMESPACE
           valueFrom:
             fieldRef:
