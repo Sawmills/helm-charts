@@ -45,6 +45,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         - name: OPERATOR_ADDRESS
           value: {{ .Values.operatorAddress }}
         {{ if .Values.grpcTrace }}
@@ -70,18 +74,23 @@ spec:
         {{- end }}
         - name: REMOTE_WRITE_URL
           value: {{ .Values.remoteWriteUrl }}
-        {{- with (default dict .Values.proxy).http }}
+        {{- $proxy := default dict .Values.proxy }}
+        {{- with $proxy.http }}
         - name: HTTP_PROXY
           value: {{ tpl . $ | quote }}
         {{- end }}
-        {{- with (default dict .Values.proxy).https }}
+        {{- with $proxy.https }}
         - name: HTTPS_PROXY
           value: {{ tpl . $ | quote }}
         {{- end }}
         {{- $noProxy := include "sawmills-remote-operator.noProxyValue" . }}
-        {{- if $noProxy }}
+        {{- if or $proxy.http $proxy.https $noProxy }}
         - name: NO_PROXY
-          value: {{ $noProxy | quote }}
+          {{- if $noProxy }}
+          value: {{ printf "%s,$(POD_IP)" $noProxy | quote }}
+          {{- else }}
+          value: "$(POD_IP)"
+          {{- end }}
         {{- end }}
         - name: OPERATOR_KUBERNETES_NAMESPACE
           valueFrom:
