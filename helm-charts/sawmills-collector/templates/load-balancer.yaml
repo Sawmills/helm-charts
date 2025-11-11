@@ -138,11 +138,11 @@ spec:
               value: {{ .Values.quotamgmtprocessor.s3_bucket }}
             - name: COLLECTOR_NAME
               value: {{ .Values.collectorName }}
-            {{- with .Values.proxy.http }}
+            {{- with (default dict .Values.proxy).http }}
             - name: HTTP_PROXY
               value: {{ tpl . $ | quote }}
             {{- end }}
-            {{- with .Values.proxy.https }}
+            {{- with (default dict .Values.proxy).https }}
             - name: HTTPS_PROXY
               value: {{ tpl . $ | quote }}
             {{- end }}
@@ -241,11 +241,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
-            {{- with .Values.proxy.http }}
+            {{- with (default dict .Values.proxy).http }}
             - name: HTTP_PROXY
               value: {{ tpl . $ | quote }}
             {{- end }}
-            {{- with .Values.proxy.https }}
+            {{- with (default dict .Values.proxy).https }}
             - name: HTTPS_PROXY
               value: {{ tpl . $ | quote }}
             {{- end }}

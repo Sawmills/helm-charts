@@ -70,11 +70,11 @@ spec:
         {{- end }}
         - name: REMOTE_WRITE_URL
           value: {{ .Values.remoteWriteUrl }}
-        {{- with .Values.proxy.http }}
+        {{- with (default dict .Values.proxy).http }}
         - name: HTTP_PROXY
           value: {{ tpl . $ | quote }}
         {{- end }}
-        {{- with .Values.proxy.https }}
+        {{- with (default dict .Values.proxy).https }}
         - name: HTTPS_PROXY
           value: {{ tpl . $ | quote }}
         {{- end }}
