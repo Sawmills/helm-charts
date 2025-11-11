@@ -173,7 +173,7 @@ Generate merged telemetry configuration with external labels
 {{- end -}}
 
 {{/*
-Resolve NO_PROXY regardless of whether the user supplies a string or list.
+Resolve NO_PROXY value
 */}}
 {{- define "sawmills-collector.noProxyValue" -}}
 {{- $proxy := default dict .Values.proxy -}}

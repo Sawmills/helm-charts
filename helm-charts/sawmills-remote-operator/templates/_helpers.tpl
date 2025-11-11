@@ -62,7 +62,7 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Resolve NO_PROXY regardless of whether the user supplies a string or list.
+Resolve NO_PROXY value
 */}}
 {{- define "sawmills-remote-operator.noProxyValue" -}}
 {{- $proxy := default dict .Values.proxy -}}
