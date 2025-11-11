@@ -190,18 +190,23 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
-            {{- with (default dict .Values.proxy).http }}
+            {{- $proxy := default dict .Values.proxy }}
+            {{- with $proxy.http }}
             - name: HTTP_PROXY
               value: {{ tpl . $ | quote }}
             {{- end }}
-            {{- with (default dict .Values.proxy).https }}
+            {{- with $proxy.https }}
             - name: HTTPS_PROXY
               value: {{ tpl . $ | quote }}
             {{- end }}
             {{- $noProxy := include "sawmills-collector.noProxyValue" . }}
-            {{- if $noProxy }}
+            {{- if or $proxy.http $proxy.https $noProxy }}
             - name: NO_PROXY
-              value: {{ $noProxy | quote }}
+              {{- if $noProxy }}
+              value: {{ printf "%s,$(MY_POD_IP)" $noProxy | quote }}
+              {{- else }}
+              value: "$(MY_POD_IP)"
+              {{- end }}
             {{- end }}
             {{- if .Values.telemetryExtraEnv }}
             {{- toYaml .Values.telemetryExtraEnv | nindent 12 }}
@@ -278,18 +283,23 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
-            {{- with (default dict .Values.proxy).http }}
+            {{- $proxy := default dict .Values.proxy }}
+            {{- with $proxy.http }}
             - name: HTTP_PROXY
               value: {{ tpl . $ | quote }}
             {{- end }}
-            {{- with (default dict .Values.proxy).https }}
+            {{- with $proxy.https }}
             - name: HTTPS_PROXY
               value: {{ tpl . $ | quote }}
             {{- end }}
             {{- $noProxy := include "sawmills-collector.noProxyValue" . }}
-            {{- if $noProxy }}
+            {{- if or $proxy.http $proxy.https $noProxy }}
             - name: NO_PROXY
-              value: {{ $noProxy | quote }}
+              {{- if $noProxy }}
+              value: {{ printf "%s,$(MY_POD_IP)" $noProxy | quote }}
+              {{- else }}
+              value: "$(MY_POD_IP)"
+              {{- end }}
             {{- end }}
             {{- if .Values.extraEnv }}
             {{- toYaml .Values.extraEnv | nindent 12 }}
