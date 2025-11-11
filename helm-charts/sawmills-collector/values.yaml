@@ -135,6 +135,14 @@ prometheusremotewrite:
 collector_gateway:
   endpoint: https://ingress.sawmills.ai
 
+# Configure outbound HTTP/HTTPS proxies for all traffic sent to Sawmills services.
+# When set, the chart writes the values into HTTP_PROXY / HTTPS_PROXY / NO_PROXY env vars
+# that the collector binary consumes automatically.
+proxy:
+  http: ""
+  https: ""
+  noProxy: []
+
 # extra environment variables for the collector
 # for example:
 # - name: DD_API_KEY

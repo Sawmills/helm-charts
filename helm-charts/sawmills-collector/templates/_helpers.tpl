@@ -171,3 +171,16 @@ Generate merged telemetry configuration with external labels
 {{- toYaml $config }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Resolve NO_PROXY regardless of whether the user supplies a string or list.
+*/}}
+{{- define "sawmills-collector.noProxyValue" -}}
+{{- $proxy := default dict .Values.proxy -}}
+{{- $value := default (list) $proxy.noProxy -}}
+{{- if kindIs "slice" $value }}
+{{- join "," $value -}}
+{{- else }}
+{{- default "" $value -}}
+{{- end -}}
+{{- end }}
