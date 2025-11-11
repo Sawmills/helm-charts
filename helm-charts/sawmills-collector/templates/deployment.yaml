@@ -190,6 +190,19 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
+            {{- with .Values.proxy.http }}
+            - name: HTTP_PROXY
+              value: {{ tpl . $ | quote }}
+            {{- end }}
+            {{- with .Values.proxy.https }}
+            - name: HTTPS_PROXY
+              value: {{ tpl . $ | quote }}
+            {{- end }}
+            {{- $noProxy := include "sawmills-collector.noProxyValue" . }}
+            {{- if $noProxy }}
+            - name: NO_PROXY
+              value: {{ $noProxy | quote }}
+            {{- end }}
             {{- if .Values.telemetryExtraEnv }}
             {{- toYaml .Values.telemetryExtraEnv | nindent 12 }}
             {{- end }}
@@ -265,6 +278,19 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
+            {{- with .Values.proxy.http }}
+            - name: HTTP_PROXY
+              value: {{ tpl . $ | quote }}
+            {{- end }}
+            {{- with .Values.proxy.https }}
+            - name: HTTPS_PROXY
+              value: {{ tpl . $ | quote }}
+            {{- end }}
+            {{- $noProxy := include "sawmills-collector.noProxyValue" . }}
+            {{- if $noProxy }}
+            - name: NO_PROXY
+              value: {{ $noProxy | quote }}
+            {{- end }}
             {{- if .Values.extraEnv }}
             {{- toYaml .Values.extraEnv | nindent 12 }}
             {{- end }}
