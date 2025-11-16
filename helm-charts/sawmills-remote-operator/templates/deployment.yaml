@@ -88,10 +88,14 @@ spec:
         {{- $noProxy := include "sawmills-remote-operator.noProxyValue" . }}
         {{- if or $proxy.http $proxy.https $noProxy }}
         - name: NO_PROXY
-          {{- if $noProxy }}
+          {{- if or $proxy.http $proxy.https }}
+            {{- if $noProxy }}
           value: {{ printf "%s,$(POD_IP)" $noProxy | quote }}
-          {{- else }}
+            {{- else }}
           value: "$(POD_IP)"
+            {{- end }}
+          {{- else }}
+          value: {{ $noProxy | quote }}
           {{- end }}
         {{- end }}
         - name: OPERATOR_KUBERNETES_NAMESPACE
