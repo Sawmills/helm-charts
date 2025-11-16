@@ -1,0 +1,88 @@
+suite: test noProxy helper
+templates:
+  - deployment.yaml
+tests:
+  # 1a. If there is neither proxy.http/https set, proxy.noProxy should remain unset
+  - it: should not set NO_PROXY when proxy is not configured
+    set:
+      proxy: null
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")]
+
+  # 1b. If proxy is an empty dict, NO_PROXY should also not be set
+  - it: should not set NO_PROXY when proxy is an empty dict
+    set:
+      proxy: {}
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")]
+
+  # 2. If proxy.http/https are not set but proxy.noProxy is set,
+  #    NO_PROXY will be set to what user passed without adding POD_IP
+  - it: should not append POD_IP when only proxy.noProxy (string) is set
+    set:
+      proxy:
+        noProxy: "foo"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          pattern: "^foo$"
+
+  # 3. If proxy.http is set and proxy.noProxy is unset, NO_PROXY should be just "$(POD_IP)"
+  - it: should set NO_PROXY to POD_IP when only proxy.http is set
+    set:
+      proxy:
+        http: URL
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          pattern: "^\\$\\(POD_IP\\)$"
+
+  # 4a. If proxy.http or proxy.https is set and proxy.noProxy is set (single string),
+  #    NO_PROXY should be "<proxy.noProxy>,$(POD_IP)"
+  - it: should append POD_IP when proxy.https and proxy.noProxy (string) are set
+    set:
+      proxy:
+        https: URL
+        noProxy: "bar"
+        #noProxy: "bar "
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          # - alphanumeric order is guearanteed
+          # - spaces trimmed
+          pattern: "^bar,\\$\\(POD_IP\\)$"
+
+  # 4b. If proxy.http or proxy.https is set and proxy.noProxy is set (multiple strings),
+  #    NO_PROXY should be "<proxy.noProxy>,$(POD_IP)"
+  - it: should append POD_IP when proxy.https and proxy.noProxy (string) are set
+    set:
+      proxy:
+        http: URL
+        noProxy: "bar,baz"
+        #noProxy: " bar  , baz "
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          # - alphanumeric order is guearanteed
+          # - spaces trimmed
+          pattern: "^bar,baz,\\$\\(POD_IP\\)$"
+
+  # 4c. If proxy.http or proxy.https is set and proxy.noProxy is set (multiple strings),
+  #    NO_PROXY should be "<proxy.noProxy>,$(POD_IP)"
+  - it: should append POD_IP when proxy.https and proxy.noProxy (string) are set
+    set:
+      proxy:
+        http: URL
+        https: URL
+        noProxy:
+          - bar
+          #- " baz "
+          - baz
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          # - alphanumeric order is guearanteed
+          # - spaces trimmed
+          pattern: "^bar,baz,\\$\\(POD_IP\\)$"
