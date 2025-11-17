@@ -62,14 +62,32 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Resolve NO_PROXY value
+Static NO_PROXY entries that are always added when proxy.http or proxy.https is set.
+*/}}
+{{- define "sawmills-remote-operator.addNoProxy" -}}
+localhost,127.0.0.1,::1,.cluster.local,.svc,.svc.cluster.local,kubernetes,kubernetes.default.svc,$(KUBERNETES_SERVICE_HOST),
+{{- end }}
+
+{{/*
+Resolve NO_PROXY value. If proxy.http/https set, then append predefined values to user-defined noProxy.
+Static values added here. Dynamic values (e.g. POD_IP) are appended in deployment.yaml.
 */}}
 {{- define "sawmills-remote-operator.noProxyValue" -}}
 {{- $proxy := default dict .Values.proxy -}}
-{{- $value := default (list) $proxy.noProxy -}}
-{{- if kindIs "slice" $value }}
-{{- join "," $value -}}
-{{- else }}
-{{- default "" $value -}}
+
+{{- $userNoProxy := default (list) $proxy.noProxy -}}
+{{- if kindIs "slice" $userNoProxy }}
+  {{- $userNoProxy = join "," $userNoProxy -}}
 {{- end -}}
+
+{{- if not (or $proxy.http $proxy.https) }}
+  {{- $userNoProxy -}}
+{{- else }}
+  {{- $addNoProxy := include "sawmills-remote-operator.addNoProxy" . -}}
+  {{- $noProxy := list -}}
+  {{- range splitList "," (cat $addNoProxy "," $userNoProxy) }}
+    {{- $noProxy = append $noProxy (trim .) -}}
+  {{- end }}
+  {{- join "," ($noProxy | compact | sortAlpha | uniq) -}}
+{{- end }}
 {{- end }}
