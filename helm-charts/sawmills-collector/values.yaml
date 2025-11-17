@@ -976,3 +976,5 @@ loadBalancer:
     internalTrafficPolicy: ""
     annotations: {}
     ports: {}
+  queue:
+    size: 1000

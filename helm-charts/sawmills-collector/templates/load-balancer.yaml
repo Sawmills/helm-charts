@@ -138,6 +138,8 @@ spec:
               value: {{ .Values.quotamgmtprocessor.s3_bucket }}
             - name: COLLECTOR_NAME
               value: {{ .Values.collectorName }}
+            - name: LOAD_BALANCER_QUEUE_SIZE
+              value: {{ .Values.loadBalancer.queue.size | quote }}
             {{- $proxy := default dict .Values.proxy }}
             {{- with $proxy.http }}
             - name: HTTP_PROXY
