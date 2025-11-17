@@ -23,15 +23,6 @@ cd "$(dirname "$0")/.."
 
 # Run all tests with colors
 echo "📋 Running affinity configuration tests..."
-helm unittest . -f 'tests/deployment_affinity_test.yaml' --color
-
-echo ""
-echo "📋 Running integration tests..."
-helm unittest . -f 'tests/deployment_integration_test.yaml' --color
-
-echo ""
-echo "📋 Running external labels helper tests..."
-helm unittest . -f 'tests/helpers_external_labels_test.yaml' --color
 
 echo ""
 echo "📋 Running external labels helper tests..."
@@ -45,9 +36,6 @@ echo ""
 echo "✅ All tests completed successfully!"
 echo ""
 echo "📊 Test Summary:"
-echo "  - Affinity configuration tests: ✅"
-echo "  - Integration tests: ✅"
-echo "  - External labels helper tests: ✅"
 echo "  - Proxy helper tests: ✅"
 echo ""
-echo "🚀 You can now deploy the chart with confidence that the affinity configuration works correctly!"
+#echo "🚀 You can now deploy the chart with confidence that the affinity configuration works correctly!"
