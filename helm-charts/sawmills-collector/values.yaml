@@ -138,9 +138,18 @@ collector_gateway:
 # Configure outbound HTTP/HTTPS proxies for all traffic sent to Sawmills services.
 # When set, the chart writes the values into HTTP_PROXY / HTTPS_PROXY / NO_PROXY env vars
 # that the collector binary consumes automatically.
+#
+# NO_PROXY behavior:
+# - When HTTP_PROXY or HTTPS_PROXY is set, NO_PROXY is automatically populated with:
+#   * Mandatory values:
+#     - static: localhost,127.0.0.1,::1,kubernetes,kubernetes.default.svc,.svc,.svc.cluster.local,.cluster.local
+#     - dynamic: $(KUBERNETES_SERVICE_HOST),$(MY_POD_IP)
+#   * User-defined values from noProxy (additive only)
+# - Users cannot remove mandatory values, only add additional domains/IPs
 proxy:
   http: ""
   https: ""
+  # Optional: Additional domains/IPs to exclude from proxying (comma-separated string or array)
   noProxy: []
 
 # extra environment variables for the collector
@@ -281,15 +290,15 @@ keda:
       behavior:
         scaleDown:
           policies:
-          - periodSeconds: 300
-            type: Pods
-            value: 1
+            - periodSeconds: 300
+              type: Pods
+              value: 1
           stabilizationWindowSeconds: 0
         scaleUp:
           policies:
-          - periodSeconds: 600
-            type: Pods
-            value: 10
+            - periodSeconds: 600
+              type: Pods
+              value: 10
           stabilizationWindowSeconds: 0
   scaling:
     prometheus:
@@ -307,8 +316,8 @@ keda:
         scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
         # Query by 99p latency of the 90p slowest pod
         query: >-
-          quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) > 6000 
-          or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) < 3500 
+          quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) > 6000
+          or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) < 3500
           or vector(5000)
         targetValue: "5000"
       loadBalancerMetadata:
@@ -588,8 +597,7 @@ haproxy:
     port: 13135
 
   # Port mapping configuration
-  mapping:
-    {}
+  mapping: {}
     # Example:
     # http_4318:
     #   from: 4318

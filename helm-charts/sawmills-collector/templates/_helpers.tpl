@@ -173,14 +173,60 @@ Generate merged telemetry configuration with external labels
 {{- end -}}
 
 {{/*
-Resolve NO_PROXY value
+Static NO_PROXY entries that are always added when proxy.http or proxy.https is set.
+*/}}
+{{- define "sawmills-collector.addNoProxy" -}}
+localhost,127.0.0.1,::1,.cluster.local,.svc,.svc.cluster.local,kubernetes,kubernetes.default.svc,$(KUBERNETES_SERVICE_HOST),
+{{- end }}
+
+{{/*
+Resolve NO_PROXY value. If proxy.http/https set, then append predefined values to user-defined noProxy.
 */}}
 {{- define "sawmills-collector.noProxyValue" -}}
 {{- $proxy := default dict .Values.proxy -}}
-{{- $value := default (list) $proxy.noProxy -}}
-{{- if kindIs "slice" $value }}
-{{- join "," $value -}}
-{{- else }}
-{{- default "" $value -}}
+
+{{- $userNoProxy := default (list) $proxy.noProxy -}}
+{{- if kindIs "slice" $userNoProxy }}
+  {{- $userNoProxy = join "," $userNoProxy -}}
 {{- end -}}
+
+{{- if not (or $proxy.http $proxy.https) }}
+  {{- $userNoProxy -}}
+{{- else }}
+  {{- $addNoProxy := include "sawmills-collector.addNoProxy" . -}}
+  {{- $noProxy := list -}}
+  {{- range splitList "," (printf "%s,%s" $addNoProxy $userNoProxy) }}
+    {{- $noProxy = append $noProxy (trim .) -}}
+  {{- end }}
+  {{- join "," ($noProxy | compact | sortAlpha | uniq) -}}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate complete proxy environment with ALL(!) variables (HTTP_PROXY, HTTPS_PROXY, NO_PROXY).
+Populate NO_PRQOXY with both static and dymanic (e.g. MY_POD_IP) values
+*/}}
+{{- define "sawmills-collector.proxyEnv" -}}
+{{- $proxy := default dict .Values.proxy }}
+{{- with $proxy.http }}
+- name: HTTP_PROXY
+  value: {{ tpl . $ | quote }}
+{{- end }}
+{{- with $proxy.https }}
+- name: HTTPS_PROXY
+  value: {{ tpl . $ | quote }}
+{{- end }}
+{{- $noProxy := include "sawmills-collector.noProxyValue" . }}
+{{- if or $proxy.http $proxy.https $noProxy }}
+- name: NO_PROXY
+  {{- if or $proxy.http $proxy.https }}
+    {{- if $noProxy }}
+  value: {{ printf "%s,$(MY_POD_IP)" $noProxy | quote }}
+    {{- else }}
+  value: "$(MY_POD_IP)"
+    {{- end }}
+  {{- else }}
+  value: {{ $noProxy | quote }}
+  {{- end }}
+{{- end }}
 {{- end }}

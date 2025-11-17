@@ -11,9 +11,14 @@ proxy:
   http: http://user:pass@corp-proxy.example.com:32281
   https: http://user:pass@corp-proxy.example.com:32281
   noProxy:
-    - kubernetes.default.svc
     - 10.0.0.0/8
 ```
+
+If either proxy.http or proxy.https is set, the chart will automatically populate NO_PROXY with the following predefined values:
+- `localhost`, `127.0.0.1`, `::1`, `kubernetes`, `kubernetes.default.svc`, `.svc`, `.svc.cluster.local`, `.cluster.local`,
+- `$(KUBERNETES_SERVICE_HOST)` and `$(POD_IP)`
+
+Use `noProxy` to extend that list with any additional domains or CIDRs that must bypass your proxy.
 
 You can also set them via the CLI:
 
