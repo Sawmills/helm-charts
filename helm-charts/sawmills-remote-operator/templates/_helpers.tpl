@@ -85,7 +85,7 @@ Static values added here. Dynamic values (e.g. POD_IP) are appended in deploymen
 {{- else }}
   {{- $addNoProxy := include "sawmills-remote-operator.addNoProxy" . -}}
   {{- $noProxy := list -}}
-  {{- range splitList "," (cat $addNoProxy "," $userNoProxy) }}
+  {{- range splitList "," (printf "%s,%s" $addNoProxy $userNoProxy) }}
     {{- $noProxy = append $noProxy (trim .) -}}
   {{- end }}
   {{- join "," ($noProxy | compact | sortAlpha | uniq) -}}

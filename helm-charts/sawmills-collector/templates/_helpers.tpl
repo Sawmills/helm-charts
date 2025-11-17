@@ -181,7 +181,6 @@ localhost,127.0.0.1,::1,.cluster.local,.svc,.svc.cluster.local,kubernetes,kubern
 
 {{/*
 Resolve NO_PROXY value. If proxy.http/https set, then append predefined values to user-defined noProxy.
-Static values added here. Dynamic values (e.g. MY_POD_IP) are appended in deployment.yaml.
 */}}
 {{- define "sawmills-collector.noProxyValue" -}}
 {{- $proxy := default dict .Values.proxy -}}
@@ -196,7 +195,7 @@ Static values added here. Dynamic values (e.g. MY_POD_IP) are appended in deploy
 {{- else }}
   {{- $addNoProxy := include "sawmills-collector.addNoProxy" . -}}
   {{- $noProxy := list -}}
-  {{- range splitList "," (cat $addNoProxy "," $userNoProxy) }}
+  {{- range splitList "," (printf "%s,%s" $addNoProxy $userNoProxy) }}
     {{- $noProxy = append $noProxy (trim .) -}}
   {{- end }}
   {{- join "," ($noProxy | compact | sortAlpha | uniq) -}}
@@ -205,6 +204,7 @@ Static values added here. Dynamic values (e.g. MY_POD_IP) are appended in deploy
 
 {{/*
 Generate complete proxy environment with ALL(!) variables (HTTP_PROXY, HTTPS_PROXY, NO_PROXY).
+Populate NO_PRQOXY with both static and dymanic (e.g. MY_POD_IP) values
 */}}
 {{- define "sawmills-collector.proxyEnv" -}}
 {{- $proxy := default dict .Values.proxy }}
