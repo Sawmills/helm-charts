@@ -45,9 +45,18 @@ selfManaged: false
 # Configure outbound HTTP/HTTPS proxies for all traffic sent to Sawmills services.
 # When set, the chart writes the values into HTTP_PROXY / HTTPS_PROXY / NO_PROXY env vars
 # that the operator binary consumes automatically.
+#
+# NO_PROXY behavior:
+# - When HTTP_PROXY or HTTPS_PROXY is set, NO_PROXY is automatically populated with:
+#.  * Mandatory values:
+#.    - statis: localhost,127.0.0.1,::1,kubernetes,kubernetes.default.svc,.svc,.svc.cluster.local,.cluster.local
+#.    - dynamic: $(KUBERNETES_SERVICE_IP),$(POD_IP)
+#   * User-defined values from noProxy (additive only)
+# - Users cannot remove mandatory values, only add additional domains/IPs
 proxy:
   http: ""
   https: ""
+  # Optional: Additional domains/IPs to exclude from proxying (comma-separated string or array)
   noProxy: []
 
 # enable grpc tracing, by default it is disabled

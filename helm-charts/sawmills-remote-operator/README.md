@@ -15,6 +15,11 @@ proxy:
     - 10.0.0.0/8
 ```
 
+The chart always appends a built-in allowlist (`localhost`, `127.0.0.1`, `::1`,
+`kubernetes`, `kubernetes.default.svc`, `.svc`, `.svc.cluster.local`, `.cluster.local`,
+`$(KUBERNETES_SERVICE_HOST)`) and the pod IP at runtime. Use `noProxy` to extend that list
+with any additional domains or CIDRs that must bypass your proxy.
+
 You can also set them via the CLI:
 
 ```bash
