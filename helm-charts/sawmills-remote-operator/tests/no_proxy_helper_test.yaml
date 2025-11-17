@@ -23,66 +23,57 @@ tests:
   - it: should not append POD_IP when only proxy.noProxy (string) is set
     set:
       proxy:
-        noProxy: "foo"
+        noProxy: "foo "
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
-          pattern: "^foo$"
+          pattern: "^foo $"
 
-  # 3. If proxy.http is set and proxy.noProxy is unset, NO_PROXY should be just "$(POD_IP)"
+  # 3. If proxy.http is set and proxy.noProxy is unset, NO_PROXY should be static entries plus "$(POD_IP)"
   - it: should set NO_PROXY to POD_IP when only proxy.http is set
     set:
       proxy:
         http: URL
     asserts:
-      - matchRegex:
+      - equal:
           path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
-          pattern: "^\\$\\(POD_IP\\)$"
+          value: "$(KUBERNETES_SERVICE_HOST),.cluster.local,.svc,.svc.cluster.local,127.0.0.1,::1,kubernetes,kubernetes.default.svc,localhost,$(POD_IP)"
 
   # 4a. If proxy.http or proxy.https is set and proxy.noProxy is set (single string),
-  #    NO_PROXY should be "<proxy.noProxy>,$(POD_IP)"
+  #    NO_PROXY should include "<proxy.noProxy>, static entries and $(POD_IP)"
   - it: should append POD_IP when proxy.https and proxy.noProxy (string) are set
     set:
       proxy:
         https: URL
-        noProxy: "bar"
-        #noProxy: "bar "
+        noProxy: " xxx "
     asserts:
-      - matchRegex:
+      - equal:
           path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
-          # - alphanumeric order is guearanteed
-          # - spaces trimmed
-          pattern: "^bar,\\$\\(POD_IP\\)$"
+          value: "$(KUBERNETES_SERVICE_HOST),.cluster.local,.svc,.svc.cluster.local,127.0.0.1,::1,kubernetes,kubernetes.default.svc,localhost,xxx,$(POD_IP)"
 
   # 4b. If proxy.http or proxy.https is set and proxy.noProxy is set (multiple strings),
-  #    NO_PROXY should be "<proxy.noProxy>,$(POD_IP)"
+  #    NO_PROXY should include "<proxy.noProxy>, static entries and $(POD_IP)"
   - it: should append POD_IP when proxy.https and proxy.noProxy (string) are set
     set:
       proxy:
         http: URL
-        noProxy: "bar,baz"
-        #noProxy: " bar  , baz "
+        noProxy: " xxx ,  yyy,  "
     asserts:
-      - matchRegex:
+      - equal:
           path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
-          # - alphanumeric order is guearanteed
-          # - spaces trimmed
-          pattern: "^bar,baz,\\$\\(POD_IP\\)$"
+          value: "$(KUBERNETES_SERVICE_HOST),.cluster.local,.svc,.svc.cluster.local,127.0.0.1,::1,kubernetes,kubernetes.default.svc,localhost,xxx,yyy,$(POD_IP)"
 
   # 4c. If proxy.http or proxy.https is set and proxy.noProxy is set (multiple strings),
-  #    NO_PROXY should be "<proxy.noProxy>,$(POD_IP)"
+  #    NO_PROXY should include "<proxy.noProxy>, static entries and $(POD_IP)"
   - it: should append POD_IP when proxy.https and proxy.noProxy (string) are set
     set:
       proxy:
         http: URL
         https: URL
         noProxy:
-          - bar
-          #- " baz "
-          - baz
+          - xxx
+          - " yyy "
     asserts:
-      - matchRegex:
+      - equal:
           path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
-          # - alphanumeric order is guearanteed
-          # - spaces trimmed
-          pattern: "^bar,baz,\\$\\(POD_IP\\)$"
+          value: "$(KUBERNETES_SERVICE_HOST),.cluster.local,.svc,.svc.cluster.local,127.0.0.1,::1,kubernetes,kubernetes.default.svc,localhost,xxx,yyy,$(POD_IP)"
