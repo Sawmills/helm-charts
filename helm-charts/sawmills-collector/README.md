@@ -102,17 +102,33 @@ quotamgmtprocessor:
 
 ### Proxy Configuration
 
-Configure HTTP/HTTPS proxies for outbound traffic:
+Customers that require all internet-bound traffic to pass through an HTTP/HTTPS proxy can set the `proxy` block. The chart wires these values into the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables consumed by the collector so TLS sessions still terminate at Sawmills services.
 
 ```yaml
 proxy:
-  http: "http://user:pass@proxy.example.com:8080"
-  https: "http://user:pass@proxy.example.com:8080"
+  http: http://user:pass@corp-proxy.example.com:32281
+  https: http://user:pass@corp-proxy.example.com:32281
   noProxy:
-    - kubernetes.default.svc
     - 10.0.0.0/8
-    - .cluster.local
 ```
+
+If either `proxy.http` or `proxy.https` is set, the chart will automatically populate NO_PROXY with the following predefined values:
+- `localhost`, `127.0.0.1`, `::1`, `kubernetes`, `kubernetes.default.svc`, `.svc`, `.svc.cluster.local`, `.cluster.local`
+- `$(KUBERNETES_SERVICE_HOST)` and `$(MY_POD_IP)`
+
+Use `noProxy` to extend that list with any additional domains or CIDRs that must bypass your proxy.
+
+You can also set them via the CLI:
+
+```bash
+helm upgrade --install my-collector ./helm-charts/sawmills-collector \
+  --set proxy.https="http://$USER:$HOSTNAME@bar.proxy.square:32281" \
+  --set proxy.http="http://$USER:$HOSTNAME@bar.proxy.square:32281" \
+  --set proxy.noProxy[0]="kubernetes.default.svc" \
+  --set proxy.noProxy[1]="10.0.0.0/8"
+```
+
+When the values are empty (default), the collector connects directly without a proxy. Internal cluster calls (for example, Kubernetes API access) continue to bypass the proxy regardless of these settings.
 
 ### Resource Configuration
 
