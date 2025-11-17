@@ -202,3 +202,31 @@ Static values added here. Dynamic values (e.g. MY_POD_IP) are appended in deploy
   {{- join "," ($noProxy | compact | sortAlpha | uniq) -}}
 {{- end }}
 {{- end }}
+
+{{/*
+Generate complete proxy environment with ALL(!) variables (HTTP_PROXY, HTTPS_PROXY, NO_PROXY).
+*/}}
+{{- define "sawmills-collector.proxyEnv" -}}
+{{- $proxy := default dict .Values.proxy }}
+{{- with $proxy.http }}
+- name: HTTP_PROXY
+  value: {{ tpl . $ | quote }}
+{{- end }}
+{{- with $proxy.https }}
+- name: HTTPS_PROXY
+  value: {{ tpl . $ | quote }}
+{{- end }}
+{{- $noProxy := include "sawmills-collector.noProxyValue" . }}
+{{- if or $proxy.http $proxy.https $noProxy }}
+- name: NO_PROXY
+  {{- if or $proxy.http $proxy.https }}
+    {{- if $noProxy }}
+  value: {{ printf "%s,$(MY_POD_IP)" $noProxy | quote }}
+    {{- else }}
+  value: "$(MY_POD_IP)"
+    {{- end }}
+  {{- else }}
+  value: {{ $noProxy | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -190,24 +190,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
-            {{- $proxy := default dict .Values.proxy }}
-            {{- with $proxy.http }}
-            - name: HTTP_PROXY
-              value: {{ tpl . $ | quote }}
-            {{- end }}
-            {{- with $proxy.https }}
-            - name: HTTPS_PROXY
-              value: {{ tpl . $ | quote }}
-            {{- end }}
-            {{- $noProxy := include "sawmills-collector.noProxyValue" . }}
-            {{- if or $proxy.http $proxy.https $noProxy }}
-            - name: NO_PROXY
-              {{- if $noProxy }}
-              value: {{ printf "%s,$(MY_POD_IP)" $noProxy | quote }}
-              {{- else }}
-              value: "$(MY_POD_IP)"
-              {{- end }}
-            {{- end }}
+            {{- include "sawmills-collector.proxyEnv" . | nindent 12 }}
             {{- if .Values.telemetryExtraEnv }}
             {{- toYaml .Values.telemetryExtraEnv | nindent 12 }}
             {{- end }}
@@ -283,24 +266,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
-            {{- $proxy := default dict .Values.proxy }}
-            {{- with $proxy.http }}
-            - name: HTTP_PROXY
-              value: {{ tpl . $ | quote }}
-            {{- end }}
-            {{- with $proxy.https }}
-            - name: HTTPS_PROXY
-              value: {{ tpl . $ | quote }}
-            {{- end }}
-            {{- $noProxy := include "sawmills-collector.noProxyValue" . }}
-            {{- if or $proxy.http $proxy.https $noProxy }}
-            - name: NO_PROXY
-              {{- if $noProxy }}
-              value: {{ printf "%s,$(MY_POD_IP)" $noProxy | quote }}
-              {{- else }}
-              value: "$(MY_POD_IP)"
-              {{- end }}
-            {{- end }}
+            {{- include "sawmills-collector.proxyEnv" . | nindent 12 }}
             {{- if .Values.extraEnv }}
             {{- toYaml .Values.extraEnv | nindent 12 }}
             {{- end }}
