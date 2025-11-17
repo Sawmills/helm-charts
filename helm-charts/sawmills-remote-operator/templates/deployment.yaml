@@ -75,7 +75,7 @@ spec:
         - name: REMOTE_WRITE_URL
           value: {{ .Values.remoteWriteUrl }}
         - name: SELF_MANAGED
-          value: {{ .Values.selfManaged | toString }}
+          value: {{ printf "%t" .Values.selfManaged | quote }}
         {{- $proxy := default dict .Values.proxy }}
         {{- with $proxy.http }}
         - name: HTTP_PROXY
