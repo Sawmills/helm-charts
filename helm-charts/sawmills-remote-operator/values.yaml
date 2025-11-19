@@ -30,6 +30,7 @@ collectorName: ""
 
 # The image pull policy the Sawmills operator
 image:
+  repository: public.ecr.aws/s7a5m1b4/sawmills-remote-operator
   pullPolicy: Always
   tag: 0.176.0 # Sawmills Remote Operator image tag
 

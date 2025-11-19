@@ -114,7 +114,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-          image: public.ecr.aws/s7a5m1b4/sawmills-collector:{{ default "dev" .Values.image.tag }}
+          image: {{ .Values.image.repository }}:{{ default "dev" .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- if .Values.loadBalancer.otelConfig.s3path }}
           args:
@@ -213,7 +213,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-          image: public.ecr.aws/s7a5m1b4/sawmills-collector:{{ default "dev" .Values.image.tag }}
+          image: {{ .Values.image.repository }}:{{ default "dev" .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: MY_POD_NAME

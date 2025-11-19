@@ -164,6 +164,7 @@ telemetryExtraEnv: []
 
 # The image pull policy the Sawmills collector
 image:
+  repository: public.ecr.aws/s7a5m1b4/sawmills-collector
   pullPolicy: IfNotPresent
   tag: 1.558.0
 
