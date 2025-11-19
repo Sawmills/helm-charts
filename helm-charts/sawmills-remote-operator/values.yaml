@@ -28,7 +28,9 @@ apiKeyExistingSecretKey: api-key
 # The collector name of the Sawmills operator
 collectorName: ""
 
-# The image pull policy the Sawmills operator
+# The image pull policy and tag the Sawmills operator
+# The image tag is the Sawmills Remote Operator image tag
+# The image pull policy is the policy to use when pulling the image
 image:
   pullPolicy: Always
   tag: 0.176.0 # Sawmills Remote Operator image tag
