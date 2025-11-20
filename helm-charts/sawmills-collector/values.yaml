@@ -1,6 +1,6 @@
 # Number of replicas for the Sawmills collector
 # Note: This setting is ignored when mode is set to "daemonSet"
-replicaCount: 3
+replicaCount: 10
 
 # Deployment mode for the collector
 # Available modes:
