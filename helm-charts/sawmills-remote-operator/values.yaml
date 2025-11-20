@@ -130,9 +130,26 @@ nodeSelector: {}
 #   effect: "NoSchedule"
 tolerations: []
 
-# Values managed by the operator for sub helm charts.
-managedCharts:
-  sawmills-collector:
-    # affinity: {}
-    # nodeSelector: {}
-    # tolerations: []
+# Values merged into managed releases (consumed by --managed-charts-values).
+# Example structure (matches legacy managedCharts format):
+# managedChartsValues:
+#   sawmills-collector:
+#     # affinity: {}
+#     # nodeSelector: {}
+#     # tolerations: []
+#     replicaCount: 3
+#     image:
+#       tag: latest
+# Prefer managedChartsValues; managedCharts is kept as a backward-compatible alias.
+managedChartsValues: {}
+
+# Deprecated alias for managedChartsValues (will be removed in a future release).
+managedCharts: {}
+
+# Chart/repository overrides for managed releases (consumed by --managed-charts).
+# Example:
+# managedChartsOverrides:
+#   sawmills-collector:
+#     chartName: oci://registry.example.com/sawmills-collector
+#     version: 1.2.3
+managedChartsOverrides: {}
