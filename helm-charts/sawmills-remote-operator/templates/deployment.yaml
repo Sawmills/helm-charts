@@ -102,8 +102,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        {{- $managedChartsValues := default .Values.managedCharts .Values.managedChartsValues }}
         - name: MANAGED_CHARTS_VALUES
-          value: {{ tpl (.Values.managedCharts | toJson | quote) $ }}
+          value: {{ tpl ($managedChartsValues | toJson | quote) $ }}
+        {{- $managedCharts := default (dict) .Values.managedChartsOverrides }}
+        - name: MANAGED_CHARTS
+          value: {{ tpl ($managedCharts | toJson | quote) $ }}
         resources:
             {{- toYaml .Values.resources | nindent 12 }}
         livenessProbe:

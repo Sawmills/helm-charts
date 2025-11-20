@@ -14,9 +14,10 @@ proxy:
     - 10.0.0.0/8
 ```
 
-If either proxy.http or proxy.https is set, the chart will automatically populate NO_PROXY with the following predefined values:
-- `localhost`, `127.0.0.1`, `::1`, `kubernetes`, `kubernetes.default.svc`, `.svc`, `.svc.cluster.local`, `.cluster.local`,
-- `$(KUBERNETES_SERVICE_HOST)` and `$(POD_IP)`
+If either proxy.http or proxy.https is set, the chart will automatically populate NO\_PROXY with the following predefined values:
+
+* `localhost`, `127.0.0.1`, `::1`, `kubernetes`, `kubernetes.default.svc`, `.svc`, `.svc.cluster.local`, `.cluster.local`,
+* `$(KUBERNETES_SERVICE_HOST)` and `$(POD_IP)`
 
 Use `noProxy` to extend that list with any additional domains or CIDRs that must bypass your proxy.
 
@@ -37,3 +38,23 @@ When the values are empty (default), the operator connects directly without a pr
 * `values.yaml` – full list of configurable settings
 * `templates/deployment.yaml` – environment variables injected into the operator Pod
 * `test/local-test/README.md` in the `remote-operator` repository – manual steps for validating proxy mode locally
+
+## Managed chart overrides
+
+The operator now accepts two JSON payloads:
+
+* `MANAGED_CHARTS_VALUES` (`managedChartsValues` in `values.yaml`, legacy alias: `managedCharts`) supplies per-release values that get merged into the child chart.
+* `MANAGED_CHARTS` (`managedChartsOverrides` in `values.yaml`) lets you override the chart reference and/or version for a managed release.
+
+Example:
+
+```yaml
+managedChartsValues:
+  sawmills-collector:
+    replicaCount: 2
+
+managedChartsOverrides:
+  sawmills-collector:
+    chartName: oci://registry.example.com/sawmills-collector
+    version: 1.2.3
+```
