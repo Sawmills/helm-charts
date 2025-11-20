@@ -136,3 +136,4 @@ managedCharts:
     # affinity: {}
     # nodeSelector: {}
     # tolerations: []
+    # chartRepository: "oci://public.ecr.aws/s7a5m1b4/sawmills-collector-chart"
