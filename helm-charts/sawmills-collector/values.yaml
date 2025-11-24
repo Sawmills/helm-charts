@@ -325,8 +325,8 @@ keda:
         scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
         # Query by queue utilization - scale up if any queue is 70% full
         query: >-
-          max((otelcol_exporter_queue_size / otelcol_exporter_queue_capacity) * 100) > 20
-          or max((otelcol_exporter_queue_size / otelcol_exporter_queue_capacity) * 100) < 5
+          max((otelcol_exporter_queue_size{exporter=~"loadbalancing/collector-loadbalancer.*"} / otelcol_exporter_queue_capacity{exporter=~"loadbalancing/collector-loadbalancer.*"}) * 100) > 20
+          or max((otelcol_exporter_queue_size{exporter=~"loadbalancing/collector-loadbalancer.*"} / otelcol_exporter_queue_capacity{exporter=~"loadbalancing/collector-loadbalancer.*"}) * 100) < 5
           or vector(10)
         targetValue: "10"
     cpu:
@@ -988,3 +988,25 @@ loadBalancer:
     ports: {}
   queue:
     size: 1000
+  keda:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 50
+    pollingInterval: 30
+    cooldownPeriod: 0
+    advanced:
+      horizontalPodAutoscalerConfig:
+        behavior:
+          scaleDown:
+            policies:
+              - periodSeconds: 300
+                type: Pods
+                value: 1
+            stabilizationWindowSeconds: 0
+    scaling:
+      cpu:
+        enabled: true
+        targetUtilization: 80
+      memory:
+        enabled: true
+        targetUtilization: 80
