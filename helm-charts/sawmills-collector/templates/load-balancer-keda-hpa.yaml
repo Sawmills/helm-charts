@@ -1,0 +1,45 @@
+# KEDA ScaledObject for the load balancer deployment/statefulset
+{{- if and .Values.loadBalancer.enabled .Values.loadBalancer.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-lb-keda-hpa
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/revision: {{ .Release.Revision | quote }}
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: {{ if .Values.loadBalancer.storage.enabled }}StatefulSet{{ else }}Deployment{{ end }}
+    name: {{ include "sawmills-collector.fullname" . }}-lb
+  minReplicaCount: {{ .Values.loadBalancer.keda.minReplicas }}
+  maxReplicaCount: {{ .Values.loadBalancer.keda.maxReplicas }}
+  pollingInterval: {{ .Values.loadBalancer.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.loadBalancer.keda.cooldownPeriod }}
+  {{- with .Values.loadBalancer.keda.advanced }}
+  advanced:
+    {{- with .horizontalPodAutoscalerConfig }}
+    horizontalPodAutoscalerConfig:
+      {{- with .behavior }}
+      behavior:
+        {{ toYaml . | nindent 12 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  triggers:
+    {{- if .Values.loadBalancer.keda.scaling.cpu.enabled }}
+    - type: cpu
+      metadata:
+        type: Utilization
+        value: {{ .Values.loadBalancer.keda.scaling.cpu.targetUtilization | quote }}
+    {{- end }}
+    {{- if .Values.loadBalancer.keda.scaling.memory.enabled }}
+    - type: memory
+      metadata:
+        type: Utilization
+        value: {{ .Values.loadBalancer.keda.scaling.memory.targetUtilization | quote }}
+    {{- end }}
+{{- end }}
+
