@@ -948,7 +948,11 @@ kedaScaler:
           output_paths:
             - stdout
         metrics:
-          address: ${env:MY_POD_IP}:${env:OTEL_PROMETHEUS_PORT}
+          readers:
+            - periodic:
+                exporter:
+                  otlp:
+                    endpoint: ${env:MY_POD_IP}:${env:OTEL_PROMETHEUS_PORT}
 
 loadBalancer:
   enabled: false
