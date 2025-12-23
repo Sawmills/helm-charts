@@ -952,6 +952,7 @@ kedaScaler:
             - periodic:
                 exporter:
                   otlp:
+                    protocol: grpc
                     endpoint: ${env:MY_POD_IP}:${env:OTEL_PROMETHEUS_PORT}
 
 loadBalancer:
