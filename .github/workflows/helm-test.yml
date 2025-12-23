@@ -11,7 +11,7 @@ on:
       helm-version:
         description: "Helm version to use"
         required: false
-        default: "3.14.0"
+        default: 3.18.0
         type: string
 
 permissions:
