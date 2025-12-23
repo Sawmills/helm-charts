@@ -11,7 +11,6 @@ on:
       helm-version:
         description: "Helm version to use"
         required: false
-        # Helm >=3.16 is required so plugins with platformHooks are supported
         default: 3.18.0
         type: string
 
