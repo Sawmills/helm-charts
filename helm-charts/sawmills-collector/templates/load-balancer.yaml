@@ -70,13 +70,10 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
           ports:
-          {{- if .Values.haproxy.mapping }}
-          - $patch: replace
           {{- range $name, $config := .Values.haproxy.mapping }}
           - containerPort: {{ $config.from }}
             name: {{ $name }}
             protocol: {{ $config.to.protocol }}
-          {{- end }}
           {{- end }}
           livenessProbe:
             httpGet:
