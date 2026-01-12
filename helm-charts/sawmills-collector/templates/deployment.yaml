@@ -111,10 +111,13 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
           ports:
+          {{- if .Values.haproxy.mapping }}
+          - $patch: replace
           {{- range $name, $config := .Values.haproxy.mapping }}
           - containerPort: {{ $config.from }}
             name: {{ $name }}
             protocol: {{ $config.to.protocol }}
+          {{- end }}
           {{- end }}
           livenessProbe:
             httpGet:
@@ -271,10 +274,13 @@ spec:
             {{- toYaml .Values.extraEnv | nindent 12 }}
             {{- end }}
           ports:
+            {{- if .Values.ports }}
+            - $patch: replace
             {{- range $name, $config := .Values.ports }}
             - name: {{ $name }}
               containerPort: {{ $config.port }}
               protocol: {{ $config.protocol }}
+            {{- end }}
             {{- end }}
           livenessProbe:
             httpGet:
