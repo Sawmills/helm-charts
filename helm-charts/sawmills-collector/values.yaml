@@ -846,15 +846,6 @@ kedaScaler:
       cpu: 500m
       memory: 128Mi
   telemetryConfig:
-    receivers:
-      prometheus/keda_scaler:
-        config:
-          scrape_configs:
-            - job_name: keda_scaler
-              scrape_interval: 15s
-              static_configs:
-                - targets:
-                    ["${env:MY_POD_IP}:${env:KEDA_SCALER_OTEL_PROMETHEUS_PORT}"]
     processors:
       filter/keda:
         error_mode: ignore
@@ -871,12 +862,6 @@ kedaScaler:
           insecure: true
     service:
       pipelines:
-        metrics/telemetry_keda_scaler:
-          receivers: [prometheus/keda_scaler]
-          processors:
-            - memory_limiter
-            - batch
-          exporters: [routing, forward]
         metrics/keda:
           exporters:
             - otlp/keda
