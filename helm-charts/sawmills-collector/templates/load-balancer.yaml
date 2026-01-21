@@ -162,13 +162,10 @@ spec:
             {{- toYaml .Values.loadBalancer.extraEnv | nindent 12 }}
             {{- end }}
           ports:
-            {{- if .Values.loadBalancer.ports }}
-            - $patch: replace
             {{- range $name, $config := .Values.loadBalancer.ports }}
             - name: {{ $name }}
               containerPort: {{ $config.port }}
               protocol: {{ $config.protocol }}
-            {{- end }}
             {{- end }}
           livenessProbe:
             httpGet:
