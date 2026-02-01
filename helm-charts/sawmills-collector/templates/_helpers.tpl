@@ -243,3 +243,23 @@ Check if any HAProxy mapping has TLS enabled
 {{- end -}}
 {{- $tlsEnabled -}}
 {{- end -}}
+
+{{/*
+Check if TLS certificate data is provided in values (vs referencing an existing secret)
+*/}}
+{{- define "sawmills-collector.haproxyTlsCertProvided" -}}
+{{- and .Values.haproxy.tls .Values.haproxy.tls.certificate .Values.haproxy.tls.privateKey -}}
+{{- end -}}
+
+{{/*
+Get the HAProxy TLS secret name - either generated or user-provided
+*/}}
+{{- define "sawmills-collector.haproxyTlsSecretName" -}}
+{{- if and .Values.haproxy.tls .Values.haproxy.tls.certificate .Values.haproxy.tls.privateKey -}}
+{{- printf "%s-haproxy-tls" (include "sawmills-collector.fullname" .) -}}
+{{- else if and .Values.haproxy.tls .Values.haproxy.tls.secretName -}}
+{{- .Values.haproxy.tls.secretName -}}
+{{- else -}}
+{{- fail "Either haproxy.tls.secretName or both haproxy.tls.certificate and haproxy.tls.privateKey must be provided when TLS is enabled" -}}
+{{- end -}}
+{{- end -}}

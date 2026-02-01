@@ -546,9 +546,25 @@ haproxy:
 
   # TLS configuration for HAProxy sidecar
   # When any port mapping has TLS enabled, this secret is mounted
+  # 
+  # Option 1: Reference an existing secret
+  #   tls:
+  #     secretName: "my-existing-tls-secret"
+  #
+  # Option 2: Provide certificate data directly (chart creates the secret)
+  #   tls:
+  #     certificate: "<base64-encoded-cert-and-chain>"
+  #     privateKey: "<base64-encoded-private-key>"
   tls:
-    # Name of the Kubernetes Secret containing tls.crt and tls.key
+    # Name of an existing Kubernetes Secret containing tls.crt and tls.key
+    # If certificate and privateKey are provided, this is ignored
     secretName: ""
+    # Base64-encoded certificate (and chain). When provided with privateKey,
+    # the chart creates a TLS secret automatically
+    certificate: ""
+    # Base64-encoded private key. When provided with certificate,
+    # the chart creates a TLS secret automatically
+    privateKey: ""
     # Path where TLS certificates are mounted inside the container
     certPath: "/etc/haproxy/certs"
 

@@ -354,7 +354,7 @@ spec:
         {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
         - name: haproxy-tls-secret
           secret:
-            secretName: {{ required "haproxy.tls.secretName is required when TLS is enabled" .Values.haproxy.tls.secretName }}
+            secretName: {{ include "sawmills-collector.haproxyTlsSecretName" . }}
         - name: haproxy-tls
           emptyDir:
             medium: Memory
