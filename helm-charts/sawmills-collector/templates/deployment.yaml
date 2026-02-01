@@ -99,12 +99,23 @@ spec:
       initContainers:
         - name: tls-concat
           image: busybox:1.36
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           command:
             - sh
             - -c
             - |
               cat /tls-secret/tls.crt /tls-secret/tls.key > /tls-combined/tls.pem
-              chmod 400 /tls-combined/tls.pem
+              chmod 444 /tls-combined/tls.pem
           volumeMounts:
             - name: haproxy-tls-secret
               mountPath: /tls-secret
@@ -348,9 +359,10 @@ spec:
         {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
         - name: haproxy-tls-secret
           secret:
-            secretName: {{ .Values.haproxy.tls.secretName }}
+            secretName: {{ required "haproxy.tls.secretName is required when TLS is enabled" .Values.haproxy.tls.secretName }}
         - name: haproxy-tls
-          emptyDir: {}
+          emptyDir:
+            medium: Memory
         {{- end }}
         {{- end }}
         {{- if not .Values.otelConfig.s3path }}

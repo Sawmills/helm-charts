@@ -1,4 +1,11 @@
 {{- $haproxyTlsEnabled := eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" -}}
+{{- $annotations := dict -}}
+{{- if .Values.service.annotations -}}
+{{- $annotations = merge $annotations .Values.service.annotations -}}
+{{- end -}}
+{{- if and $haproxyTlsEnabled .Values.haproxy.service.annotations -}}
+{{- $annotations = merge $annotations .Values.haproxy.service.annotations -}}
+{{- end -}}
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,14 +16,9 @@ metadata:
   {{- end }}
   labels:
     {{- include "sawmills-collector.labels" . | nindent 4 }}
-  {{- if or .Values.service.annotations $haproxyTlsEnabled }}
+  {{- if $annotations }}
   annotations:
-    {{- if .Values.service.annotations }}
-    {{- toYaml .Values.service.annotations | nindent 4 }}
-    {{- end }}
-    {{- if and $haproxyTlsEnabled .Values.haproxy.service.annotations }}
-    {{- toYaml .Values.haproxy.service.annotations | nindent 4 }}
-    {{- end }}
+    {{- toYaml $annotations | nindent 4 }}
   {{- end }}
 spec:
   {{- if $haproxyTlsEnabled }}
