@@ -232,9 +232,12 @@ Populate NO_PRQOXY with both static and dymanic (e.g. MY_POD_IP) values
 {{- end }}
 
 {{/*
-Check if any HAProxy mapping has TLS enabled
+Check if any HAProxy mapping has TLS enabled (only when HAProxy is actually enabled)
 */}}
 {{- define "sawmills-collector.haproxyTlsEnabled" -}}
+{{- if not .Values.haproxy.enabled -}}
+false
+{{- else -}}
 {{- $tlsEnabled := false -}}
 {{- range $name, $config := .Values.haproxy.mapping -}}
   {{- if and $config.tls $config.tls.enabled -}}
@@ -243,12 +246,18 @@ Check if any HAProxy mapping has TLS enabled
 {{- end -}}
 {{- $tlsEnabled -}}
 {{- end -}}
+{{- end -}}
 
 {{/*
 Check if TLS certificate data is provided in values (vs referencing an existing secret)
+Returns explicit "true" or "false" for consistent comparison with haproxyTlsEnabled
 */}}
 {{- define "sawmills-collector.haproxyTlsCertProvided" -}}
-{{- and .Values.haproxy.tls .Values.haproxy.tls.certificate .Values.haproxy.tls.privateKey -}}
+{{- if and .Values.haproxy.tls .Values.haproxy.tls.certificate .Values.haproxy.tls.privateKey -}}
+true
+{{- else -}}
+false
+{{- end -}}
 {{- end -}}
 
 {{/*
