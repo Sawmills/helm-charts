@@ -143,11 +143,6 @@ spec:
           - containerPort: {{ $config.from }}
             name: {{ $name }}
             protocol: {{ $config.to.protocol }}
-          {{- if and $config.tls $config.tls.enabled }}
-          - containerPort: {{ $config.tls.port }}
-            name: {{ $name }}-tls
-            protocol: TCP
-          {{- end }}
           {{- end }}
           livenessProbe:
             httpGet:

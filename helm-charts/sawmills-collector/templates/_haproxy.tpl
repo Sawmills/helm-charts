@@ -106,7 +106,11 @@ backend healthcheck_backend
   {{ $proto = "proto h2" }}
 {{ end }}
 frontend logs_http_frontend_{{ $config.from }}
+  {{- if and $config.tls $config.tls.enabled }}
+  bind *:{{ $config.from }} ssl crt {{ $.Values.haproxy.tls.certPath }}/tls.pem {{ $proto }}
+  {{- else }}
   bind *:{{ $config.from }} {{ $proto }}
+  {{- end }}
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
   {{- if not $config.logging | default false }}
   no log
@@ -149,13 +153,5 @@ backend logs_http_{{ $config.from }}
   {{- else }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
   {{- end }}
-{{- if and $config.tls $config.tls.enabled }}
-{{ $tlsPort := $config.tls.port }}
-frontend tls_frontend_{{ $tlsPort }}
-  bind *:{{ $tlsPort }} ssl crt {{ $.Values.haproxy.tls.certPath }}/tls.pem {{ $proto }}
-  mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
-  option httplog
-  default_backend logs_http_{{ $config.from }}
-{{- end }}
 {{- end }}
 {{- end -}} 

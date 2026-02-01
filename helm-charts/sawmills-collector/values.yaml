@@ -633,8 +633,7 @@ haproxy:
     #     - "httpchk"
     #     - "allbackups"
     #   tls:                    # Optional: TLS termination for this port
-    #     enabled: true         # Enable TLS for this specific mapping
-    #     port: 443             # Port for TLS frontend (required when enabled)
+    #     enabled: true         # Enable TLS on the same port (no separate TLS port)
 
 haproxyConfig:
   receivers:

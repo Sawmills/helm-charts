@@ -40,15 +40,5 @@ spec:
       targetPort: {{ $config.from }}
       name: {{ $name }}
     {{- end }}
-    {{- if $haproxyTlsEnabled }}
-    {{- range $name, $config := .Values.haproxy.mapping }}
-    {{- if and $config.tls $config.tls.enabled }}
-    - protocol: TCP
-      port: {{ $config.tls.port }}
-      targetPort: {{ $config.tls.port }}
-      name: {{ $name }}-tls
-    {{- end }}
-    {{- end }}
-    {{- end }}
   selector:
     {{- include "sawmills-collector.selectorLabels" . | nindent 4 }}
