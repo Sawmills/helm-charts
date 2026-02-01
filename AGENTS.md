@@ -2,7 +2,7 @@
 
 ## Project Structure
 
-```
+```text
 helm-charts/
 ├── helm-charts/
 │   ├── sawmills-collector/      # Main collector chart
@@ -179,7 +179,7 @@ haproxy:
 
 ### Commit Messages
 
-```
+```text
 feat(sawmills-collector): add TLS termination support for HAProxy
 fix(sawmills-collector): use ALPN h2 for TLS gRPC binds
 refactor(sawmills-collector): use crt-store instead of init container
