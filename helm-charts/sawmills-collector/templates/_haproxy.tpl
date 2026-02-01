@@ -12,6 +12,13 @@ global
   daemon
 {{- end }}
 
+{{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
+crt-store k8s-tls
+  crt-base {{ .Values.haproxy.tls.certPath }}/
+  key-base {{ .Values.haproxy.tls.certPath }}/
+  load crt "tls.crt" key "tls.key" alias "haproxy-cert"
+{{- end }}
+
 defaults
 {{- with .Values.haproxy.defaults }}
   {{- if .mode }}
@@ -107,7 +114,7 @@ backend healthcheck_backend
 {{ end }}
 frontend logs_http_frontend_{{ $config.from }}
   {{- if and $config.tls $config.tls.enabled }}
-  bind *:{{ $config.from }} ssl crt {{ $.Values.haproxy.tls.certPath }}/tls.pem {{ $proto }}
+  bind *:{{ $config.from }} ssl crt @k8s-tls/haproxy-cert {{ $proto }}
   {{- else }}
   bind *:{{ $config.from }} {{ $proto }}
   {{- end }}
