@@ -1,3 +1,4 @@
+{{- $haproxyTlsEnabled := eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" -}}
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,12 +9,21 @@ metadata:
   {{- end }}
   labels:
     {{- include "sawmills-collector.labels" . | nindent 4 }}
-  {{- if .Values.service.annotations }}
+  {{- if or .Values.service.annotations $haproxyTlsEnabled }}
   annotations:
+    {{- if .Values.service.annotations }}
     {{- toYaml .Values.service.annotations | nindent 4 }}
+    {{- end }}
+    {{- if and $haproxyTlsEnabled .Values.haproxy.service.annotations }}
+    {{- toYaml .Values.haproxy.service.annotations | nindent 4 }}
+    {{- end }}
   {{- end }}
 spec:
+  {{- if $haproxyTlsEnabled }}
+  type: {{ .Values.haproxy.service.type | default "LoadBalancer" }}
+  {{- else }}
   type: {{ .Values.service.type }}
+  {{- end }}
   {{- if .Values.service.internalTrafficPolicy }}
   internalTrafficPolicy: {{ .Values.service.internalTrafficPolicy }}
   {{- end }}
@@ -27,6 +37,16 @@ spec:
       port: {{ $config.to.port }}
       targetPort: {{ $config.from }}
       name: {{ $name }}
+    {{- end }}
+    {{- if $haproxyTlsEnabled }}
+    {{- range $name, $config := .Values.haproxy.mapping }}
+    {{- if and $config.tls $config.tls.enabled }}
+    - protocol: TCP
+      port: {{ $config.tls.port }}
+      targetPort: {{ $config.tls.port }}
+      name: {{ $name }}-tls
+    {{- end }}
+    {{- end }}
     {{- end }}
   selector:
     {{- include "sawmills-collector.selectorLabels" . | nindent 4 }}

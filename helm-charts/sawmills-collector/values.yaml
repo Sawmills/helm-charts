@@ -544,6 +544,23 @@ haproxy:
   max_connections: 60000
   error_limit: 3
 
+  # TLS configuration for HAProxy sidecar
+  # When any port mapping has TLS enabled, this secret is mounted
+  tls:
+    # Name of the Kubernetes Secret containing tls.crt and tls.key
+    secretName: ""
+    # Path where TLS certificates are mounted inside the container
+    certPath: "/etc/haproxy/certs"
+
+  # Service configuration when TLS is enabled on any port
+  service:
+    # Service type when TLS is enabled (default: LoadBalancer)
+    type: ""
+    # Annotations for the service when TLS is enabled
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+
   resources:
     requests:
       memory: 128Mi
@@ -598,6 +615,7 @@ haproxy:
     port: 13135
 
   # Port mapping configuration
+  # Each mapping can optionally enable TLS termination
   mapping: {}
     # Example:
     # http_4318:
@@ -607,13 +625,16 @@ haproxy:
     #     fallback_endpoint: datadoghq.com
     #   mode: "http"
     #   fallback_enabled: true
-    #   logging: false        # Whether to enable logging for this frontend (default: true)
+    #   logging: false
     #   options:
     #     - "httplog"
     #     - "dontlognull"
     #   backend_options:
     #     - "httpchk"
     #     - "allbackups"
+    #   tls:                    # Optional: TLS termination for this port
+    #     enabled: true         # Enable TLS for this specific mapping
+    #     port: 443             # Port for TLS frontend (required when enabled)
 
 haproxyConfig:
   receivers:

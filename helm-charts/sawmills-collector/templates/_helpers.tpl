@@ -230,3 +230,16 @@ Populate NO_PRQOXY with both static and dymanic (e.g. MY_POD_IP) values
   {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+Check if any HAProxy mapping has TLS enabled
+*/}}
+{{- define "sawmills-collector.haproxyTlsEnabled" -}}
+{{- $tlsEnabled := false -}}
+{{- range $name, $config := .Values.haproxy.mapping -}}
+  {{- if and $config.tls $config.tls.enabled -}}
+    {{- $tlsEnabled = true -}}
+  {{- end -}}
+{{- end -}}
+{{- $tlsEnabled -}}
+{{- end -}}

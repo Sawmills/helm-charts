@@ -95,6 +95,23 @@ spec:
               {{- include "sawmills-collector.selectorLabels" $ | nindent 14 }}
         {{- end }}
       {{- end }}
+      {{- if and .Values.haproxy.enabled (not .Values.loadBalancer.enabled) (eq (include "sawmills-collector.haproxyTlsEnabled" .) "true") }}
+      initContainers:
+        - name: tls-concat
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              cat /tls-secret/tls.crt /tls-secret/tls.key > /tls-combined/tls.pem
+              chmod 400 /tls-combined/tls.pem
+          volumeMounts:
+            - name: haproxy-tls-secret
+              mountPath: /tls-secret
+              readOnly: true
+            - name: haproxy-tls
+              mountPath: /tls-combined
+      {{- end }}
       containers:
         {{- if .Values.additionalContainers }}
         {{- range $name, $container := .Values.additionalContainers }}
@@ -115,6 +132,11 @@ spec:
           - containerPort: {{ $config.from }}
             name: {{ $name }}
             protocol: {{ $config.to.protocol }}
+          {{- if and $config.tls $config.tls.enabled }}
+          - containerPort: {{ $config.tls.port }}
+            name: {{ $name }}-tls
+            protocol: TCP
+          {{- end }}
           {{- end }}
           livenessProbe:
             httpGet:
@@ -142,6 +164,11 @@ spec:
           - name: haproxy-config
             mountPath: /usr/local/etc/haproxy/haproxy.cfg
             subPath: haproxy.cfg
+          {{- if eq (include "sawmills-collector.haproxyTlsEnabled" $) "true" }}
+          - name: haproxy-tls
+            mountPath: {{ .Values.haproxy.tls.certPath }}
+            readOnly: true
+          {{- end }}
         {{- end }}
         - name: telemetry-collector
           securityContext:
@@ -318,6 +345,13 @@ spec:
         - name: haproxy-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-haproxy-config
+        {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
+        - name: haproxy-tls-secret
+          secret:
+            secretName: {{ .Values.haproxy.tls.secretName }}
+        - name: haproxy-tls
+          emptyDir: {}
+        {{- end }}
         {{- end }}
         {{- if not .Values.otelConfig.s3path }}
         - name: sawmills-collector-config
