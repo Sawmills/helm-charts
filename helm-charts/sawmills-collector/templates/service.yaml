@@ -1,3 +1,11 @@
+{{- $haproxyTlsEnabled := eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" -}}
+{{- $annotations := dict -}}
+{{- if .Values.service.annotations -}}
+{{- $annotations = merge $annotations .Values.service.annotations -}}
+{{- end -}}
+{{- if and $haproxyTlsEnabled .Values.haproxy.service.annotations -}}
+{{- $annotations = merge $annotations .Values.haproxy.service.annotations -}}
+{{- end -}}
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,12 +16,16 @@ metadata:
   {{- end }}
   labels:
     {{- include "sawmills-collector.labels" . | nindent 4 }}
-  {{- if .Values.service.annotations }}
+  {{- if $annotations }}
   annotations:
-    {{- toYaml .Values.service.annotations | nindent 4 }}
+    {{- toYaml $annotations | nindent 4 }}
   {{- end }}
 spec:
+  {{- if $haproxyTlsEnabled }}
+  type: {{ .Values.haproxy.service.type | default "LoadBalancer" }}
+  {{- else }}
   type: {{ .Values.service.type }}
+  {{- end }}
   {{- if .Values.service.internalTrafficPolicy }}
   internalTrafficPolicy: {{ .Values.service.internalTrafficPolicy }}
   {{- end }}

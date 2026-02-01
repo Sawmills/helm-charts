@@ -54,6 +54,7 @@ spec:
               {{- include "sawmills-collector.loadBalancerSelectorLabels" $ | nindent 14 }}
         {{- end }}
       {{- end }}
+
       containers:
         {{- if .Values.loadBalancer.additionalContainers }}
         {{- range $name, $container := .Values.loadBalancer.additionalContainers }}
@@ -101,6 +102,11 @@ spec:
           - name: haproxy-config
             mountPath: /usr/local/etc/haproxy/haproxy.cfg
             subPath: haproxy.cfg
+          {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
+          - name: haproxy-tls-secret
+            mountPath: {{ .Values.haproxy.tls.certPath }}
+            readOnly: true
+          {{- end }}
         {{- end }}
         - name: main-collector
           securityContext:
@@ -306,6 +312,11 @@ spec:
         - name: haproxy-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-haproxy-config
+        {{- end }}
+        {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
+        - name: haproxy-tls-secret
+          secret:
+            secretName: {{ include "sawmills-collector.haproxyTlsSecretName" . }}
         {{- end }}
         {{- if not .Values.loadBalancer.otelConfig.s3path }}
         - name: sawmills-collector-config-load-balancer

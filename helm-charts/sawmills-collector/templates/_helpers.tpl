@@ -230,3 +230,45 @@ Populate NO_PRQOXY with both static and dymanic (e.g. MY_POD_IP) values
   {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+Check if any HAProxy mapping has TLS enabled (only when HAProxy is actually enabled)
+*/}}
+{{- define "sawmills-collector.haproxyTlsEnabled" -}}
+{{- if not .Values.haproxy.enabled -}}
+false
+{{- else -}}
+{{- $tlsEnabled := false -}}
+{{- range $name, $config := .Values.haproxy.mapping -}}
+  {{- if and $config.tls $config.tls.enabled -}}
+    {{- $tlsEnabled = true -}}
+  {{- end -}}
+{{- end -}}
+{{- $tlsEnabled -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Check if TLS certificate data is provided in values (vs referencing an existing secret)
+Returns explicit "true" or "false" for consistent comparison with haproxyTlsEnabled
+*/}}
+{{- define "sawmills-collector.haproxyTlsCertProvided" -}}
+{{- if and .Values.haproxy.tls .Values.haproxy.tls.certificate .Values.haproxy.tls.privateKey -}}
+true
+{{- else -}}
+false
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get the HAProxy TLS secret name - either generated or user-provided
+*/}}
+{{- define "sawmills-collector.haproxyTlsSecretName" -}}
+{{- if and .Values.haproxy.tls .Values.haproxy.tls.certificate .Values.haproxy.tls.privateKey -}}
+{{- printf "%s-haproxy-tls" (include "sawmills-collector.fullname" .) -}}
+{{- else if and .Values.haproxy.tls .Values.haproxy.tls.secretName -}}
+{{- .Values.haproxy.tls.secretName -}}
+{{- else -}}
+{{- fail "Either haproxy.tls.secretName or both haproxy.tls.certificate and haproxy.tls.privateKey must be provided when TLS is enabled" -}}
+{{- end -}}
+{{- end -}}

@@ -142,6 +142,11 @@ spec:
           - name: haproxy-config
             mountPath: /usr/local/etc/haproxy/haproxy.cfg
             subPath: haproxy.cfg
+          {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
+          - name: haproxy-tls-secret
+            mountPath: {{ .Values.haproxy.tls.certPath }}
+            readOnly: true
+          {{- end }}
         {{- end }}
         - name: telemetry-collector
           securityContext:
@@ -318,6 +323,11 @@ spec:
         - name: haproxy-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-haproxy-config
+        {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
+        - name: haproxy-tls-secret
+          secret:
+            secretName: {{ include "sawmills-collector.haproxyTlsSecretName" . }}
+        {{- end }}
         {{- end }}
         {{- if not .Values.otelConfig.s3path }}
         - name: sawmills-collector-config

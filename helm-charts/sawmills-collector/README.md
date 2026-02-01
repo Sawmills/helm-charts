@@ -112,9 +112,10 @@ proxy:
     - 10.0.0.0/8
 ```
 
-If either `proxy.http` or `proxy.https` is set, the chart will automatically populate NO_PROXY with the following predefined values:
-- `localhost`, `127.0.0.1`, `::1`, `kubernetes`, `kubernetes.default.svc`, `.svc`, `.svc.cluster.local`, `.cluster.local`
-- `$(KUBERNETES_SERVICE_HOST)` and `$(MY_POD_IP)`
+If either `proxy.http` or `proxy.https` is set, the chart will automatically populate NO\_PROXY with the following predefined values:
+
+* `localhost`, `127.0.0.1`, `::1`, `kubernetes`, `kubernetes.default.svc`, `.svc`, `.svc.cluster.local`, `.cluster.local`
+* `$(KUBERNETES_SERVICE_HOST)` and `$(MY_POD_IP)`
 
 Use `noProxy` to extend that list with any additional domains or CIDRs that must bypass your proxy.
 
@@ -221,6 +222,46 @@ haproxy:
     refresh: "10s"
     auth: "admin:admin"
 ```
+
+#### Per-Port TLS Termination
+
+Enable TLS termination for specific HAProxy port mappings. When TLS is enabled on any port, the service switches to LoadBalancer type with AWS internal annotations.
+
+> **Note:** TLS termination uses HAProxy's `crt-store` directive, which requires **HAProxy 3.0 or newer**. The chart defaults to HAProxy 3.1, but if you override `haproxy.image` to an earlier version, TLS configuration will fail to parse.
+
+**Prerequisites:**
+
+1. Create a Kubernetes TLS secret:
+   ```bash
+   kubectl create secret tls collector-tls \
+     --cert=tls.crt \
+     --key=tls.key \
+     -n <namespace>
+   ```
+
+2. Configure TLS per port mapping:
+   ```yaml
+   haproxy:
+     enabled: true
+     tls:
+       secretName: "collector-tls"
+       certPath: "/etc/haproxy/certs"
+     mapping:
+       http_4318:
+         from: 10000
+         to:
+           port: 4318
+           protocol: TCP
+         tls:
+           enabled: true
+           port: 443
+   ```
+
+This creates:
+
+* HTTP frontend on port 10000 (plain traffic)
+* HTTPS frontend on port 443 (TLS terminated, forwards to same backend)
+* LoadBalancer service exposing port 443
 
 ### Ingress Configuration
 
