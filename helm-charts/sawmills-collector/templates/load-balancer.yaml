@@ -102,7 +102,7 @@ spec:
           - name: haproxy-config
             mountPath: /usr/local/etc/haproxy/haproxy.cfg
             subPath: haproxy.cfg
-          {{- if eq (include "sawmills-collector.haproxyTlsEnabled" $) "true" }}
+          {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
           - name: haproxy-tls-secret
             mountPath: {{ .Values.haproxy.tls.certPath }}
             readOnly: true

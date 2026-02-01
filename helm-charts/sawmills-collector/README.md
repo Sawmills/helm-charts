@@ -227,6 +227,8 @@ haproxy:
 
 Enable TLS termination for specific HAProxy port mappings. When TLS is enabled on any port, the service switches to LoadBalancer type with AWS internal annotations.
 
+> **Note:** TLS termination uses HAProxy's `crt-store` directive, which requires **HAProxy 3.0 or newer**. The chart defaults to HAProxy 3.1, but if you override `haproxy.image` to an earlier version, TLS configuration will fail to parse.
+
 **Prerequisites:**
 
 1. Create a Kubernetes TLS secret:

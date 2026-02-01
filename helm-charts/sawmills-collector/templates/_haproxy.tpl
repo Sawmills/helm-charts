@@ -114,7 +114,7 @@ backend healthcheck_backend
 {{ end }}
 frontend logs_http_frontend_{{ $config.from }}
   {{- if and $config.tls $config.tls.enabled }}
-  bind *:{{ $config.from }} ssl crt @k8s-tls/haproxy-cert {{ $proto }}
+  bind *:{{ $config.from }} ssl crt @k8s-tls/haproxy-cert{{- if eq $mode "grpc" }} alpn h2{{- end }}
   {{- else }}
   bind *:{{ $config.from }} {{ $proto }}
   {{- end }}
