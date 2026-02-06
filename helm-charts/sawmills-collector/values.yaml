@@ -1012,8 +1012,6 @@ loadBalancer:
     internalTrafficPolicy: ""
     annotations: {}
     ports: {}
-  queue:
-    size: 1000
   keda:
     enabled: false
     minReplicas: 2
