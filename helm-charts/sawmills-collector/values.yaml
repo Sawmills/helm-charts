@@ -544,6 +544,18 @@ haproxy:
   max_connections: 60000
   error_limit: 3
 
+  # Fallback server health check configuration
+  # These settings control how HAProxy marks the backend as UP/DOWN
+  fallback_config:
+    server:
+      # Number of successful health checks before marking server UP (default: 10)
+      # Lower value = faster startup, but less stable detection
+      rise: 4
+      # Health check interval in milliseconds (default: 2000)
+      interval: 2000
+      # Number of failed health checks before marking server DOWN (default: 1)
+      fall: 1
+
   # TLS configuration for HAProxy sidecar
   # When any port mapping has TLS enabled, this secret is mounted
   # 
