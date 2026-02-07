@@ -181,7 +181,11 @@ spec:
           readinessProbe:
             httpGet:
               path: /healthcheck
+              {{- if .Values.haproxy.enabled }}
+              port: 13135  # Route through HAProxy to ensure backend is UP before receiving traffic
+              {{- else }}
               port: 13133
+              {{- end }}
             initialDelaySeconds: {{ .Values.rollout.loadBalancer.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.loadBalancer.probes.readiness.periodSeconds }}
           resources:
