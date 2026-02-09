@@ -152,6 +152,14 @@ proxy:
   # Optional: Additional domains/IPs to exclude from proxying (comma-separated string or array)
   noProxy: []
 
+# AWS SDK configuration
+aws:
+  # Disable EC2 Instance Metadata Service (IMDS) credential lookups.
+  # Set to true for IRSA (IAM Roles for Service Accounts) environments on EKS/Fargate
+  # where IMDS is unavailable or not needed.
+  # Set to false if running on EC2 instances that rely on instance IAM roles via IMDS.
+  disableIMDS: false
+
 # extra environment variables for the collector
 # for example:
 # - name: DD_API_KEY
