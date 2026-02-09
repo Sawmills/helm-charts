@@ -156,7 +156,8 @@ proxy:
 aws:
   # Disable EC2 Instance Metadata Service (IMDS) credential lookups.
   # Set to true for IRSA (IAM Roles for Service Accounts) environments on EKS/Fargate
-  # where IMDS is unavailable or not needed.
+  # where IMDS is unavailable or not needed. This prevents IMDS timeout errors when
+  # the collector starts before IRSA credentials are fully available.
   # Set to false if running on EC2 instances that rely on instance IAM roles via IMDS.
   disableIMDS: false
 
