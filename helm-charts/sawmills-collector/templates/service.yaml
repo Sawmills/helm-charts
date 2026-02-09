@@ -22,7 +22,7 @@ metadata:
   {{- end }}
 spec:
   {{- if $haproxyTlsEnabled }}
-  type: {{ .Values.haproxy.service.type | default "LoadBalancer" }}
+  type: {{ .Values.haproxy.service.type | default "ClusterIP" }}
   {{- else }}
   type: {{ .Values.service.type }}
   {{- end }}
