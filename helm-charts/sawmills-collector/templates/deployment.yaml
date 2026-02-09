@@ -271,7 +271,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
-            {{- if .Values.aws.disableIMDS }}
+            {{- if and .Values.aws .Values.aws.disableIMDS }}
             - name: AWS_EC2_METADATA_DISABLED
               value: "true"
             {{- end }}
