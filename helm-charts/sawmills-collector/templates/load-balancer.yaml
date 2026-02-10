@@ -89,6 +89,15 @@ spec:
               port: 13135
             initialDelaySeconds: {{ .Values.rollout.haproxy.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.haproxy.probes.readiness.periodSeconds }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  # Send USR1 to HAProxy to enter soft-stop mode (stops accepting new connections,
+                  # finishes existing ones). Sleep gives K8s time to remove endpoint from Service.
+                  - "kill -USR1 1 2>/dev/null || true; sleep {{ .Values.loadBalancer.preStopSleepSeconds | default 15 }}"
           resources:
             {{- if .Values.haproxy.resources.requests }}
             requests:
@@ -188,6 +197,14 @@ spec:
               {{- end }}
             initialDelaySeconds: {{ .Values.rollout.loadBalancer.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.loadBalancer.probes.readiness.periodSeconds }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  # Sleep to allow HAProxy to drain connections before collector shuts down
+                  - "sleep {{ .Values.loadBalancer.preStopSleepSeconds | default 15 }}"
           resources:
             {{- if .Values.loadBalancer.resources.requests }}
             requests:

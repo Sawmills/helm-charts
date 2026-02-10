@@ -112,8 +112,10 @@ rollout:
         periodSeconds: 5
         failureThreshold: 5
       readiness:
-        initialDelaySeconds: 5
-        periodSeconds: 5
+        # initialDelaySeconds should exceed HAProxy rise time (rise * interval)
+        # Default: rise=4, interval=2000ms = 8s, so 10s provides margin
+        initialDelaySeconds: 10
+        periodSeconds: 2
 
 # Configuration for the Sawmills collector
 quotamgmtprocessor:
@@ -1005,7 +1007,12 @@ loadBalancer:
   enabled: false
   replicas: 3
   podAnnotations: {}
-  terminationGracePeriodSeconds: 10
+  # terminationGracePeriodSeconds should exceed preStopSleepSeconds + drain time
+  # This gives HAProxy time to soft-stop, K8s to remove endpoint, and connections to drain
+  terminationGracePeriodSeconds: 60
+  # preStopSleepSeconds: time to wait in preStop hook for endpoint removal propagation
+  # HAProxy receives USR1 (soft-stop), then sleeps this duration before SIGTERM
+  preStopSleepSeconds: 15
   nodeSelector: {}
   tolerations: []
   affinity: {}
