@@ -97,6 +97,10 @@ frontend healthcheck
   bind *:{{ .Values.haproxy.healthcheck.port | default 13135 }}
   mode http
   no log
+  # Return 503 when HAProxy is stopping (graceful shutdown) - ensures K8s removes
+  # endpoint before pod actually terminates, preventing fallback during scale-down
+  acl is_stopping stopping
+  http-request deny deny_status 503 if is_stopping
   {{- range $name, $config := .Values.haproxy.mapping }}
   {{- if $config.to.fallback_endpoint }}
   # Only return healthy if HAProxy's internal rise checks have marked otel server as UP
