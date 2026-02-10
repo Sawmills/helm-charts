@@ -553,7 +553,10 @@ haproxy:
   enabled: false
   image: public.ecr.aws/docker/library/haproxy:3.1
   max_connections: 60000
-  error_limit: 3
+  # Number of consecutive layer 7 errors before marking backend DOWN and routing to fallback.
+  # Higher values reduce fallback sensitivity to transient errors.
+  # Default: 10 (was 3, increased to reduce spurious fallbacks from transient errors)
+  error_limit: 10
 
   # Fallback server health check configuration
   # These settings control how HAProxy marks the backend as UP/DOWN
