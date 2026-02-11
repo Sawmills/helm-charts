@@ -328,8 +328,8 @@ keda:
         scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
         # Query by 99p latency of the 90p slowest pod
         query: >-
-          quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) > 6000
-          or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_duration_bucket[10m])) by (le, method, instance)))) < 3500
+          quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_request_duration_bucket[10m])) by (le, method, instance)))) > 6000
+          or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_request_duration_bucket[10m])) by (le, method, instance)))) < 3500
           or vector(5000)
         targetValue: "5000"
       loadBalancerMetadata:
@@ -919,7 +919,7 @@ kedaScaler:
           metric:
             # Only pass to the collector used to export metrics to Keda metrics that can be used
             # for fallback and latency of requests.
-            - name != "haproxy_server_http_responses_total" and name != "http.server.duration" and name != "otelcol_exporter_queue_size" and name != "otelcol_exporter_queue_capacity"
+            - name != "haproxy_server_http_responses_total" and name != "http.server.duration" and name != "otelcol_exporter_queue_size" and name != "otelcol_exporter_queue_capacity" and name != "http.server.request.duration"
     exporters:
       otlp/keda:
         endpoint: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}
