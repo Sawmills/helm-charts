@@ -564,11 +564,11 @@ haproxy:
     server:
       # Number of successful health checks before marking server UP (default: 10)
       # Lower value = faster startup, but less stable detection
-      rise: 4
+      rise: 2
       # Health check interval in milliseconds (default: 2000)
       interval: 2000
       # Number of failed health checks before marking server DOWN (default: 1)
-      fall: 1
+      fall: 3
 
   # TLS configuration for HAProxy sidecar
   # When any port mapping has TLS enabled, this secret is mounted
