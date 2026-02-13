@@ -30,7 +30,7 @@ spec:
     - protocol: TCP
       port: {{ $config.from }}
       targetPort: {{ $config.from }}
-      name: haproxy-{{ $name }}
+      name: {{ printf "hp-%s" $name | replace "_" "-" | trunc 15 | trimSuffix "-" }}
     {{- end }}
     {{- end }}
   selector:

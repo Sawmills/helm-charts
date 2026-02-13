@@ -275,6 +275,8 @@ false
 
 {{/*
 Get the fully qualified headless service name for sibling fallback DNS resolution.
+Returns "<fullname>-headless.<namespace>.svc.cluster.local".
+Note: assumes default cluster domain (cluster.local).
 */}}
 {{- define "sawmills-collector.lbHeadlessSvcFQDN" -}}
 {{- printf "%s-headless.%s.svc.cluster.local" (include "sawmills-collector.fullname" .) .Release.Namespace -}}

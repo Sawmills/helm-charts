@@ -215,6 +215,12 @@ backend logs_http_{{ $config.from }}_direct
   option httpchk
   {{- end }}
   {{- end }}
+  {{- with $fc }}
+  {{- if .timeout }}
+  {{ if .timeout.connect }}timeout connect {{ .timeout.connect }}{{- end }}
+  {{ if .timeout.server }}timeout server {{ .timeout.server }}{{- end }}
+  {{- end }}
+  {{- end }}
   # Strip sibling header before forwarding to local collector
   http-request del-header X-Sibling-Hop
   {{- $server := $fc.server | default dict -}}

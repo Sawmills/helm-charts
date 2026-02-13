@@ -374,7 +374,7 @@ tests:
             protocol: TCP
             port: 4318
             targetPort: 4318
-            name: haproxy-http_4318
+            name: hp-http-4318
 
   - it: should NOT expose HAProxy ports in headless service when sibling_fallback disabled
     template: load-balancer-service-headless.yaml
@@ -393,7 +393,7 @@ tests:
             protocol: TCP
             port: 4318
             targetPort: 4318
-            name: haproxy-http_4318
+            name: hp-http-4318
 
   # ============================================================
   # 10. Mixed ports - sibling applied only where appropriate

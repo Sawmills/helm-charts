@@ -692,8 +692,8 @@ haproxy:
     #   from: 4318
     #   to:
     #     port: 4318
+    #     mode: "http"
     #     fallback_endpoint: datadoghq.com
-    #   mode: "http"
     #   fallback_enabled: true
     #   logging: false
     #   options:
