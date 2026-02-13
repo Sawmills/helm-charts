@@ -1,0 +1,455 @@
+suite: test sibling fallback configuration
+templates:
+  - haproxy-configmap.yaml
+  - load-balancer-service-headless.yaml
+set:
+  haproxy.enabled: true
+  loadBalancer.enabled: true
+  loadBalancer.service.headless.enabled: true
+  haproxy.healthcheck.enabled: true
+tests:
+  # ============================================================
+  # 1. Default behavior: sibling fallback DISABLED
+  # ============================================================
+  - it: should NOT include resolvers block when sibling_fallback is disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: false
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "resolvers k8s"
+
+  - it: should NOT include X-Sibling-Hop ACL when sibling_fallback is disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: false
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "X-Sibling-Hop"
+
+  - it: should NOT include server-template sibling when sibling_fallback is disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: false
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling"
+
+  - it: should NOT include _direct backend when sibling_fallback is disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: false
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "logs_http_4318_direct"
+
+  - it: should have original 2-server backend when sibling_fallback is disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: false
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'server otel "\$MY_POD_IP":4318'
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
+
+  # ============================================================
+  # 2. Sibling fallback ENABLED - DNS resolver
+  # ============================================================
+  - it: should include resolvers k8s block when sibling_fallback is enabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "resolvers k8s"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "parse-resolv-conf"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "hold valid 5s"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "accepted_payload_size 8192"
+
+  - it: should use custom resolver settings
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.resolver.hold_valid: "10s"
+      haproxy.sibling_fallback.resolver.hold_timeout: "15s"
+      haproxy.sibling_fallback.resolver.hold_refused: "20s"
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "hold valid 10s"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "hold timeout 15s"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "hold refused 20s"
+
+  # ============================================================
+  # 3. Sibling fallback ENABLED - Frontend loop prevention
+  # ============================================================
+  - it: should include X-Sibling-Hop ACL in frontend when enabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "acl is_sibling_hop hdr\\(X-Sibling-Hop\\) -m found"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "use_backend logs_http_4318_direct if is_sibling_hop"
+
+  # ============================================================
+  # 4. Sibling fallback ENABLED - Full backend (3-tier)
+  # ============================================================
+  - it: should set X-Sibling-Hop header in full backend
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "http-request set-header X-Sibling-Hop 1"
+
+  - it: should include server-template sibling with headless DNS
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling 10.*headless.*:4318.*backup.*resolvers k8s.*init-addr none"
+
+  - it: should use custom max_servers for server-template
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.max_servers: 20
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling 20"
+
+  - it: should include external fallback with weight 0 as last resort
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server fallback vendor.example.com.*backup weight 0.*ssl verify none"
+
+  - it: should use custom sibling health check settings
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.check.port: 13136
+      haproxy.sibling_fallback.check.interval: 5000
+      haproxy.sibling_fallback.check.rise: 3
+      haproxy.sibling_fallback.check.fall: 4
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling.*check port 13136 inter 5000 rise 3 fall 4"
+
+  # ============================================================
+  # 5. Sibling fallback ENABLED - Direct backend (loop prevention)
+  # ============================================================
+  - it: should create _direct backend with del-header
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "http-request del-header X-Sibling-Hop"
+
+  - it: should have otel and fallback servers in _direct backend
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct[\\s\\S]*?server otel[\\s\\S]*?server fallback"
+
+  # ============================================================
+  # 6. TCP mode - sibling fallback NOT applied (Phase 1 limitation)
+  # ============================================================
+  - it: should NOT apply sibling fallback for TCP mode ports
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        tcp_514:
+          from: 514
+          to:
+            port: 514
+            mode: tcp
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "X-Sibling-Hop"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "logs_http_514_direct"
+      # Should still have the original 2-server backend
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
+
+  # ============================================================
+  # 7. gRPC mode - sibling fallback IS applied
+  # ============================================================
+  - it: should apply sibling fallback for gRPC mode
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        grpc_4317:
+          from: 4317
+          to:
+            port: 4317
+            mode: grpc
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "acl is_sibling_hop hdr\\(X-Sibling-Hop\\) -m found"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling.*proto h2.*backup.*resolvers k8s"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4317_direct"
+
+  # ============================================================
+  # 8. No fallback endpoint - sibling fallback NOT applied
+  # ============================================================
+  - it: should NOT apply sibling fallback when no fallback_endpoint
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "X-Sibling-Hop"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling"
+
+  # ============================================================
+  # 9. Headless service - HAProxy ports exposed when enabled
+  # ============================================================
+  - it: should expose HAProxy ports in headless service when sibling_fallback enabled
+    template: load-balancer-service-headless.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            protocol: TCP
+            port: 4318
+            targetPort: 4318
+            name: haproxy-http_4318
+
+  - it: should NOT expose HAProxy ports in headless service when sibling_fallback disabled
+    template: load-balancer-service-headless.yaml
+    set:
+      haproxy.sibling_fallback.enabled: false
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notContains:
+          path: spec.ports
+          content:
+            protocol: TCP
+            port: 4318
+            targetPort: 4318
+            name: haproxy-http_4318
+
+  # ============================================================
+  # 10. Mixed ports - sibling applied only where appropriate
+  # ============================================================
+  - it: should apply sibling fallback only to HTTP ports with fallback_endpoint
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+        tcp_514:
+          from: 514
+          to:
+            port: 514
+            mode: tcp
+            fallback_endpoint: vendor.example.com
+        http_no_fb:
+          from: 8080
+          to:
+            port: 8080
+    asserts:
+      # HTTP with fallback - should have sibling tier
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "logs_http_4318_direct"
+      # TCP with fallback - should NOT have sibling tier
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "logs_http_514_direct"
+      # HTTP without fallback - should NOT have sibling tier
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "logs_http_8080_direct"
+
+  # ============================================================
+  # 11. Prerequisite checks - sibling needs LB + HAProxy
+  # ============================================================
+  - it: should NOT enable sibling fallback when loadBalancer is disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      loadBalancer.enabled: false
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "resolvers k8s"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling"
