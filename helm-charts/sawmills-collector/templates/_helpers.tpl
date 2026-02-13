@@ -261,6 +261,28 @@ false
 {{- end -}}
 
 {{/*
+Check if sibling fallback is enabled.
+Requires loadBalancer + HAProxy to be enabled, and sibling_fallback.enabled to be true.
+Returns "true" or "false" as string for consistent comparison.
+*/}}
+{{- define "sawmills-collector.siblingFallbackEnabled" -}}
+{{- if and .Values.loadBalancer.enabled .Values.haproxy.enabled .Values.haproxy.sibling_fallback.enabled -}}
+true
+{{- else -}}
+false
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get the fully qualified headless service name for sibling fallback DNS resolution.
+Returns "<fullname>-headless.<namespace>.svc.cluster.local".
+Note: assumes default cluster domain (cluster.local).
+*/}}
+{{- define "sawmills-collector.lbHeadlessSvcFQDN" -}}
+{{- printf "%s-headless.%s.svc.cluster.local" (include "sawmills-collector.fullname" .) .Release.Namespace -}}
+{{- end -}}
+
+{{/*
 Get the HAProxy TLS secret name - either generated or user-provided
 */}}
 {{- define "sawmills-collector.haproxyTlsSecretName" -}}

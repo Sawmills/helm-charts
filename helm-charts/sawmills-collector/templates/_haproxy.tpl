@@ -73,6 +73,15 @@ defaults
   option redispatch
 {{- end }}
 
+{{- if eq (include "sawmills-collector.siblingFallbackEnabled" .) "true" }}
+resolvers k8s
+  parse-resolv-conf
+  hold valid {{ .Values.haproxy.sibling_fallback.resolver.hold_valid | default "5s" }}
+  hold timeout {{ .Values.haproxy.sibling_fallback.resolver.hold_timeout | default "5s" }}
+  hold refused {{ .Values.haproxy.sibling_fallback.resolver.hold_refused | default "5s" }}
+  accepted_payload_size 8192
+{{- end }}
+
 {{- if .Values.haproxy.prometheus.enabled }}
 frontend prometheus
   bind *:{{ .Values.haproxy.prometheus.port | default .Values.haproxy.prometheus_port }}
@@ -123,6 +132,10 @@ backend healthcheck_backend
 {{ if eq $mode "grpc" }}
   {{ $proto = "proto h2" }}
 {{ end }}
+{{- $siblingEnabled := false }}
+{{- if and (eq (include "sawmills-collector.siblingFallbackEnabled" $) "true") $to.fallback_endpoint (ne $mode "tcp") }}
+  {{- $siblingEnabled = true }}
+{{- end }}
 frontend logs_http_frontend_{{ $config.from }}
   {{- if and $config.tls $config.tls.enabled }}
   bind *:{{ $config.from }} ssl crt @k8s-tls/haproxy-cert{{- if eq $mode "grpc" }} alpn h2{{- end }}
@@ -142,6 +155,11 @@ frontend logs_http_frontend_{{ $config.from }}
   {{- if .timeout }}
   {{ if .timeout.client }}timeout client {{ .timeout.client }}{{- end }}
   {{- end }}
+  {{- end }}
+  {{- if $siblingEnabled }}
+  # Sibling fallback: detect forwarded requests to prevent routing loops (max 1 hop)
+  acl is_sibling_hop hdr(X-Sibling-Hop) -m found
+  use_backend logs_http_{{ $config.from }}_direct if is_sibling_hop
   {{- end }}
   default_backend logs_http_{{ $config.from }}
 
@@ -166,10 +184,51 @@ backend logs_http_{{ $config.from }}
   {{- $interval := default 2000 $server.interval -}}
   {{- $rise := default 10 $server.rise -}}
   {{- $fall := default 1 $server.fall }}
+  {{- if $siblingEnabled }}
+  # Tag request as sibling-forwarded before sending to sibling tier
+  http-request set-header X-Sibling-Hop 1
+  {{- end }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $.Values.haproxy.error_limit }} on-error mark-down
+  {{- if $siblingEnabled }}
+  {{- $sf := $.Values.haproxy.sibling_fallback }}
+  # Sibling tier: round-robin across other LB pods via headless service DNS
+  # "backup" ensures these only activate when local otel is DOWN
+  server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ $config.from }} {{ $proto }} check port {{ $sf.check.port | default 13135 }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }} backup resolvers k8s init-addr none
+  # External fallback: last resort (listed after siblings, so HAProxy tries siblings first)
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
+  {{- else }}
+  server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
+  {{- end }}
   {{- else }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
   {{- end }}
+
+{{- if $siblingEnabled }}
+# Direct backend for sibling-forwarded requests (no sibling tier to prevent loops)
+backend logs_http_{{ $config.from }}_direct
+  mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
+  {{- range $option := $config.backend_options }}
+  option {{ $option }}
+  {{- end }}
+  {{- if not $config.backend_options }}
+  {{- if not (eq $mode "grpc") }}
+  option httpchk
+  {{- end }}
+  {{- end }}
+  {{- with $fc }}
+  {{- if .timeout }}
+  {{ if .timeout.connect }}timeout connect {{ .timeout.connect }}{{- end }}
+  {{ if .timeout.server }}timeout server {{ .timeout.server }}{{- end }}
+  {{- end }}
+  {{- end }}
+  # Strip sibling header before forwarding to local collector
+  http-request del-header X-Sibling-Hop
+  {{- $server := $fc.server | default dict -}}
+  {{- $interval := default 2000 $server.interval -}}
+  {{- $rise := default 10 $server.rise -}}
+  {{- $fall := default 1 $server.fall }}
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $.Values.haproxy.error_limit }} on-error mark-down
+  server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
+{{- end }}
 {{- end }}
 {{- end -}} 

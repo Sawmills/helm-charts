@@ -656,6 +656,34 @@ haproxy:
     enabled: true
     port: 13135
 
+  # Sibling fallback configuration
+  # When enabled, HAProxy routes to sibling LB pods (round-robin) before falling back
+  # to the external vendor endpoint. This reduces unnecessary external egress during
+  # single-pod failures or rolling updates.
+  # Requires: loadBalancer.enabled=true, haproxy.enabled=true
+  # Phase 1: HTTP and gRPC modes only (TCP deferred - header-based loop prevention not possible)
+  sibling_fallback:
+    # Enable sibling fallback tier (default: false - opt-in to preserve existing behavior)
+    enabled: false
+    # Maximum number of sibling server slots for HAProxy server-template
+    # Should match or exceed loadBalancer.replicas / KEDA maxReplicas
+    max_servers: 10
+    # DNS resolver settings for headless service discovery
+    resolver:
+      hold_valid: "5s"
+      hold_timeout: "5s"
+      hold_refused: "5s"
+    # Sibling health check configuration
+    check:
+      # HAProxy healthcheck port - returns 503 if local otel is DOWN
+      port: 13135
+      # Check interval in milliseconds
+      interval: 3000
+      # Successful checks before marking sibling UP
+      rise: 2
+      # Failed checks before marking sibling DOWN
+      fall: 2
+
   # Port mapping configuration
   # Each mapping can optionally enable TLS termination
   mapping: {}
@@ -664,8 +692,8 @@ haproxy:
     #   from: 4318
     #   to:
     #     port: 4318
+    #     mode: "http"
     #     fallback_endpoint: datadoghq.com
-    #   mode: "http"
     #   fallback_enabled: true
     #   logging: false
     #   options:

@@ -34,8 +34,12 @@ echo "📋 Running external labels helper tests..."
 helm unittest . -f 'tests/helpers_external_labels_test.yaml' --color
 
 echo ""
-echo "📋 Running external labels helper tests..."
+echo "📋 Running proxy helper tests..."
 helm unittest . -f 'tests/proxy_test.yaml' --color
+
+echo ""
+echo "📋 Running sibling fallback tests..."
+helm unittest . -f 'tests/sibling_fallback_test.yaml' --color
 
 echo ""
 echo "📋 Running all tests..."
@@ -49,5 +53,6 @@ echo "  - Affinity configuration tests: ✅"
 echo "  - Integration tests: ✅"
 echo "  - External labels helper tests: ✅"
 echo "  - Proxy helper tests: ✅"
+echo "  - Sibling fallback tests: ✅"
 echo ""
 echo "🚀 You can now deploy the chart with confidence that the affinity configuration works correctly!"
