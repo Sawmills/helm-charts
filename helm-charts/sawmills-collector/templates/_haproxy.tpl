@@ -194,8 +194,8 @@ backend logs_http_{{ $config.from }}
   # Sibling tier: round-robin across other LB pods via headless service DNS
   # "backup" ensures these only activate when local otel is DOWN
   server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ $config.from }} {{ $proto }} check port {{ $sf.check.port | default 13135 }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }} backup resolvers k8s init-addr none
-  # External fallback: last resort - weight 0 ensures all siblings are tried first
-  server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup weight 0 {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
+  # External fallback: last resort (listed after siblings, so HAProxy tries siblings first)
+  server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
   {{- else }}
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
   {{- end }}

@@ -223,7 +223,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server fallback vendor.example.com.*backup weight 0.*ssl verify none"
+          pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
 
   - it: should use custom sibling health check settings
     template: haproxy-configmap.yaml
