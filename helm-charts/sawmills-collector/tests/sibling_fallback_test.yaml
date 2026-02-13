@@ -210,7 +210,7 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling 20"
 
-  - it: should include external fallback with weight 0 as last resort
+  - it: should include external fallback as last resort
     template: haproxy-configmap.yaml
     set:
       haproxy.sibling_fallback.enabled: true
