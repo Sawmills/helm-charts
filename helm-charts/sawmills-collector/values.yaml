@@ -558,6 +558,17 @@ haproxy:
   # Default: 10 (was 3, increased to reduce spurious fallbacks from transient errors)
   error_limit: 10
 
+  # Native sidecar mode for HAProxy container lifecycle management.
+  # Controls how HAProxy handles graceful shutdown during rolling updates.
+  #   "false" (default) - Sleep-based preStop fallback. Works on all Kubernetes versions.
+  #                        Uses 'sleep 3; kill -USR1 1' preStop on HAProxy and 'sleep 5' on main-collector.
+  #   "true"            - Force Kubernetes native sidecar (init container with restartPolicy: Always).
+  #                        Requires Kubernetes >= 1.29 with SidecarContainers feature gate enabled.
+  #                        Guarantees shutdown ordering: main containers exit first, then sidecars.
+  #   "auto"            - Auto-detect: uses native sidecar if cluster is Kubernetes >= 1.33
+  #                        (where SidecarContainers is GA), falls back to sleep-based otherwise.
+  nativeSidecar: "false"
+
   # Fallback server health check configuration
   # These settings control how HAProxy marks the backend as UP/DOWN
   fallback_config:
