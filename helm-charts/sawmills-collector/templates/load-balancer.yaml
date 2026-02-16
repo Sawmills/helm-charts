@@ -76,6 +76,13 @@ spec:
         {{- end }}
       {{- end }}
 
+      {{- $useNativeSidecar := eq (include "sawmills-collector.useNativeSidecar" .) "true" }}
+
+      {{- if and .Values.haproxy.enabled $useNativeSidecar }}
+      initContainers:
+        {{- include "sawmills-collector.haproxyContainer" (dict "root" . "nativeSidecar" true) | nindent 8 }}
+      {{- end }}
+
       containers:
         {{- if .Values.loadBalancer.additionalContainers }}
         {{- range $name, $container := .Values.loadBalancer.additionalContainers }}
@@ -83,58 +90,8 @@ spec:
           {{- toYaml $container | nindent 10 }}
         {{- end }}
         {{- end }}
-        {{- if .Values.haproxy.enabled }}
-        - name: haproxy
-          image: {{ .Values.haproxy.image }}
-          env:
-            - name: MY_POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-          ports:
-          {{- range $name, $config := .Values.haproxy.mapping }}
-          - containerPort: {{ $config.from }}
-            name: {{ $name }}
-            protocol: {{ $config.to.protocol }}
-          {{- end }}
-          livenessProbe:
-            httpGet:
-              path: /healthcheck
-              port: 13135
-            initialDelaySeconds: {{ .Values.rollout.haproxy.probes.liveness.initialDelaySeconds }}
-            periodSeconds: {{ .Values.rollout.haproxy.probes.liveness.periodSeconds }}
-            failureThreshold: {{ .Values.rollout.haproxy.probes.liveness.failureThreshold }}
-          readinessProbe:
-            httpGet:
-              path: /healthcheck
-              port: 13135
-            initialDelaySeconds: {{ .Values.rollout.haproxy.probes.readiness.initialDelaySeconds }}
-            periodSeconds: {{ .Values.rollout.haproxy.probes.readiness.periodSeconds }}
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /bin/sh
-                  - -c
-                  - "sleep 3; kill -USR1 1 2>/dev/null || true"
-          resources:
-            {{- if .Values.haproxy.resources.requests }}
-            requests:
-              {{- toYaml .Values.haproxy.resources.requests | nindent 14 }}
-            {{- end }}
-            {{- if not .Values.haproxy.resources.disableLimits }}
-            limits:
-              {{- toYaml .Values.haproxy.resources.limits | nindent 14 }}
-            {{- end }}
-          volumeMounts:
-          - name: haproxy-config
-            mountPath: /usr/local/etc/haproxy/haproxy.cfg
-            subPath: haproxy.cfg
-          {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
-          - name: haproxy-tls-secret
-            mountPath: {{ .Values.haproxy.tls.certPath }}
-            readOnly: true
-          {{- end }}
+        {{- if and .Values.haproxy.enabled (not $useNativeSidecar) }}
+        {{- include "sawmills-collector.haproxyContainer" (dict "root" . "nativeSidecar" false) | nindent 8 }}
         {{- end }}
         - name: main-collector
           securityContext:
@@ -216,6 +173,14 @@ spec:
               {{- end }}
             initialDelaySeconds: {{ .Values.rollout.loadBalancer.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.loadBalancer.probes.readiness.periodSeconds }}
+          {{- if and .Values.haproxy.enabled (not $useNativeSidecar) }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sleep
+                  - "5"
+          {{- end }}
           resources:
             {{- if .Values.loadBalancer.resources.requests }}
             requests:

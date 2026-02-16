@@ -283,6 +283,99 @@ Note: assumes default cluster domain (cluster.local).
 {{- end -}}
 
 {{/*
+Resolve whether to use native sidecar mode for HAProxy.
+Accepts .Values.haproxy.nativeSidecar: "false" | "true" | "auto"
+Returns "true" or "false" as a string.
+*/}}
+{{- define "sawmills-collector.useNativeSidecar" -}}
+{{- $mode := default "false" .Values.haproxy.nativeSidecar | toString -}}
+{{- if eq $mode "true" -}}
+true
+{{- else if eq $mode "auto" -}}
+{{- if semverCompare ">=1.33-0" .Capabilities.KubeVersion.Version -}}
+true
+{{- else -}}
+false
+{{- end -}}
+{{- else -}}
+false
+{{- end -}}
+{{- end -}}
+
+{{/*
+HAProxy container spec (shared between native sidecar and regular container paths).
+Caller passes context via dict with "root" (top-level context) and "nativeSidecar" (bool).
+*/}}
+{{- define "sawmills-collector.haproxyContainer" -}}
+{{- $root := .root -}}
+{{- $nativeSidecar := .nativeSidecar -}}
+- name: haproxy
+  image: {{ $root.Values.haproxy.image }}
+  {{- if $nativeSidecar }}
+  restartPolicy: Always
+  {{- end }}
+  env:
+    - name: MY_POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP
+  ports:
+  {{- range $name, $config := $root.Values.haproxy.mapping }}
+  - containerPort: {{ $config.from }}
+    name: {{ $name }}
+    protocol: {{ $config.to.protocol }}
+  {{- end }}
+  livenessProbe:
+    httpGet:
+      path: /healthcheck
+      port: 13135
+    initialDelaySeconds: {{ $root.Values.rollout.haproxy.probes.liveness.initialDelaySeconds }}
+    periodSeconds: {{ $root.Values.rollout.haproxy.probes.liveness.periodSeconds }}
+    failureThreshold: {{ $root.Values.rollout.haproxy.probes.liveness.failureThreshold }}
+  readinessProbe:
+    httpGet:
+      path: /healthcheck
+      port: 13135
+    initialDelaySeconds: {{ $root.Values.rollout.haproxy.probes.readiness.initialDelaySeconds }}
+    periodSeconds: {{ $root.Values.rollout.haproxy.probes.readiness.periodSeconds }}
+  {{- if $nativeSidecar }}
+  lifecycle:
+    preStop:
+      exec:
+        command:
+          - /bin/sh
+          - -c
+          - "kill -USR1 1 2>/dev/null || true"
+  {{- else }}
+  lifecycle:
+    preStop:
+      exec:
+        command:
+          - /bin/sh
+          - -c
+          - "sleep 3; kill -USR1 1 2>/dev/null || true"
+  {{- end }}
+  resources:
+    {{- if $root.Values.haproxy.resources.requests }}
+    requests:
+      {{- toYaml $root.Values.haproxy.resources.requests | nindent 6 }}
+    {{- end }}
+    {{- if not $root.Values.haproxy.resources.disableLimits }}
+    limits:
+      {{- toYaml $root.Values.haproxy.resources.limits | nindent 6 }}
+    {{- end }}
+  volumeMounts:
+  - name: haproxy-config
+    mountPath: /usr/local/etc/haproxy/haproxy.cfg
+    subPath: haproxy.cfg
+  {{- if eq (include "sawmills-collector.haproxyTlsEnabled" $root) "true" }}
+  - name: haproxy-tls-secret
+    mountPath: {{ $root.Values.haproxy.tls.certPath }}
+    readOnly: true
+  {{- end }}
+{{- end -}}
+
+{{/*
 Get the HAProxy TLS secret name - either generated or user-provided
 */}}
 {{- define "sawmills-collector.haproxyTlsSecretName" -}}
