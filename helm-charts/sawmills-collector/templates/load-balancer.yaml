@@ -116,7 +116,7 @@ spec:
                 command:
                   - /bin/sh
                   - -c
-                  - "kill -USR1 1 2>/dev/null || true"
+                  - "sleep 3; kill -USR1 1 2>/dev/null || true"
           resources:
             {{- if .Values.haproxy.resources.requests }}
             requests:
