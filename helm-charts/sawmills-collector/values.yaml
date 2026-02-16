@@ -116,6 +116,12 @@ rollout:
         # Default: rise=4, interval=2000ms = 8s, so 10s provides margin
         initialDelaySeconds: 10
         periodSeconds: 2
+    minReadySeconds: 15
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
 
 # Configuration for the Sawmills collector
 quotamgmtprocessor:

@@ -535,6 +535,12 @@ Enable a separate load balancer deployment:
 loadBalancer:
   enabled: true
   replicas: 3
+  minReadySeconds: 15
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   resources:
     requests:
       memory: 128Mi
