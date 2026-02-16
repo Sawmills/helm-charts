@@ -1044,12 +1044,10 @@ loadBalancer:
       maxUnavailable: 0
       maxSurge: 1
   podAnnotations: {}
-  # terminationGracePeriodSeconds should exceed preStopSleepSeconds + drain time
-  # This gives HAProxy time to soft-stop, K8s to remove endpoint, and connections to drain
+  # terminationGracePeriodSeconds: time K8s waits after SIGTERM before force-killing the pod.
+  # The OTel Collector handles SIGTERM gracefully (receivers→processors→exporters drain in order),
+  # so no preStop hook is needed. 60s gives exporters time to flush queues and retry.
   terminationGracePeriodSeconds: 60
-  # preStopSleepSeconds: time to wait in preStop hook for endpoint removal propagation
-  # HAProxy receives USR1 (soft-stop), then sleeps this duration before SIGTERM
-  preStopSleepSeconds: 15
   nodeSelector: {}
   tolerations: []
   affinity: {}
