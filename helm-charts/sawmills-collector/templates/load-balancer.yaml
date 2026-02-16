@@ -14,6 +14,15 @@ spec:
   replicas: {{ .Values.loadBalancer.replicas }}
   {{- $lbStrategy := default (dict) .Values.loadBalancer.strategy }}
   {{- $lbStrategyType := default "RollingUpdate" $lbStrategy.type }}
+  {{- if .Values.loadBalancer.storage.enabled }}
+  updateStrategy:
+    type: {{ $lbStrategyType }}
+    {{- if eq $lbStrategyType "RollingUpdate" }}
+    rollingUpdate:
+      {{- $ru := default (dict) $lbStrategy.rollingUpdate }}
+      maxUnavailable: {{ default 0 $ru.maxUnavailable }}
+    {{- end }}
+  {{- else }}
   strategy:
     type: {{ $lbStrategyType }}
     {{- if eq $lbStrategyType "RollingUpdate" }}
@@ -22,7 +31,8 @@ spec:
       maxUnavailable: {{ default 0 $ru.maxUnavailable }}
       maxSurge: {{ default 1 $ru.maxSurge }}
     {{- end }}
-  minReadySeconds: {{ .Values.loadBalancer.minReadySeconds }}
+  {{- end }}
+  minReadySeconds: {{ default 0 .Values.loadBalancer.minReadySeconds }}
   selector:
     matchLabels:
       {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 6 }}
