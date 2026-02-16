@@ -1037,6 +1037,12 @@ kedaScaler:
 loadBalancer:
   enabled: false
   replicas: 3
+  minReadySeconds: 15
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   podAnnotations: {}
   # terminationGracePeriodSeconds should exceed preStopSleepSeconds + drain time
   # This gives HAProxy time to soft-stop, K8s to remove endpoint, and connections to drain
