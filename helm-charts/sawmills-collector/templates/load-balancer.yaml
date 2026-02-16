@@ -20,7 +20,7 @@ spec:
     {{- if eq $lbStrategyType "RollingUpdate" }}
     rollingUpdate:
       {{- $ru := default (dict) $lbStrategy.rollingUpdate }}
-      maxUnavailable: {{ default 0 $ru.maxUnavailable }}
+      maxUnavailable: {{ default 1 $ru.maxUnavailable }}
     {{- end }}
   {{- else }}
   strategy:
