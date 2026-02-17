@@ -39,7 +39,6 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: {{ randAlphaNum 5 | quote }}
         {{- with .Values.loadBalancer.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
