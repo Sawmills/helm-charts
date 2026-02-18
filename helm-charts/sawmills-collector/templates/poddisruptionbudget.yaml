@@ -1,0 +1,21 @@
+{{- if and .Values.podDisruptionBudget.enabled (eq .Values.mode "deployment") }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "sawmills-collector.selectorLabels" . | nindent 6 }}
+  {{- $pdb := .Values.podDisruptionBudget }}
+  {{- if and $pdb (hasKey $pdb "minAvailable") (not (kindIs "invalid" $pdb.minAvailable)) }}
+  minAvailable: {{ $pdb.minAvailable }}
+  {{- else if and $pdb (hasKey $pdb "maxUnavailable") (not (kindIs "invalid" $pdb.maxUnavailable)) }}
+  maxUnavailable: {{ $pdb.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ include "sawmills-collector.defaultPdbMinAvailable" . }}
+  {{- end }}
+{{- end }}

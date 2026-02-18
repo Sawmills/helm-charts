@@ -232,6 +232,74 @@ Populate NO_PRQOXY with both static and dymanic (e.g. MY_POD_IP) values
 {{- end }}
 
 {{/*
+Compute effective replica count (always at least 1).
+*/}}
+{{- define "sawmills-collector.replicaCountValue" -}}
+{{- $replicas := int (default 1 .Values.replicaCount) -}}
+{{- if lt $replicas 1 -}}
+  {{- $replicas = 1 -}}
+{{- end -}}
+{{- $replicas -}}
+{{- end }}
+
+{{/*
+Default maxUnavailable based on replica count.
+*/}}
+{{- define "sawmills-collector.defaultMaxUnavailable" -}}
+{{- $replicas := include "sawmills-collector.replicaCountValue" . | int -}}
+{{- if gt $replicas 10 -}}
+  {{- $val := div (add $replicas 4) 5 -}}
+  {{- if lt $val 2 -}}
+2
+  {{- else -}}
+{{ $val }}
+  {{- end -}}
+{{- else -}}
+1
+{{- end -}}
+{{- end }}
+
+{{/*
+Default maxSurge based on replica count.
+*/}}
+{{- define "sawmills-collector.defaultMaxSurge" -}}
+{{- $replicas := include "sawmills-collector.replicaCountValue" . | int -}}
+{{- if gt $replicas 10 -}}
+  {{- $val := div (add $replicas 4) 5 -}}
+  {{- if lt $val 2 -}}
+2
+  {{- else -}}
+{{ $val }}
+  {{- end -}}
+{{- else -}}
+2
+{{- end -}}
+{{- end }}
+
+{{/*
+Default PodDisruptionBudget minAvailable.
+*/}}
+{{- define "sawmills-collector.defaultPdbMinAvailable" -}}
+{{- $replicas := include "sawmills-collector.replicaCountValue" . | int -}}
+{{- if le $replicas 5 -}}
+  {{- $val := sub $replicas 1 -}}
+  {{- if lt $val 0 -}}
+0
+  {{- else -}}
+{{ $val }}
+  {{- end -}}
+{{- else -}}
+  {{- $val := div (add (mul $replicas 8) 9) 10 -}}
+  {{- if lt $val 2 -}}
+2
+  {{- else -}}
+{{ $val }}
+  {{- end -}}
+{{- end -}}
+{{- end }}
+
+
+{{/*
 Check if any HAProxy mapping has TLS enabled (only when HAProxy is actually enabled)
 */}}
 {{- define "sawmills-collector.haproxyTlsEnabled" -}}

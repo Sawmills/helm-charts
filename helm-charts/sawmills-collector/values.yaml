@@ -19,8 +19,8 @@ collectorId: sawmills-collector-id
 # Rollout configuration
 rollout:
   # Global rollout settings
-  terminationGracePeriodSeconds: 10
-  minReadySeconds: 5
+  terminationGracePeriodSeconds: 60
+  minReadySeconds: 15
 
   # Deployment strategy configuration
   # For Deployment mode:
@@ -48,13 +48,13 @@ rollout:
   strategy: RollingUpdate
   rollingUpdate:
     # Maximum number of pods that can be unavailable during the update
-    # Can be specified as a number or percentage (e.g., "25%" or "1")
-    maxUnavailable: 33%
+    # When unset, defaults to 1 for fleets ≤ 10 collectors and scales with replicaCount for larger fleets.
+    maxUnavailable: null
 
     # Maximum number of pods that can be scheduled above the desired number of pods
-    # Can be specified as a number or percentage (e.g., "25%" or "1")
+    # When unset, defaults to 2 for fleets ≤ 10 collectors and scales with replicaCount for larger fleets.
     # Only applicable for Deployment mode, not for DaemonSet
-    maxSurge: 50%
+    maxSurge: null
 
   # LEGACY FORMAT SUPPORT:
   # If you have existing configurations using this format, they will continue to work:
@@ -79,8 +79,14 @@ rollout:
         periodSeconds: 5
         failureThreshold: 5
       readiness:
-        initialDelaySeconds: 5
+        initialDelaySeconds: 0
         periodSeconds: 5
+      startup:
+        enabled: true
+        initialDelaySeconds: 0
+        periodSeconds: 5
+        failureThreshold: 12
+    preStopSleepSeconds: 15
 
   # Telemetry collector specific settings
   telemetry:
@@ -116,6 +122,14 @@ rollout:
         # Default: rise=4, interval=2000ms = 8s, so 10s provides margin
         initialDelaySeconds: 10
         periodSeconds: 2
+    preStopSleepSeconds: 20
+
+# Pod disruption budget to keep collectors available during rollouts
+podDisruptionBudget:
+  enabled: true
+  # Defaults based on replicaCount (replicaCount-1 when ≤ 5, otherwise ceil(0.8 * replicaCount)) when unset.
+  minAvailable: null
+
 
 # Configuration for the Sawmills collector
 quotamgmtprocessor:
@@ -1057,7 +1071,8 @@ loadBalancer:
   podAnnotations: {}
   # terminationGracePeriodSeconds: time K8s waits after SIGTERM before force-killing the pod.
   # The OTel Collector handles SIGTERM gracefully (receivers→processors→exporters drain in order),
-  # so no preStop hook is needed. 60s gives exporters time to flush queues and retry.
+  # and we pair that with rollout.loadBalancer.preStopSleepSeconds (default 20s sleep) so HAProxy/main-collector
+  # have time to drain in-flight traffic before the 60s grace period expires.
   terminationGracePeriodSeconds: 60
   nodeSelector: {}
   tolerations: []
