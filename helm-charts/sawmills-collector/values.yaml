@@ -1090,7 +1090,10 @@ loadBalancer:
   # from taking all LB pods offline at once.
   podDisruptionBudget:
     enabled: true
-    # Defaults based on LB replicas (replicas-1 when ≤ 3, otherwise ceil(0.66 * replicas)) when unset.
+    # Defaults based on LB replicas when unset:
+    #   1 replica  → 0 (avoids blocking voluntary disruptions like node drain)
+    #   2-3 replicas → replicas - 1
+    #   >3 replicas  → ceil(0.66 * replicas)
     minAvailable: null
   resources:
     requests:
