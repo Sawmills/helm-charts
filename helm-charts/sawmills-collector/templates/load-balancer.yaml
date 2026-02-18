@@ -177,6 +177,15 @@ spec:
               {{- end }}
             initialDelaySeconds: {{ .Values.rollout.loadBalancer.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.loadBalancer.probes.readiness.periodSeconds }}
+          {{- if .Values.rollout.loadBalancer.probes.startup.enabled }}
+          startupProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13133
+            initialDelaySeconds: {{ default 0 .Values.rollout.loadBalancer.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.loadBalancer.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.rollout.loadBalancer.probes.startup.failureThreshold }}
+          {{- end }}
           {{- if .Values.rollout.loadBalancer.preStopSleepSeconds }}
           lifecycle:
             preStop:
