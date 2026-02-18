@@ -297,6 +297,23 @@ spec:
               port: 13133
             initialDelaySeconds: {{ .Values.rollout.main.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.main.probes.readiness.periodSeconds }}
+          {{- if .Values.rollout.main.probes.startup.enabled }}
+          startupProbe:
+            httpGet:
+              path: /healthcheck
+              port: 13133
+            initialDelaySeconds: {{ default 0 .Values.rollout.main.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rollout.main.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.rollout.main.probes.startup.failureThreshold }}
+          {{- end }}
+          {{- if .Values.rollout.main.preStopSleepSeconds }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sleep
+                  - "{{ .Values.rollout.main.preStopSleepSeconds }}"
+          {{- end }}
           resources:
             {{- if .Values.resources.requests }}
             requests:

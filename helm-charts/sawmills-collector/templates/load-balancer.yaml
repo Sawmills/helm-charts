@@ -172,13 +172,13 @@ spec:
               {{- end }}
             initialDelaySeconds: {{ .Values.rollout.loadBalancer.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.loadBalancer.probes.readiness.periodSeconds }}
-          {{- if and .Values.haproxy.enabled (not $useNativeSidecar) }}
+          {{- if .Values.rollout.loadBalancer.preStopSleepSeconds }}
           lifecycle:
             preStop:
               exec:
                 command:
                   - /bin/sleep
-                  - "5"
+                  - "{{ .Values.rollout.loadBalancer.preStopSleepSeconds }}"
           {{- end }}
           resources:
             {{- if .Values.loadBalancer.resources.requests }}

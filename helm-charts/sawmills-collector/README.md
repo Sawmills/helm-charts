@@ -444,10 +444,10 @@ serviceMonitor:
 rollout:
   strategy: RollingUpdate
   rollingUpdate:
-    maxUnavailable: 33%
-    maxSurge: 50%
-  minReadySeconds: 5
-  terminationGracePeriodSeconds: 10
+    maxUnavailable: 1
+    maxSurge: 1
+  minReadySeconds: 30
+  terminationGracePeriodSeconds: 60
   main:
     probes:
       liveness:
@@ -455,9 +455,23 @@ rollout:
         periodSeconds: 5
         failureThreshold: 5
       readiness:
-        initialDelaySeconds: 5
+        initialDelaySeconds: 30
         periodSeconds: 5
+      startup:
+        enabled: true
+        periodSeconds: 5
+        failureThreshold: 30
+    preStopSleepSeconds: 15
 ```
+
+### Pod Disruption Budget
+
+```yaml
+podDisruptionBudget:
+  enabled: true
+  minAvailable: "80%"
+```
+
 
 ## Examples
 

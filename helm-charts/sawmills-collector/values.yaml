@@ -19,8 +19,8 @@ collectorId: sawmills-collector-id
 # Rollout configuration
 rollout:
   # Global rollout settings
-  terminationGracePeriodSeconds: 10
-  minReadySeconds: 5
+  terminationGracePeriodSeconds: 60
+  minReadySeconds: 30
 
   # Deployment strategy configuration
   # For Deployment mode:
@@ -49,12 +49,12 @@ rollout:
   rollingUpdate:
     # Maximum number of pods that can be unavailable during the update
     # Can be specified as a number or percentage (e.g., "25%" or "1")
-    maxUnavailable: 33%
+    maxUnavailable: 1
 
     # Maximum number of pods that can be scheduled above the desired number of pods
     # Can be specified as a number or percentage (e.g., "25%" or "1")
     # Only applicable for Deployment mode, not for DaemonSet
-    maxSurge: 50%
+    maxSurge: 1
 
   # LEGACY FORMAT SUPPORT:
   # If you have existing configurations using this format, they will continue to work:
@@ -79,8 +79,14 @@ rollout:
         periodSeconds: 5
         failureThreshold: 5
       readiness:
-        initialDelaySeconds: 5
+        initialDelaySeconds: 30
         periodSeconds: 5
+      startup:
+        enabled: true
+        initialDelaySeconds: 0
+        periodSeconds: 5
+        failureThreshold: 30
+    preStopSleepSeconds: 15
 
   # Telemetry collector specific settings
   telemetry:
@@ -116,6 +122,13 @@ rollout:
         # Default: rise=4, interval=2000ms = 8s, so 10s provides margin
         initialDelaySeconds: 10
         periodSeconds: 2
+    preStopSleepSeconds: 20
+
+# Pod disruption budget to keep collectors available during rollouts
+podDisruptionBudget:
+  enabled: true
+  minAvailable: "80%"
+
 
 # Configuration for the Sawmills collector
 quotamgmtprocessor:
