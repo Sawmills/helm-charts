@@ -11,9 +11,9 @@ spec:
     matchLabels:
       {{- include "sawmills-collector.selectorLabels" . | nindent 6 }}
   {{- $pdb := .Values.podDisruptionBudget }}
-  {{- if and $pdb (hasKey $pdb "minAvailable") }}
+  {{- if and $pdb (hasKey $pdb "minAvailable") (not (kindIs "invalid" $pdb.minAvailable)) }}
   minAvailable: {{ $pdb.minAvailable }}
-  {{- else if and $pdb (hasKey $pdb "maxUnavailable") }}
+  {{- else if and $pdb (hasKey $pdb "maxUnavailable") (not (kindIs "invalid" $pdb.maxUnavailable)) }}
   maxUnavailable: {{ $pdb.maxUnavailable }}
   {{- else }}
   minAvailable: {{ include "sawmills-collector.defaultPdbMinAvailable" . }}

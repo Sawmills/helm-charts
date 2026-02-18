@@ -283,8 +283,8 @@ Default PodDisruptionBudget minAvailable.
 {{- $replicas := include "sawmills-collector.replicaCountValue" . | int -}}
 {{- if le $replicas 5 -}}
   {{- $val := sub $replicas 1 -}}
-  {{- if lt $val 1 -}}
-1
+  {{- if lt $val 0 -}}
+0
   {{- else -}}
 {{ $val }}
   {{- end -}}

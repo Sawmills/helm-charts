@@ -29,11 +29,11 @@ spec:
       {{- else }}
         {{- $configured := default (dict) .Values.rollout.rollingUpdate }}
         {{- $maxUnavailable := include "sawmills-collector.defaultMaxUnavailable" . }}
-        {{- if hasKey $configured "maxUnavailable" -}}
+        {{- if and (hasKey $configured "maxUnavailable") (not (kindIs "invalid" (index $configured "maxUnavailable"))) -}}
           {{- $maxUnavailable = $configured.maxUnavailable -}}
         {{- end }}
         {{- $maxSurge := include "sawmills-collector.defaultMaxSurge" . }}
-        {{- if hasKey $configured "maxSurge" -}}
+        {{- if and (hasKey $configured "maxSurge") (not (kindIs "invalid" (index $configured "maxSurge"))) -}}
           {{- $maxSurge = $configured.maxSurge -}}
         {{- end }}
       maxUnavailable: {{ $maxUnavailable }}
@@ -62,7 +62,7 @@ spec:
       {{- else }}
         {{- $configured := default (dict) .Values.rollout.rollingUpdate }}
         {{- $maxUnavailable := include "sawmills-collector.defaultMaxUnavailable" . }}
-        {{- if hasKey $configured "maxUnavailable" -}}
+        {{- if and (hasKey $configured "maxUnavailable") (not (kindIs "invalid" (index $configured "maxUnavailable"))) -}}
           {{- $maxUnavailable = $configured.maxUnavailable -}}
         {{- end }}
       maxUnavailable: {{ $maxUnavailable }}

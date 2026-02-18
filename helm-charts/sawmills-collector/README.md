@@ -455,12 +455,12 @@ rollout:
         periodSeconds: 5
         failureThreshold: 5
       readiness:
-        initialDelaySeconds: 30
+        initialDelaySeconds: 0
         periodSeconds: 5
       startup:
         enabled: true
         periodSeconds: 5
-        failureThreshold: 30
+        failureThreshold: 12
     preStopSleepSeconds: 15
 ```
 
