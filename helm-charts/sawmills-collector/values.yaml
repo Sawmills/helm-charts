@@ -1094,6 +1094,9 @@ loadBalancer:
     #   1 replica  → 0 (avoids blocking voluntary disruptions like node drain)
     #   2-3 replicas → replicas - 1
     #   >3 replicas  → ceil(0.66 * replicas)
+    # When loadBalancer.keda is enabled, set minAvailable explicitly —
+    # the default is computed from loadBalancer.replicas which may exceed
+    # the actual pod count after KEDA scales down.
     minAvailable: null
   resources:
     requests:
