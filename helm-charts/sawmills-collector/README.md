@@ -444,9 +444,9 @@ serviceMonitor:
 rollout:
   strategy: RollingUpdate
   rollingUpdate:
-    maxUnavailable: 1
-    maxSurge: 1
-  minReadySeconds: 30
+    maxUnavailable: null   # defaults to 1 for ≤ 10 replicas, scales proportionally beyond that
+    maxSurge: null         # defaults to 2 for ≤ 10 replicas, scales proportionally beyond that
+  minReadySeconds: 15
   terminationGracePeriodSeconds: 60
   main:
     probes:
@@ -469,7 +469,7 @@ rollout:
 ```yaml
 podDisruptionBudget:
   enabled: true
-  minAvailable: "80%"
+  minAvailable: null  # defaults to replicaCount-1 when ≤ 5, otherwise ceil(0.8 * replicaCount)
 ```
 
 

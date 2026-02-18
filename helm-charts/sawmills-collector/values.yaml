@@ -48,13 +48,13 @@ rollout:
   strategy: RollingUpdate
   rollingUpdate:
     # Maximum number of pods that can be unavailable during the update
-    # Can be specified as a number or percentage (e.g., "25%" or "1")
-    maxUnavailable: 1
+    # When unset, defaults to 1 for fleets ≤ 10 collectors and scales with replicaCount for larger fleets.
+    maxUnavailable: null
 
     # Maximum number of pods that can be scheduled above the desired number of pods
-    # Can be specified as a number or percentage (e.g., "25%" or "1")
+    # When unset, defaults to 2 for fleets ≤ 10 collectors and scales with replicaCount for larger fleets.
     # Only applicable for Deployment mode, not for DaemonSet
-    maxSurge: 2
+    maxSurge: null
 
   # LEGACY FORMAT SUPPORT:
   # If you have existing configurations using this format, they will continue to work:
@@ -127,7 +127,8 @@ rollout:
 # Pod disruption budget to keep collectors available during rollouts
 podDisruptionBudget:
   enabled: true
-  minAvailable: "80%"
+  # Defaults based on replicaCount (replicaCount-1 when ≤ 5, otherwise ceil(0.8 * replicaCount)) when unset.
+  minAvailable: null
 
 
 # Configuration for the Sawmills collector

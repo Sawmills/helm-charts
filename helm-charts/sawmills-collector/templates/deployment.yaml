@@ -22,12 +22,27 @@ spec:
     {{- end }}
     {{- if eq $strategyType "RollingUpdate" }}
     rollingUpdate:
-      {{- if .Values.rollout.rollingUpdate }}
-      {{- toYaml .Values.rollout.rollingUpdate | nindent 6 }}
-      {{- else if kindIs "map" .Values.rollout.strategy }}
+      {{- if kindIs "map" .Values.rollout.strategy }}
       {{- /* Support legacy format */}}
       maxUnavailable: {{ .Values.rollout.strategy.maxUnavailable }}{{ if not (regexMatch "^[0-9]+$" (.Values.rollout.strategy.maxUnavailable | toString)) }}{{ else }}%{{ end }}
       maxSurge: {{ .Values.rollout.strategy.maxSurge }}{{ if not (regexMatch "^[0-9]+$" (.Values.rollout.strategy.maxSurge | toString)) }}{{ else }}%{{ end }}
+      {{- else }}
+        {{- $configured := default (dict) .Values.rollout.rollingUpdate }}
+        {{- $maxUnavailable := include "sawmills-collector.defaultMaxUnavailable" . }}
+        {{- if hasKey $configured "maxUnavailable" -}}
+          {{- $maxUnavailable = $configured.maxUnavailable -}}
+        {{- end }}
+        {{- $maxSurge := include "sawmills-collector.defaultMaxSurge" . }}
+        {{- if hasKey $configured "maxSurge" -}}
+          {{- $maxSurge = $configured.maxSurge -}}
+        {{- end }}
+      maxUnavailable: {{ $maxUnavailable }}
+      maxSurge: {{ $maxSurge }}
+        {{- range $key, $value := $configured }}
+          {{- if and (ne $key "maxUnavailable") (ne $key "maxSurge") }}
+      {{ $key }}: {{ $value }}
+          {{- end }}
+        {{- end }}
       {{- end }}
     {{- end }}
     type: {{ $strategyType }}
@@ -41,11 +56,16 @@ spec:
     {{- end }}
     {{- if eq $strategyType "RollingUpdate" }}
     rollingUpdate:
-      {{- if .Values.rollout.rollingUpdate }}
-      maxUnavailable: {{ .Values.rollout.rollingUpdate.maxUnavailable }}
-      {{- else if kindIs "map" .Values.rollout.strategy }}
+      {{- if kindIs "map" .Values.rollout.strategy }}
       {{- /* Support legacy format */}}
       maxUnavailable: {{ .Values.rollout.strategy.maxUnavailable }}{{ if not (regexMatch "^[0-9]+$" (.Values.rollout.strategy.maxUnavailable | toString)) }}{{ else }}%{{ end }}
+      {{- else }}
+        {{- $configured := default (dict) .Values.rollout.rollingUpdate }}
+        {{- $maxUnavailable := include "sawmills-collector.defaultMaxUnavailable" . }}
+        {{- if hasKey $configured "maxUnavailable" -}}
+          {{- $maxUnavailable = $configured.maxUnavailable -}}
+        {{- end }}
+      maxUnavailable: {{ $maxUnavailable }}
       {{- end }}
     {{- end }}
     type: {{ $strategyType }}

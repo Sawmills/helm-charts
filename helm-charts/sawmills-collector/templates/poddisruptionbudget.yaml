@@ -11,11 +11,11 @@ spec:
     matchLabels:
       {{- include "sawmills-collector.selectorLabels" . | nindent 6 }}
   {{- $pdb := .Values.podDisruptionBudget }}
-  {{- if hasKey $pdb "minAvailable" }}
+  {{- if and $pdb (hasKey $pdb "minAvailable") }}
   minAvailable: {{ $pdb.minAvailable }}
-  {{- else if hasKey $pdb "maxUnavailable" }}
+  {{- else if and $pdb (hasKey $pdb "maxUnavailable") }}
   maxUnavailable: {{ $pdb.maxUnavailable }}
   {{- else }}
-  {{- fail "podDisruptionBudget.enabled is true but neither minAvailable nor maxUnavailable is set" }}
+  minAvailable: {{ include "sawmills-collector.defaultPdbMinAvailable" . }}
   {{- end }}
 {{- end }}
