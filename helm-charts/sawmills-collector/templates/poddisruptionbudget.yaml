@@ -19,3 +19,25 @@ spec:
   minAvailable: {{ include "sawmills-collector.defaultPdbMinAvailable" . }}
   {{- end }}
 {{- end }}
+---
+{{- if and .Values.loadBalancer.enabled .Values.loadBalancer.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-lb
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 6 }}
+  {{- $lbPdb := .Values.loadBalancer.podDisruptionBudget }}
+  {{- if and $lbPdb (hasKey $lbPdb "minAvailable") (not (kindIs "invalid" $lbPdb.minAvailable)) }}
+  minAvailable: {{ $lbPdb.minAvailable }}
+  {{- else if and $lbPdb (hasKey $lbPdb "maxUnavailable") (not (kindIs "invalid" $lbPdb.maxUnavailable)) }}
+  maxUnavailable: {{ $lbPdb.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ include "sawmills-collector.defaultLbPdbMinAvailable" . }}
+  {{- end }}
+{{- end }}

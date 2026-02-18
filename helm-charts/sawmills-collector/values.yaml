@@ -1085,6 +1085,13 @@ loadBalancer:
     encryptionKey: ""
   extraEnv: []
   ports: {}
+  # Pod disruption budget for LB pods. Enabled by default to prevent
+  # simultaneous voluntary disruptions (node scale-down, upgrades)
+  # from taking all LB pods offline at once.
+  podDisruptionBudget:
+    enabled: true
+    # Defaults based on LB replicas (replicas-1 when ≤ 3, otherwise ceil(0.66 * replicas)) when unset.
+    minAvailable: null
   resources:
     requests:
       memory: 128Mi

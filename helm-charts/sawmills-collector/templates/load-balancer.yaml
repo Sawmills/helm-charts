@@ -128,6 +128,11 @@ spec:
               value: {{ .Values.quotamgmtprocessor.s3_bucket }}
             - name: COLLECTOR_NAME
               value: {{ .Values.collectorName }}
+            {{- if and (not .Values.loadBalancer.resources.disableLimits) .Values.loadBalancer.resources.limits .Values.loadBalancer.resources.limits.memory }}
+            {{- $memLimit := .Values.loadBalancer.resources.limits.memory | toString }}
+            - name: GOMEMLIMIT
+              value: {{ include "sawmills-collector.goMemLimit" $memLimit | quote }}
+            {{- end }}
             {{- $proxy := default dict .Values.proxy }}
             {{- with $proxy.http }}
             - name: HTTP_PROXY
