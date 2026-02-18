@@ -15,5 +15,7 @@ spec:
   minAvailable: {{ $pdb.minAvailable }}
   {{- else if hasKey $pdb "maxUnavailable" }}
   maxUnavailable: {{ $pdb.maxUnavailable }}
+  {{- else }}
+  {{- fail "podDisruptionBudget.enabled is true but neither minAvailable nor maxUnavailable is set" }}
   {{- end }}
 {{- end }}

@@ -20,7 +20,7 @@ collectorId: sawmills-collector-id
 rollout:
   # Global rollout settings
   terminationGracePeriodSeconds: 60
-  minReadySeconds: 30
+  minReadySeconds: 15
 
   # Deployment strategy configuration
   # For Deployment mode:
@@ -54,7 +54,7 @@ rollout:
     # Maximum number of pods that can be scheduled above the desired number of pods
     # Can be specified as a number or percentage (e.g., "25%" or "1")
     # Only applicable for Deployment mode, not for DaemonSet
-    maxSurge: 1
+    maxSurge: 2
 
   # LEGACY FORMAT SUPPORT:
   # If you have existing configurations using this format, they will continue to work:
@@ -79,13 +79,13 @@ rollout:
         periodSeconds: 5
         failureThreshold: 5
       readiness:
-        initialDelaySeconds: 30
+        initialDelaySeconds: 0
         periodSeconds: 5
       startup:
         enabled: true
         initialDelaySeconds: 0
         periodSeconds: 5
-        failureThreshold: 30
+        failureThreshold: 12
     preStopSleepSeconds: 15
 
   # Telemetry collector specific settings
@@ -1070,7 +1070,8 @@ loadBalancer:
   podAnnotations: {}
   # terminationGracePeriodSeconds: time K8s waits after SIGTERM before force-killing the pod.
   # The OTel Collector handles SIGTERM gracefully (receivers→processors→exporters drain in order),
-  # so no preStop hook is needed. 60s gives exporters time to flush queues and retry.
+  # and we pair that with rollout.loadBalancer.preStopSleepSeconds (default 20s sleep) so HAProxy/main-collector
+  # have time to drain in-flight traffic before the 60s grace period expires.
   terminationGracePeriodSeconds: 60
   nodeSelector: {}
   tolerations: []
