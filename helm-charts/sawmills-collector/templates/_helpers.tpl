@@ -298,6 +298,49 @@ Default PodDisruptionBudget minAvailable.
 {{- end -}}
 {{- end }}
 
+{{/*
+Default LB PodDisruptionBudget minAvailable.
+For LB we always want at least 2 pods running to avoid single-point-of-failure.
+  1 replica:   0 (PDB would block all voluntary disruptions otherwise)
+  2-3 replicas: replicas - 1
+  > 3 replicas: ceil(0.66 * replicas), min 2
+*/}}
+{{- define "sawmills-collector.defaultLbPdbMinAvailable" -}}
+{{- $replicas := int (default 3 .Values.loadBalancer.replicas) -}}
+{{- if le $replicas 1 -}}
+0
+{{- else if le $replicas 3 -}}
+{{ sub $replicas 1 }}
+{{- else -}}
+  {{- $val := div (add (mul $replicas 2) 2) 3 -}}
+  {{- if lt $val 2 -}}
+2
+  {{- else -}}
+{{ $val }}
+  {{- end -}}
+{{- end -}}
+{{- end }}
+
+
+{{/*
+Compute GOMEMLIMIT as 90% of a Kubernetes memory value (e.g. "4Gi" → "3686MiB").
+Accepts Gi and Mi suffixes. Fails at template time for unrecognized formats
+to prevent invalid GOMEMLIMIT values that would crash Go pods at startup.
+*/}}
+{{- define "sawmills-collector.goMemLimit" -}}
+{{- $raw := . | toString -}}
+{{- if hasSuffix "Gi" $raw -}}
+  {{- $num := trimSuffix "Gi" $raw | float64 -}}
+  {{- $mib := mulf $num 1024 | mulf 0.9 | ceil | int -}}
+  {{- printf "%dMiB" $mib -}}
+{{- else if hasSuffix "Mi" $raw -}}
+  {{- $num := trimSuffix "Mi" $raw | float64 -}}
+  {{- $mib := mulf $num 0.9 | ceil | int -}}
+  {{- printf "%dMiB" $mib -}}
+{{- else -}}
+  {{- fail (printf "goMemLimit: unsupported memory format %q — use Gi or Mi (e.g. \"4Gi\", \"512Mi\")" $raw) -}}
+{{- end -}}
+{{- end }}
 
 {{/*
 Check if any HAProxy mapping has TLS enabled (only when HAProxy is actually enabled)

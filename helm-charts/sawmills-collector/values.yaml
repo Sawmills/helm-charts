@@ -122,6 +122,11 @@ rollout:
         # Default: rise=4, interval=2000ms = 8s, so 10s provides margin
         initialDelaySeconds: 10
         periodSeconds: 2
+      startup:
+        enabled: true
+        initialDelaySeconds: 0
+        periodSeconds: 5
+        failureThreshold: 12
     preStopSleepSeconds: 20
 
 # Pod disruption budget to keep collectors available during rollouts
@@ -1076,7 +1081,19 @@ loadBalancer:
   terminationGracePeriodSeconds: 60
   nodeSelector: {}
   tolerations: []
-  affinity: {}
+  # Default configuration spreads LB pods across nodes to ensure high availability
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - sawmills-collector-chart-lb
+            topologyKey: kubernetes.io/hostname
   priorityClassName: ""
   topologySpreadConstraints: []
   additionalContainers: {}
@@ -1085,6 +1102,19 @@ loadBalancer:
     encryptionKey: ""
   extraEnv: []
   ports: {}
+  # Pod disruption budget for LB pods. Enabled by default to prevent
+  # simultaneous voluntary disruptions (node scale-down, upgrades)
+  # from taking all LB pods offline at once.
+  podDisruptionBudget:
+    enabled: true
+    # Defaults based on LB replicas when unset:
+    #   1 replica  → 0 (avoids blocking voluntary disruptions like node drain)
+    #   2-3 replicas → replicas - 1
+    #   >3 replicas  → ceil(0.66 * replicas)
+    # When loadBalancer.keda is enabled, set minAvailable explicitly —
+    # the default is computed from loadBalancer.replicas which may exceed
+    # the actual pod count after KEDA scales down.
+    minAvailable: null
   resources:
     requests:
       memory: 128Mi
