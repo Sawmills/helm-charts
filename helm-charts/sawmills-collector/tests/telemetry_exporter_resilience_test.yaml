@@ -56,7 +56,7 @@ tests:
   # GREEN: New config — bounded retries, capped queue, fast timeout
   # When the telemetry endpoint goes down, the exporter:
   #   1. Times out each request after 10s (not 30s default)
-  #   2. Retries with backoff: 5s → drop (one attempt, then give up)
+  #   2. Retries with backoff: 2s → 4s → drop (2-3 attempts within 5s)
   #   3. Drops data after 5s total — telemetry is expendable
   #   4. Queue capped at 2000 items with 20 consumers for fast drain
   # Self-monitoring telemetry is dropped before it can destabilize the collector.
@@ -80,10 +80,10 @@ tests:
           pattern: 'max_elapsed_time: 5s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'max_interval: 10s'
+          pattern: 'max_interval: 5s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'initial_interval: 5s'
+          pattern: 'initial_interval: 2s'
       # Queue sized for self-telemetry, not bulk data
       - matchRegex:
           path: data["telemetry-config.yaml"]
@@ -113,7 +113,7 @@ tests:
           pattern: 'max_elapsed_time: 5s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'max_interval: 10s'
+          pattern: 'max_interval: 5s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'queue_size: 2000'
