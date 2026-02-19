@@ -56,13 +56,13 @@ tests:
   # GREEN: New config — bounded retries, capped queue, fast timeout
   # When the telemetry endpoint goes down, the exporter:
   #   1. Times out each request after 10s (not 30s default)
-  #   2. Retries with backoff: 5s → 10s → drop (~25s wall time)
-  #   3. Drops data after 30s total — never holds it for 5 minutes
+  #   2. Retries with backoff: 5s → drop (one attempt, then give up)
+  #   3. Drops data after 5s total — telemetry is expendable
   #   4. Queue capped at 2000 items with 20 consumers for fast drain
   # Self-monitoring telemetry is dropped before it can destabilize the collector.
   # =========================================================================
 
-  - it: "NEW CONFIG: retry capped at 30s — exporter drops telemetry rather than destabilize collector"
+  - it: "NEW CONFIG: retry capped at 5s — exporter drops telemetry rather than destabilize collector"
     template: telemetry-configmap.yaml
     asserts:
       - exists:
@@ -71,13 +71,13 @@ tests:
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'timeout: 10s'
-      # Retry bounds — drop after 30 seconds, not 5 minutes
+      # Retry bounds — drop after 5 seconds, not 5 minutes
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'retry_on_failure:'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'max_elapsed_time: 30s'
+          pattern: 'max_elapsed_time: 5s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'max_interval: 10s'
@@ -110,7 +110,7 @@ tests:
           pattern: 'timeout: 10s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'max_elapsed_time: 30s'
+          pattern: 'max_elapsed_time: 5s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'max_interval: 10s'
