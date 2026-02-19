@@ -811,7 +811,7 @@ telemetryConfig:
       remote_write_queue:
         enabled: true
         queue_size: 2000
-        num_consumers: 10
+        num_consumers: 20
       retry_on_failure:
         enabled: true
         initial_interval: 5s
