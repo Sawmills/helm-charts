@@ -1,0 +1,136 @@
+suite: test telemetry exporter resilience - self-monitoring must never destabilize the collector
+templates:
+  - telemetry-configmap.yaml
+  - load-balancer-telemetry-configmap.yaml
+tests:
+  # =========================================================================
+  # RED: Old config — unbounded retries, oversized queue
+  # When the telemetry endpoint goes down, the exporter retries for 5 minutes
+  # (max_elapsed_time=300s), holding failed batches in a 5000-item queue with
+  # only 10 consumers. This amplifies memory pressure on already-stressed pods.
+  #
+  # We simulate the old config by overriding values to the pre-fix defaults:
+  #   - No explicit timeout (OTel default 30s)
+  #   - max_elapsed_time: 300s (OTel default — retries for 5 minutes)
+  #   - queue_size: 5000 (oversized for self-telemetry)
+  #   - num_consumers: 10 (too few to drain under pressure)
+  #
+  # This test documents the vulnerability and proves our new defaults differ.
+  # =========================================================================
+
+  - it: "OLD CONFIG: 5-minute retry window — exporter holds data in memory during outage"
+    template: telemetry-configmap.yaml
+    set:
+      telemetryConfig.exporters.prometheusremotewrite.timeout: null
+      telemetryConfig.exporters.prometheusremotewrite.remote_write_queue.queue_size: 5000
+      telemetryConfig.exporters.prometheusremotewrite.remote_write_queue.num_consumers: 10
+      telemetryConfig.exporters.prometheusremotewrite.retry_on_failure.enabled: true
+      telemetryConfig.exporters.prometheusremotewrite.retry_on_failure.initial_interval: 5s
+      telemetryConfig.exporters.prometheusremotewrite.retry_on_failure.max_interval: 30s
+      telemetryConfig.exporters.prometheusremotewrite.retry_on_failure.max_elapsed_time: 300s
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # 5-minute retry window — holds failed data far too long
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'max_elapsed_time: 300s'
+      # Default 30s max interval between retries (slow backoff)
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'max_interval: 30s'
+      # Queue oversized for self-telemetry sidecar
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'queue_size: 5000'
+      # Too few consumers to drain under pressure
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'num_consumers: 10'
+      # No explicit request timeout
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'timeout: 10s'
+
+  # =========================================================================
+  # GREEN: New config — bounded retries, capped queue, fast timeout
+  # When the telemetry endpoint goes down, the exporter:
+  #   1. Times out each request after 10s (not 30s default)
+  #   2. Retries with backoff: 5s → 10s → drop (~25s wall time)
+  #   3. Drops data after 30s total — never holds it for 5 minutes
+  #   4. Queue capped at 2000 items with 20 consumers for fast drain
+  # Self-monitoring telemetry is dropped before it can destabilize the collector.
+  # =========================================================================
+
+  - it: "NEW CONFIG: retry capped at 30s — exporter drops telemetry rather than destabilize collector"
+    template: telemetry-configmap.yaml
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # Request timeout — fail fast on unresponsive endpoint
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'timeout: 10s'
+      # Retry bounds — drop after 30 seconds, not 5 minutes
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'retry_on_failure:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'max_elapsed_time: 30s'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'max_interval: 10s'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'initial_interval: 5s'
+      # Queue sized for self-telemetry, not bulk data
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'queue_size: 2000'
+      # High consumer count for fast drain on recovery
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'num_consumers: 20'
+
+  # =========================================================================
+  # Verify LB telemetry-collector gets the same protection
+  # =========================================================================
+
+  - it: "NEW CONFIG: LB telemetry-collector also has bounded retries"
+    template: load-balancer-telemetry-configmap.yaml
+    set:
+      loadBalancer:
+        enabled: true
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'timeout: 10s'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'max_elapsed_time: 30s'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'max_interval: 10s'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'queue_size: 2000'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'num_consumers: 20'
+
+  # =========================================================================
+  # Guard: retry_on_failure must always be enabled (never accidentally disabled)
+  # =========================================================================
+
+  - it: "GUARD: retry_on_failure.enabled must be true — we want bounded retries, not zero retries"
+    template: telemetry-configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'retry_on_failure:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'enabled: true'
