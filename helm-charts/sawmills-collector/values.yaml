@@ -814,8 +814,8 @@ telemetryConfig:
         num_consumers: 20
       retry_on_failure:
         enabled: true
-        initial_interval: 5s
-        max_interval: 10s
+        initial_interval: 2s
+        max_interval: 5s
         max_elapsed_time: 5s
   processors:
     transform/external_labels:
