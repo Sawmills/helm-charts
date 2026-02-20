@@ -1,0 +1,180 @@
+suite: test metrics clickhouse routing - conditional routing of metric-signal THP metrics to ClickHouse
+templates:
+  - telemetry-configmap.yaml
+tests:
+  # =========================================================================
+  # DEFAULT: Flag disabled — no CH routing, no filters, current behavior
+  # =========================================================================
+
+  - it: "DEFAULT: no clickhouse pipeline when metricsClickhouseRouting is disabled"
+    template: telemetry-configmap.yaml
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # CH pipeline should NOT exist
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/clickhouse'
+      # Filter processors should NOT exist
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/exclude_metric_thp'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/include_metric_thp'
+      # Debug/clickhouse exporter should NOT exist
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'debug/clickhouse'
+
+  - it: "DEFAULT: VM pipeline has no filter when metricsClickhouseRouting is disabled"
+    template: telemetry-configmap.yaml
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # VM pipeline should exist without the filter
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/external/prometheusremotewrite'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/exclude_metric_thp'
+
+  # =========================================================================
+  # ENABLED: Flag on — CH pipeline added, filters applied, VM pipeline modified
+  # =========================================================================
+
+  - it: "ENABLED: clickhouse pipeline exists when metricsClickhouseRouting is enabled"
+    template: telemetry-configmap.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # CH pipeline should exist
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/clickhouse'
+      # Debug exporter should exist
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'debug/clickhouse'
+
+  - it: "ENABLED: filter processors are present when metricsClickhouseRouting is enabled"
+    template: telemetry-configmap.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # Both filter processors should exist
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/exclude_metric_thp'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/include_metric_thp'
+
+  - it: "ENABLED: CH pipeline receives from forward connector and exports to debug/clickhouse"
+    template: telemetry-configmap.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # CH pipeline config should include forward receiver and debug/clickhouse exporter
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/clickhouse'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/include_metric_thp'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'debug/clickhouse'
+
+  - it: "ENABLED: VM pipeline (prometheus) includes exclude filter when metricsClickhouseRouting is enabled"
+    template: telemetry-configmap.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+      telemetryExternalConfig.type: "prometheus"
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # VM pipeline should exist with the filter
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/external/prometheusremotewrite'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/exclude_metric_thp'
+
+  - it: "ENABLED: Arrow pipeline includes exclude filter when metricsClickhouseRouting is enabled with arrow type"
+    template: telemetry-configmap.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+      telemetryExternalConfig.type: "arrow"
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # Arrow pipeline should exist with the filter
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/external/otelarrow'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/exclude_metric_thp'
+
+  # =========================================================================
+  # FILTER REGEX VALIDATION: Ensure correct metric names are targeted
+  # =========================================================================
+
+  - it: "ENABLED: exclude filter targets metric-signal THP metrics (central and non-central)"
+    template: telemetry-configmap.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # Filter should match central thp metric-signal patterns
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_processor_.*central_.*thp_.*received_metric_'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_processor_.*thp_.*metric_'
+
+  # =========================================================================
+  # EXISTING PIPELINES PRESERVED: Other pipelines unaffected
+  # =========================================================================
+
+  - it: "ENABLED: existing customer_collector pipeline is unchanged"
+    template: telemetry-configmap.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/customer_collector'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/telemetry_collector'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/system'
+
+  - it: "ENABLED: existing connectors (routing, forward) are preserved"
+    template: telemetry-configmap.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'routing:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'forward:'
