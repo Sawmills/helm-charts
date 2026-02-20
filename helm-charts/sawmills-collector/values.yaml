@@ -570,12 +570,14 @@ otelCollectorConfig: {}
 # HAProxy configuration
 haproxy:
   enabled: false
-  image: public.ecr.aws/docker/library/haproxy:3.1
+  image: public.ecr.aws/docker/library/haproxy:3.1.15
   max_connections: 60000
   # Number of consecutive layer 7 errors before marking backend DOWN and routing to fallback.
   # Higher values reduce fallback sensitivity to transient errors.
-  # Default: 10 (was 3, increased to reduce spurious fallbacks from transient errors)
-  error_limit: 10
+  # With Fix #1 (503 instead of 500), HAProxy retries on 503. error-limit counts only
+  # consecutive non-retryable errors (5xx). 200 provides ~30s window at burst error rates
+  # before mark-down, preventing cascade fallback during memory_limiter backpressure spikes.
+  error_limit: 200
 
   # Native sidecar mode for HAProxy container lifecycle management.
   # Controls how HAProxy handles graceful shutdown during rolling updates.
@@ -592,13 +594,14 @@ haproxy:
   # These settings control how HAProxy marks the backend as UP/DOWN
   fallback_config:
     server:
-      # Number of successful health checks before marking server UP (default: 10)
-      # Lower value = faster startup, but less stable detection
-      rise: 2
-      # Health check interval in milliseconds (default: 2000)
+      # Number of successful health checks before marking server UP
+      # 5 checks × 2s interval = 10s before re-enabling after recovery
+      rise: 5
+      # Health check interval in milliseconds
       interval: 2000
-      # Number of failed health checks before marking server DOWN (default: 1)
-      fall: 3
+      # Number of failed health checks before marking server DOWN
+      # 5 checks × 2s interval = 10s grace period before mark-down
+      fall: 5
 
   # TLS configuration for HAProxy sidecar
   # When any port mapping has TLS enabled, this secret is mounted
