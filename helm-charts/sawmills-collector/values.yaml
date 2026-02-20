@@ -773,6 +773,52 @@ telemetryExternalConfig:
           receivers: [forward]
           processors: [transform/external_labels]
           exporters: [otelarrow]
+
+# -- Route metric-signal THP metrics to ClickHouse instead of Victoria Metrics.
+# When enabled, metric-signal THP metrics (received_metric_*, metric_attribute*, metric_time_series)
+# are filtered out of the VM/Arrow pipeline and routed to a debug exporter (placeholder for future
+# clickhousemetrics exporter). Controlled per-deployment by collectors-service.
+metricsClickhouseRouting:
+  enabled: false
+  # Base config: filter processors, debug exporter, and CH pipeline
+  config:
+    processors:
+      filter/exclude_metric_thp:
+        error_mode: ignore
+        metrics:
+          metric:
+            - 'IsMatch(name, "otelcol_processor_(central_)?thp_(received_metric_|metric_).*")'
+      filter/include_metric_thp:
+        error_mode: ignore
+        metrics:
+          metric:
+            - 'not IsMatch(name, "otelcol_processor_(central_)?thp_(received_metric_|metric_).*")'
+    exporters:
+      debug/clickhouse:
+        verbosity: basic
+    service:
+      pipelines:
+        metrics/clickhouse:
+          receivers: [forward]
+          processors: [filter/include_metric_thp]
+          exporters: [debug/clickhouse]
+  # Override VM pipeline to prepend exclude filter
+  prometheusConfig:
+    service:
+      pipelines:
+        metrics/external/prometheusremotewrite:
+          receivers: [forward]
+          processors: [filter/exclude_metric_thp, transform/external_labels]
+          exporters: [prometheusremotewrite]
+  # Override Arrow pipeline to prepend exclude filter
+  arrowConfig:
+    service:
+      pipelines:
+        metrics/external/otelarrow:
+          receivers: [forward]
+          processors: [filter/exclude_metric_thp, transform/external_labels]
+          exporters: [otelarrow]
+
 telemetryConfig:
   receivers:
     otlp/customer_collector:
