@@ -493,10 +493,26 @@ tests:
           pattern: "backend logs_http_4318[\\s\\S]*error-limit 17 on-error mark-down"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_direct[\\s\\S]*retry-on 503"
+          pattern: "backend logs_http_4318_direct\\n  mode http\\n  option httpchk"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318_direct[\\s\\S]*error-limit 17 on-error mark-down"
+
+  - it: should NOT include retry-on 503 when sibling fallback is disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: false
+      haproxy.refusal_fast_fail.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "retry-on 503"
 
   - it: should NOT include slowstart by default
     template: haproxy-configmap.yaml

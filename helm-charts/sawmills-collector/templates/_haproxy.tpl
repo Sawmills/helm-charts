@@ -165,7 +165,7 @@ frontend logs_http_frontend_{{ $config.from }}
 
 backend logs_http_{{ $config.from }}
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
-  {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
+  {{- if and $.Values.haproxy.refusal_fast_fail.enabled $siblingEnabled (ne $mode "tcp") }}
   retry-on 503
   {{- end }}
   {{- range $option := $config.backend_options }}
@@ -216,9 +216,6 @@ backend logs_http_{{ $config.from }}
 # Direct backend for sibling-forwarded requests (no sibling tier to prevent loops)
 backend logs_http_{{ $config.from }}_direct
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
-  {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
-  retry-on 503
-  {{- end }}
   {{- range $option := $config.backend_options }}
   option {{ $option }}
   {{- end }}
