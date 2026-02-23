@@ -579,6 +579,20 @@ haproxy:
   # before mark-down, preventing cascade fallback during memory_limiter backpressure spikes.
   error_limit: 200
 
+  # Fast fail behavior for local collector refusal spikes.
+  # This keeps Kubernetes readiness/liveness unchanged and only affects HAProxy routing.
+  refusal_fast_fail:
+    # Enable explicit retry on HTTP 503 and use a lower error-limit for mark-down.
+    # Useful when local collector starts refusing under pressure and traffic should move
+    # to sibling/fallback paths faster.
+    enabled: false
+    # Consecutive layer7 errors before marking local otel backend DOWN when enabled.
+    # Smaller values fail over faster but may react to transient spikes.
+    error_limit: 20
+    # Ramp local backend traffic gradually after recovery to reduce re-overload.
+    # Empty string disables slowstart.
+    slowstart: ""
+
   # Native sidecar mode for HAProxy container lifecycle management.
   # Controls how HAProxy handles graceful shutdown during rolling updates.
   #   "false" (default) - Sleep-based preStop fallback. Works on all Kubernetes versions.
