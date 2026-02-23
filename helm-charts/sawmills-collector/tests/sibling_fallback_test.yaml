@@ -487,16 +487,16 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318[\\s\\S]*retry-on 503"
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on 503"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318[\\s\\S]*error-limit 17 on-error mark-down"
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318_direct\\n  mode http\\n  option httpchk"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_direct[\\s\\S]*error-limit 17 on-error mark-down"
+          pattern: "backend logs_http_4318_direct\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down"
 
   - it: should NOT include retry-on 503 when sibling fallback is disabled
     template: haproxy-configmap.yaml
@@ -546,7 +546,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318[\\s\\S]*server otel .*error-limit 17 on-error mark-down slowstart 30s"
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down slowstart 30s"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_direct[\\s\\S]*server otel .*error-limit 17 on-error mark-down slowstart 30s"
+          pattern: "backend logs_http_4318_direct\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down slowstart 30s"
