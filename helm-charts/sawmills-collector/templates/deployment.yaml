@@ -215,7 +215,7 @@ spec:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
             {{- if .Values.metricsClickhouseRouting.enabled }}
-            - name: CLICKHOUSE_METRICS_DSN
+            - name: CLICKHOUSE_ANALYTICS_DSN
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.metricsClickhouseRouting.secretRef.name }}
