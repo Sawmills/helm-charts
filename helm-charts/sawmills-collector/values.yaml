@@ -775,12 +775,16 @@ telemetryExternalConfig:
           exporters: [otelarrow]
 
 # -- Route metric-signal THP metrics to ClickHouse instead of Victoria Metrics.
-# When enabled, metric-signal THP metrics (received_metric_*, metric_attribute*, metric_time_series)
-# are filtered out of the VM/Arrow pipeline and routed to a debug exporter (placeholder for future
-# clickhousemetrics exporter). Controlled per-deployment by collectors-service.
+# When enabled, metric-signal THP metrics (received_metric_*, metric_attribute*)
+# are filtered out of the VM/Arrow pipeline and routed to clickhousemetrics exporter.
+# Controlled per-deployment by collectors-service.
 metricsClickhouseRouting:
   enabled: false
-  # Base config: filter processors, debug exporter, and CH pipeline
+  # Secret containing the ClickHouse DSN for the clickhousemetrics exporter
+  secretRef:
+    name: clickhouse-analytics-secret
+    key: dsn
+  # Base config: filter processors, clickhousemetrics exporter, and CH pipeline
   config:
     processors:
       filter/exclude_metric_thp:
@@ -794,14 +798,15 @@ metricsClickhouseRouting:
           metric:
             - 'not IsMatch(name, "otelcol_processor_(central_)?thp_(received_metric_|metric_).*")'
     exporters:
-      debug/clickhouse:
-        verbosity: basic
+      clickhousemetrics:
+        dsn: ${env:CLICKHOUSE_METRICS_DSN}
+        database: metrics
     service:
       pipelines:
         metrics/clickhouse:
           receivers: [forward]
           processors: [filter/include_metric_thp]
-          exporters: [debug/clickhouse]
+          exporters: [clickhousemetrics]
   # Override VM pipeline to prepend exclude filter
   prometheusConfig:
     service:

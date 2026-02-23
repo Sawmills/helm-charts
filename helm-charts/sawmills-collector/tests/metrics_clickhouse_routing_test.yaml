@@ -1,6 +1,7 @@
 suite: test metrics clickhouse routing - conditional routing of metric-signal THP metrics to ClickHouse
 templates:
   - telemetry-configmap.yaml
+  - deployment.yaml
 tests:
   # =========================================================================
   # DEFAULT: Flag disabled — no CH routing, no filters, current behavior
@@ -22,10 +23,10 @@ tests:
       - notMatchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'filter/include_metric_thp'
-      # Debug/clickhouse exporter should NOT exist
+      # clickhousemetrics exporter should NOT exist
       - notMatchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'debug/clickhouse'
+          pattern: 'clickhousemetrics'
 
   - it: "DEFAULT: VM pipeline has no filter when metricsClickhouseRouting is disabled"
     template: telemetry-configmap.yaml
@@ -55,10 +56,10 @@ tests:
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'metrics/clickhouse'
-      # Debug exporter should exist
+      # clickhousemetrics exporter should exist
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'debug/clickhouse'
+          pattern: 'clickhousemetrics'
 
   - it: "ENABLED: filter processors are present when metricsClickhouseRouting is enabled"
     template: telemetry-configmap.yaml
@@ -75,14 +76,14 @@ tests:
           path: data["telemetry-config.yaml"]
           pattern: 'filter/include_metric_thp'
 
-  - it: "ENABLED: CH pipeline receives from forward connector and exports to debug/clickhouse"
+  - it: "ENABLED: CH pipeline receives from forward connector and exports to clickhousemetrics"
     template: telemetry-configmap.yaml
     set:
       metricsClickhouseRouting.enabled: true
     asserts:
       - exists:
           path: data["telemetry-config.yaml"]
-      # CH pipeline config should include forward receiver and debug/clickhouse exporter
+      # CH pipeline config should include forward receiver and clickhousemetrics exporter
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'metrics/clickhouse'
@@ -91,7 +92,7 @@ tests:
           pattern: 'filter/include_metric_thp'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'debug/clickhouse'
+          pattern: 'clickhousemetrics'
 
   - it: "ENABLED: VM pipeline (prometheus) includes exclude filter when metricsClickhouseRouting is enabled"
     template: telemetry-configmap.yaml
@@ -178,3 +179,26 @@ tests:
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'forward:'
+
+  # =========================================================================
+  # DEPLOYMENT: CLICKHOUSE_METRICS_DSN env var injection
+  # =========================================================================
+
+  - it: "DEFAULT: CLICKHOUSE_METRICS_DSN env var is NOT injected when metricsClickhouseRouting is disabled"
+    template: deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CLICKHOUSE_METRICS_DSN
+
+  - it: "ENABLED: CLICKHOUSE_METRICS_DSN env var is injected into telemetry-collector container"
+    template: deployment.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CLICKHOUSE_METRICS_DSN
+          any: true

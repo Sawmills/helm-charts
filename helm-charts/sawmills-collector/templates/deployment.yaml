@@ -214,6 +214,13 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
+            {{- if .Values.metricsClickhouseRouting.enabled }}
+            - name: CLICKHOUSE_METRICS_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.metricsClickhouseRouting.secretRef.name }}
+                  key: {{ .Values.metricsClickhouseRouting.secretRef.key }}
+            {{- end }}
             {{- include "sawmills-collector.proxyEnv" . | nindent 12 }}
             {{- if .Values.telemetryExtraEnv }}
             {{- toYaml .Values.telemetryExtraEnv | nindent 12 }}
