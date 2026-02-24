@@ -128,6 +128,10 @@ spec:
               value: {{ .Values.quotamgmtprocessor.s3_bucket }}
             - name: COLLECTOR_NAME
               value: {{ .Values.collectorName }}
+            {{- if .Values.orgId }}
+            - name: SAWMILLS_ORG_ID
+              value: {{ .Values.orgId }}
+            {{- end }}
             {{- if and (not .Values.loadBalancer.resources.disableLimits) .Values.loadBalancer.resources.limits .Values.loadBalancer.resources.limits.memory }}
             {{- $memLimit := .Values.loadBalancer.resources.limits.memory | toString }}
             - name: GOMEMLIMIT
@@ -248,6 +252,10 @@ spec:
               value: {{ .Values.collectorName }}
             - name: COLLECTOR_ID
               value: {{ .Values.collectorId }}
+            {{- if .Values.orgId }}
+            - name: SAWMILLS_ORG_ID
+              value: {{ .Values.orgId }}
+            {{- end }}
             - name: PROMETHEUS_PORT
               value: {{ .Values.telemetry.prometheus.port | quote }}
             - name: PROMETHEUS_REMOTE_WRITE_ENDPOINT

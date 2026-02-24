@@ -221,3 +221,53 @@ tests:
           content:
             name: CLICKHOUSE_ANALYTICS_DSN
           any: true
+
+  # =========================================================================
+  # DEPLOYMENT: SAWMILLS_ORG_ID env var injection for THP metrics org_id
+  # =========================================================================
+
+  - it: "DEFAULT: SAWMILLS_ORG_ID env var is NOT injected when orgId is empty"
+    template: deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SAWMILLS_ORG_ID
+      - notContains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: SAWMILLS_ORG_ID
+
+  - it: "ENABLED: SAWMILLS_ORG_ID env var is injected into both containers when orgId is set"
+    template: deployment.yaml
+    set:
+      orgId: "test-org-123"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SAWMILLS_ORG_ID
+            value: test-org-123
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: SAWMILLS_ORG_ID
+            value: test-org-123
+
+  # =========================================================================
+  # TELEMETRY CONFIG: include_metadata and org_id header for THP metrics
+  # =========================================================================
+
+  - it: "telemetry OTLP receiver has include_metadata enabled"
+    template: telemetry-configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'include_metadata: true'
+
+  - it: "telemetry self-reporting OTLP exporter includes org_id header"
+    template: telemetry-configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'org_id:'

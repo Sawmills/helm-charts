@@ -15,6 +15,9 @@ mode: deployment
 # The name of the collector
 collectorName: sawmills-collector
 collectorId: sawmills-collector-id
+# -- Organization ID for the collector. Injected as SAWMILLS_ORG_ID env var.
+# Used by the telemetry OTLP exporter to propagate org_id to the clickhousemetrics exporter.
+orgId: ""
 
 # Rollout configuration
 rollout:
@@ -859,6 +862,7 @@ telemetryConfig:
             ca_file: /etc/otel/certs/ca-cert.pem
           endpoint: 127.0.0.1:14318
           max_recv_msg_size_mib: 10
+          include_metadata: true
 
   exporters:
     debug:
@@ -992,6 +996,8 @@ telemetryConfig:
                   certificate: /etc/otel/certs/ca-cert.pem
                   temporality_preference: delta
                   compression: gzip
+                  headers:
+                    org_id: ${env:SAWMILLS_ORG_ID}
 
 # deprecated, use serviceAccount.name instead
 serviceAccountName: ""

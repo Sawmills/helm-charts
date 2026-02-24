@@ -200,6 +200,10 @@ spec:
               value: {{ .Values.collectorName }}
             - name: COLLECTOR_ID
               value: {{ .Values.collectorId }}
+            {{- if .Values.orgId }}
+            - name: SAWMILLS_ORG_ID
+              value: {{ .Values.orgId }}
+            {{- end }}
             - name: PROMETHEUS_PORT
               value: {{ .Values.telemetry.prometheus.port | quote }}
             - name: PROMETHEUS_REMOTE_WRITE_ENDPOINT
@@ -293,6 +297,10 @@ spec:
               value: {{ .Values.quotamgmtprocessor.s3_bucket }}
             - name: COLLECTOR_NAME
               value: {{ .Values.collectorName }}
+            {{- if .Values.orgId }}
+            - name: SAWMILLS_ORG_ID
+              value: {{ .Values.orgId }}
+            {{- end }}
             - name: AUTH_KEY
               valueFrom:
                 secretKeyRef:
