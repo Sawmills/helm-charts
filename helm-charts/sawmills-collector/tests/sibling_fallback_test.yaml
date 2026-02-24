@@ -453,3 +453,100 @@ tests:
       - notMatchRegex:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling"
+
+  # ============================================================
+  # 12. Refusal fast fail - 503 behavior
+  # ============================================================
+  - it: should NOT include retry-on 503 by default
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "retry-on 503"
+
+  - it: should include retry-on 503 and custom fast-fail error-limit when enabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.refusal_fast_fail.enabled: true
+      haproxy.refusal_fast_fail.error_limit: 17
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on 503"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct\\n  mode http\\n  option httpchk"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down"
+
+  - it: should NOT include retry-on 503 when sibling fallback is disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: false
+      haproxy.refusal_fast_fail.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "retry-on 503"
+
+  - it: should NOT include slowstart by default
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.refusal_fast_fail.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "slowstart"
+
+  - it: should include slowstart on otel servers when configured
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.refusal_fast_fail.enabled: true
+      haproxy.refusal_fast_fail.error_limit: 17
+      haproxy.refusal_fast_fail.slowstart: "30s"
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down slowstart 30s"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down slowstart 30s"

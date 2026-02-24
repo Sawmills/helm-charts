@@ -165,6 +165,9 @@ frontend logs_http_frontend_{{ $config.from }}
 
 backend logs_http_{{ $config.from }}
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
+  {{- if and $.Values.haproxy.refusal_fast_fail.enabled $siblingEnabled (ne $mode "tcp") }}
+  retry-on 503
+  {{- end }}
   {{- range $option := $config.backend_options }}
   option {{ $option }}
   {{- end }}
@@ -184,11 +187,17 @@ backend logs_http_{{ $config.from }}
   {{- $interval := default 2000 $server.interval -}}
   {{- $rise := default 10 $server.rise -}}
   {{- $fall := default 1 $server.fall }}
+  {{- $errorLimit := $.Values.haproxy.error_limit }}
+  {{- $slowstart := "" }}
+  {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
+  {{- $errorLimit = ($.Values.haproxy.refusal_fast_fail.error_limit | default 20) }}
+  {{- $slowstart = ($.Values.haproxy.refusal_fast_fail.slowstart | default "") }}
+  {{- end }}
   {{- if $siblingEnabled }}
   # Tag request as sibling-forwarded before sending to sibling tier
   http-request set-header X-Sibling-Hop 1
   {{- end }}
-  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $.Values.haproxy.error_limit }} on-error mark-down
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $errorLimit }} on-error mark-down{{ if ne $slowstart "" }} slowstart {{ $slowstart }}{{ end }}
   {{- if $siblingEnabled }}
   {{- $sf := $.Values.haproxy.sibling_fallback }}
   # Sibling tier: round-robin across other LB pods via headless service DNS
@@ -227,7 +236,13 @@ backend logs_http_{{ $config.from }}_direct
   {{- $interval := default 2000 $server.interval -}}
   {{- $rise := default 10 $server.rise -}}
   {{- $fall := default 1 $server.fall }}
-  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $.Values.haproxy.error_limit }} on-error mark-down
+  {{- $directErrorLimit := $.Values.haproxy.error_limit }}
+  {{- $directSlowstart := "" }}
+  {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
+  {{- $directErrorLimit = ($.Values.haproxy.refusal_fast_fail.error_limit | default 20) }}
+  {{- $directSlowstart = ($.Values.haproxy.refusal_fast_fail.slowstart | default "") }}
+  {{- end }}
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $directErrorLimit }} on-error mark-down{{ if ne $directSlowstart "" }} slowstart {{ $directSlowstart }}{{ end }}
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
 {{- end }}
 {{- end }}

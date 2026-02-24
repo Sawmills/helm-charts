@@ -579,6 +579,21 @@ haproxy:
   # before mark-down, preventing cascade fallback during memory_limiter backpressure spikes.
   error_limit: 200
 
+  # sawmills-collector: Fast fail behavior for local collector refusal spikes.
+  # sawmills-collector: Keeps Kubernetes readiness/liveness unchanged; only affects HAProxy routing.
+  refusal_fast_fail:
+    # sawmills-collector: Enable explicit retry on HTTP 503 and use a lower error-limit for mark-down.
+    # sawmills-collector: Useful when local collector starts refusing under pressure and traffic should move
+    # sawmills-collector: to sibling/fallback paths faster.
+    # sawmills-collector: retry-on-503 is only applied when sibling_fallback is enabled.
+    enabled: false
+    # sawmills-collector: Consecutive layer7 errors before marking local otel backend DOWN when enabled.
+    # sawmills-collector: Smaller values fail over faster but may react to transient spikes.
+    error_limit: 20
+    # sawmills-collector: Ramp local backend traffic gradually after recovery to reduce re-overload.
+    # sawmills-collector: Empty string disables slowstart.
+    slowstart: ""
+
   # Native sidecar mode for HAProxy container lifecycle management.
   # Controls how HAProxy handles graceful shutdown during rolling updates.
   #   "false" (default) - Sleep-based preStop fallback. Works on all Kubernetes versions.
