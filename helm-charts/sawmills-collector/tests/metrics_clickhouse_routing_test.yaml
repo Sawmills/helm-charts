@@ -181,18 +181,18 @@ tests:
           pattern: 'forward:'
 
   # =========================================================================
-  # DEPLOYMENT: CLICKHOUSE_METRICS_DSN env var injection
+  # DEPLOYMENT: CLICKHOUSE_ANALYTICS_DSN env var injection
   # =========================================================================
 
-  - it: "DEFAULT: CLICKHOUSE_METRICS_DSN env var is NOT injected when metricsClickhouseRouting is disabled"
+  - it: "DEFAULT: CLICKHOUSE_ANALYTICS_DSN env var is NOT injected when metricsClickhouseRouting is disabled"
     template: deployment.yaml
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].env
           content:
-            name: CLICKHOUSE_METRICS_DSN
+            name: CLICKHOUSE_ANALYTICS_DSN
 
-  - it: "ENABLED: CLICKHOUSE_METRICS_DSN env var is injected into telemetry-collector container"
+  - it: "ENABLED: CLICKHOUSE_ANALYTICS_DSN env var is injected into telemetry-collector container"
     template: deployment.yaml
     set:
       metricsClickhouseRouting.enabled: true
@@ -200,5 +200,24 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: CLICKHOUSE_METRICS_DSN
+            name: CLICKHOUSE_ANALYTICS_DSN
+          any: true
+
+  - it: "DEFAULT: CLICKHOUSE_ANALYTICS_DSN env var is NOT injected into main-collector when metricsClickhouseRouting is disabled"
+    template: deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: CLICKHOUSE_ANALYTICS_DSN
+
+  - it: "ENABLED: CLICKHOUSE_ANALYTICS_DSN env var is injected into main-collector container"
+    template: deployment.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: CLICKHOUSE_ANALYTICS_DSN
           any: true

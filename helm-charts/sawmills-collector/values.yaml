@@ -814,7 +814,7 @@ metricsClickhouseRouting:
             - 'not IsMatch(name, "otelcol_processor_(central_)?thp_(received_metric_|metric_).*")'
     exporters:
       clickhousemetrics:
-        dsn: ${env:CLICKHOUSE_METRICS_DSN}
+        dsn: ${env:CLICKHOUSE_ANALYTICS_DSN}
         database: metrics
     service:
       pipelines:
