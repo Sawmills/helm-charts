@@ -301,6 +301,13 @@ spec:
             - name: AWS_EC2_METADATA_DISABLED
               value: "true"
             {{- end }}
+            {{- if .Values.metricsClickhouseRouting.enabled }}
+            - name: CLICKHOUSE_ANALYTICS_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.metricsClickhouseRouting.secretRef.name }}
+                  key: {{ .Values.metricsClickhouseRouting.secretRef.key }}
+            {{- end }}
             {{- include "sawmills-collector.proxyEnv" . | nindent 12 }}
             {{- if .Values.extraEnv }}
             {{- toYaml .Values.extraEnv | nindent 12 }}
