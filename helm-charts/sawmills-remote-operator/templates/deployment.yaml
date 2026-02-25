@@ -108,6 +108,18 @@ spec:
         {{- $managedCharts := default (dict) .Values.managedChartsOverrides }}
         - name: MANAGED_CHARTS
           value: {{ tpl ($managedCharts | toJson | quote) $ }}
+        - name: AUTOSCALER_ENABLED
+          value: {{ printf "%t" .Values.autoscaler.enabled | quote }}
+        - name: AUTOSCALER_DRY_RUN
+          value: {{ printf "%t" .Values.autoscaler.dryRun | quote }}
+        - name: AUTOSCALER_METRICS_ENDPOINT
+          value: {{ tpl .Values.autoscaler.metricsEndpoint $ | quote }}
+        - name: AUTOSCALER_TARGET_HPA_NAME
+          value: {{ tpl .Values.autoscaler.targetHPAName $ | quote }}
+        - name: AUTOSCALER_LEASE_NAME
+          value: {{ tpl .Values.autoscaler.leaseName $ | quote }}
+        - name: AUTOSCALER_LABEL_SELECTORS
+          value: {{ tpl (.Values.autoscaler.labelSelectors | toJson | quote) $ }}
         resources:
             {{- toYaml .Values.resources | nindent 12 }}
         livenessProbe:
