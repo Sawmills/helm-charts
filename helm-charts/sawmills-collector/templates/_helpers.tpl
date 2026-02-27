@@ -125,7 +125,7 @@ Generate merged telemetry configuration with external labels
 */}}
 {{- define "sawmills-collector.telemetryConfig" -}}
 {{- if .Values.telemetryConfig }}
-{{- $config := .Values.telemetryConfig }}
+{{- $config := deepCopy .Values.telemetryConfig }}
 {{- if and .Values.haproxy.enabled (not .Values.loadBalancer.enabled) }}
   {{- $config = merge $config .Values.haproxyConfig }}
 {{- end }}
@@ -160,7 +160,7 @@ Generate merged telemetry configuration with external labels
 */}}
 {{- define "sawmills-collector.loadBalancerTelemetryConfig" -}}
 {{- if .Values.telemetryConfig }}
-{{- $config := .Values.telemetryConfig }}
+{{- $config := deepCopy .Values.telemetryConfig }}
 {{- if .Values.haproxy.enabled }}
   {{- $config = merge $config .Values.haproxyConfig }}
 {{- end }}
