@@ -2,6 +2,7 @@ suite: test metrics clickhouse routing - conditional routing of metric-signal TH
 templates:
   - telemetry-configmap.yaml
   - deployment.yaml
+  - load-balancer-telemetry-configmap.yaml
 tests:
   # =========================================================================
   # DEFAULT: Flag disabled — no CH routing, no filters, current behavior
@@ -221,3 +222,43 @@ tests:
           content:
             name: CLICKHOUSE_ANALYTICS_DSN
           any: true
+
+  # =========================================================================
+  # LOAD BALANCER: CH config must NOT leak into LB telemetry configmap
+  # =========================================================================
+
+  - it: "LB TELEMETRY: no clickhouse pipeline when metricsClickhouseRouting is enabled"
+    template: load-balancer-telemetry-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      # CH pipeline should NOT exist in LB telemetry
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/clickhouse'
+      # Filter processors should NOT exist in LB telemetry
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/exclude_metric_thp'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/include_metric_thp'
+      # clickhousemetrics exporter should NOT exist in LB telemetry
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'clickhousemetrics'
+
+  - it: "LB TELEMETRY: no CLICKHOUSE_ANALYTICS_DSN reference when metricsClickhouseRouting is enabled"
+    template: load-balancer-telemetry-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - exists:
+          path: data["telemetry-config.yaml"]
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'CLICKHOUSE_ANALYTICS_DSN'
