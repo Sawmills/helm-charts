@@ -122,66 +122,7 @@ spec:
         {{- end }}
         {{- end }}
         {{- if and .Values.haproxy.enabled (not .Values.loadBalancer.enabled) }}
-        {{- $livenessType := (dig "probes" "liveness" "type" "http" .Values.haproxy) | toString | lower }}
-        {{- $livenessPort := dig "probes" "liveness" "port" 13135 .Values.haproxy }}
-        {{- $livenessPath := dig "probes" "liveness" "path" "/healthcheck" .Values.haproxy }}
-        {{- $readinessType := (dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower }}
-        {{- $readinessPort := dig "probes" "readiness" "port" 13135 .Values.haproxy }}
-        {{- $readinessPath := dig "probes" "readiness" "path" "/healthcheck" .Values.haproxy }}
-        - name: haproxy
-          image: {{ .Values.haproxy.image }}
-          env:
-            - name: MY_POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-          ports:
-          {{- range $name, $config := .Values.haproxy.mapping }}
-          - containerPort: {{ $config.from }}
-            name: {{ $name }}
-            protocol: {{ $config.to.protocol }}
-          {{- end }}
-          livenessProbe:
-            {{- if eq $livenessType "tcp" }}
-            tcpSocket:
-              port: {{ $livenessPort }}
-            {{- else }}
-            httpGet:
-              path: {{ $livenessPath }}
-              port: {{ $livenessPort }}
-            {{- end }}
-            initialDelaySeconds: {{ .Values.rollout.haproxy.probes.liveness.initialDelaySeconds }}
-            periodSeconds: {{ .Values.rollout.haproxy.probes.liveness.periodSeconds }}
-            failureThreshold: {{ .Values.rollout.haproxy.probes.liveness.failureThreshold }}
-          readinessProbe:
-            {{- if eq $readinessType "tcp" }}
-            tcpSocket:
-              port: {{ $readinessPort }}
-            {{- else }}
-            httpGet:
-              path: {{ $readinessPath }}
-              port: {{ $readinessPort }}
-            {{- end }}
-            initialDelaySeconds: {{ .Values.rollout.haproxy.probes.readiness.initialDelaySeconds }}
-            periodSeconds: {{ .Values.rollout.haproxy.probes.readiness.periodSeconds }}
-          resources:
-            {{- if .Values.haproxy.resources.requests }}
-            requests:
-              {{- toYaml .Values.haproxy.resources.requests | nindent 14 }}
-            {{- end }}
-            {{- if not .Values.haproxy.resources.disableLimits }}
-            limits:
-              {{- toYaml .Values.haproxy.resources.limits | nindent 14 }}
-            {{- end }}
-          volumeMounts:
-          - name: haproxy-config
-            mountPath: /usr/local/etc/haproxy/haproxy.cfg
-            subPath: haproxy.cfg
-          {{- if eq (include "sawmills-collector.haproxyTlsEnabled" .) "true" }}
-          - name: haproxy-tls-secret
-            mountPath: {{ .Values.haproxy.tls.certPath }}
-            readOnly: true
-          {{- end }}
+        {{- include "sawmills-collector.haproxyContainer" (dict "root" . "nativeSidecar" false) | nindent 8 }}
         {{- end }}
         - name: telemetry-collector
           securityContext:
