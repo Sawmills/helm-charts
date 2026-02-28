@@ -429,6 +429,12 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
 {{- define "sawmills-collector.haproxyContainer" -}}
 {{- $root := .root -}}
 {{- $nativeSidecar := .nativeSidecar -}}
+{{- $livenessType := (dig "probes" "liveness" "type" "http" $root.Values.haproxy) | toString | lower -}}
+{{- $livenessPort := dig "probes" "liveness" "port" 13135 $root.Values.haproxy -}}
+{{- $livenessPath := dig "probes" "liveness" "path" "/healthcheck" $root.Values.haproxy -}}
+{{- $readinessType := (dig "probes" "readiness" "type" "http" $root.Values.haproxy) | toString | lower -}}
+{{- $readinessPort := dig "probes" "readiness" "port" 13135 $root.Values.haproxy -}}
+{{- $readinessPath := dig "probes" "readiness" "path" "/healthcheck" $root.Values.haproxy -}}
 - name: haproxy
   image: {{ $root.Values.haproxy.image }}
   {{- if $nativeSidecar }}
@@ -446,16 +452,26 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
     protocol: {{ $config.to.protocol }}
   {{- end }}
   livenessProbe:
+    {{- if eq $livenessType "tcp" }}
+    tcpSocket:
+      port: {{ $livenessPort }}
+    {{- else }}
     httpGet:
-      path: /healthcheck
-      port: 13135
+      path: {{ $livenessPath }}
+      port: {{ $livenessPort }}
+    {{- end }}
     initialDelaySeconds: {{ $root.Values.rollout.haproxy.probes.liveness.initialDelaySeconds }}
     periodSeconds: {{ $root.Values.rollout.haproxy.probes.liveness.periodSeconds }}
     failureThreshold: {{ $root.Values.rollout.haproxy.probes.liveness.failureThreshold }}
   readinessProbe:
+    {{- if eq $readinessType "tcp" }}
+    tcpSocket:
+      port: {{ $readinessPort }}
+    {{- else }}
     httpGet:
-      path: /healthcheck
-      port: 13135
+      path: {{ $readinessPath }}
+      port: {{ $readinessPort }}
+    {{- end }}
     initialDelaySeconds: {{ $root.Values.rollout.haproxy.probes.readiness.initialDelaySeconds }}
     periodSeconds: {{ $root.Values.rollout.haproxy.probes.readiness.periodSeconds }}
   {{- if $nativeSidecar }}

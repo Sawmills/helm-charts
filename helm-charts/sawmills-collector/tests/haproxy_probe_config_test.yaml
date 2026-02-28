@@ -1,0 +1,78 @@
+suite: test haproxy probe configuration
+templates:
+  - deployment.yaml
+  - load-balancer.yaml
+tests:
+  - it: should default to http healthcheck probes for haproxy in deployment mode
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.mapping.http_4318.from: 4318
+      haproxy.mapping.http_4318.to.port: 4318
+      haproxy.mapping.http_4318.to.protocol: "TCP"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthcheck
+
+  - it: should render tcp probes for haproxy in deployment mode when configured
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.mapping.http_4318.from: 4318
+      haproxy.mapping.http_4318.to.port: 4318
+      haproxy.mapping.http_4318.to.protocol: "TCP"
+      haproxy.probes.liveness.type: tcp
+      haproxy.probes.liveness.port: 10000
+      haproxy.probes.readiness.type: tcp
+      haproxy.probes.readiness.port: 10000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: 10000
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.tcpSocket.port
+          value: 10000
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
+
+  - it: should render tcp probes for haproxy in load balancer mode when configured
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+      haproxy.probes.liveness.type: tcp
+      haproxy.probes.liveness.port: 10000
+      haproxy.probes.readiness.type: tcp
+      haproxy.probes.readiness.port: 10000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: 10000
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.tcpSocket.port
+          value: 10000
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet

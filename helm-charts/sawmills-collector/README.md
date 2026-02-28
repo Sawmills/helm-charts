@@ -205,6 +205,15 @@ haproxy:
   image: public.ecr.aws/docker/library/haproxy:3.1
   max_connections: 60000
   error_limit: 3
+  probes:
+    liveness:
+      type: http # http|tcp
+      port: 13135
+      path: /healthcheck
+    readiness:
+      type: http # http|tcp
+      port: 13135
+      path: /healthcheck
   resources:
     requests:
       memory: 128Mi
@@ -471,7 +480,6 @@ podDisruptionBudget:
   enabled: true
   minAvailable: null  # defaults to replicaCount-1 when ≤ 5, otherwise ceil(0.8 * replicaCount)
 ```
-
 
 ## Examples
 
