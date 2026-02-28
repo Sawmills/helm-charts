@@ -167,6 +167,9 @@ tests:
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'metrics/haproxy:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/haproxy:[\s\S]*exporters:[\s\S]*- routing'
 
   # Test 6: telemetryConfig helper handles arrow configuration
   - it: should use arrow config when type is arrow

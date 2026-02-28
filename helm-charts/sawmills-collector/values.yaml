@@ -770,7 +770,7 @@ haproxyConfig:
         processors:
           - memory_limiter
           - batch
-        exporters: [forward]
+        exporters: [forward, routing]
 
 telemetryExternalConfig:
   type: "prometheus"
