@@ -169,7 +169,7 @@ tests:
           pattern: 'metrics/haproxy:'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: '(?ms)^\s+metrics/haproxy:\n\s+exporters:\n\s+- forward\n\s+- routing\n\s+processors:\n\s+- memory_limiter\n\s+- batch\n\s+receivers:\n\s+- prometheus/haproxy\n'
+          pattern: '(?ms)^\s+metrics/haproxy:\n\s+exporters:\n\s+- routing\n\s+- forward\n\s+processors:\n\s+- memory_limiter\n\s+- batch\n\s+receivers:\n\s+- prometheus/haproxy\n'
 
   # Test 6: telemetryConfig helper handles arrow configuration
   - it: should use arrow config when type is arrow
