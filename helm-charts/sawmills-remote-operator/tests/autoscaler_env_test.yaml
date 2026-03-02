@@ -108,3 +108,13 @@ tests:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_GLOBAL_MIN_REPLICAS")]
       - notExists:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_GLOBAL_MAX_REPLICAS")]
+
+  - it: should fail when autoscaler global min is greater than global max
+    set:
+      autoscaler:
+        enabled: true
+        globalMinReplicas: 10
+        globalMaxReplicas: 3
+    asserts:
+      - failedTemplate:
+          errorMessage: "autoscaler.globalMinReplicas cannot be greater than autoscaler.globalMaxReplicas when autoscaler.enabled=true"
