@@ -108,6 +108,46 @@ spec:
         {{- $managedCharts := default (dict) .Values.managedChartsOverrides }}
         - name: MANAGED_CHARTS
           value: {{ tpl ($managedCharts | toJson | quote) $ }}
+        {{- $autoscaler := default dict .Values.autoscaler }}
+        {{- if and $autoscaler.enabled (ne $autoscaler.globalMinReplicas nil) (ne $autoscaler.globalMaxReplicas nil) (gt (int $autoscaler.globalMinReplicas) (int $autoscaler.globalMaxReplicas)) }}
+        {{- fail "autoscaler.globalMinReplicas cannot be greater than autoscaler.globalMaxReplicas when autoscaler.enabled=true" }}
+        {{- end }}
+        {{- if $autoscaler.enabled }}
+        - name: AUTOSCALER_ENABLED
+          value: "true"
+        {{- if ne $autoscaler.dryRun nil }}
+        - name: AUTOSCALER_DRY_RUN
+          value: {{ printf "%t" $autoscaler.dryRun | quote }}
+        {{- end }}
+        {{- if $autoscaler.metricsEndpoint }}
+        - name: AUTOSCALER_METRICS_ENDPOINT
+          value: {{ $autoscaler.metricsEndpoint | quote }}
+        {{- end }}
+        {{- if $autoscaler.targetHPAName }}
+        - name: AUTOSCALER_TARGET_HPA_NAME
+          value: {{ $autoscaler.targetHPAName | quote }}
+        {{- end }}
+        {{- if $autoscaler.leaseName }}
+        - name: AUTOSCALER_LEASE_NAME
+          value: {{ $autoscaler.leaseName | quote }}
+        {{- end }}
+        {{- if ne $autoscaler.labelSelectors nil }}
+        - name: AUTOSCALER_LABEL_SELECTORS
+          value: {{ $autoscaler.labelSelectors | toJson | quote }}
+        {{- end }}
+        {{- if ne $autoscaler.memoryLimitBytes nil }}
+        - name: AUTOSCALER_MEMORY_LIMIT_BYTES
+          value: {{ int64 $autoscaler.memoryLimitBytes | quote }}
+        {{- end }}
+        {{- if ne $autoscaler.globalMinReplicas nil }}
+        - name: AUTOSCALER_GLOBAL_MIN_REPLICAS
+          value: {{ $autoscaler.globalMinReplicas | quote }}
+        {{- end }}
+        {{- if ne $autoscaler.globalMaxReplicas nil }}
+        - name: AUTOSCALER_GLOBAL_MAX_REPLICAS
+          value: {{ $autoscaler.globalMaxReplicas | quote }}
+        {{- end }}
+        {{- end }}
         resources:
             {{- toYaml .Values.resources | nindent 12 }}
         livenessProbe:

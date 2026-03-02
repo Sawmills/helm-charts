@@ -86,6 +86,20 @@ securityContext:
 # The log level for the Sawmills operator
 logLevel: info
 
+# Embedded autoscaler configuration.
+# `enabled=true` emits AUTOSCALER_ENABLED=true.
+# Other keys are optional overrides (null means: don't emit env var, keep operator defaults).
+autoscaler:
+  enabled: false
+  dryRun: null
+  metricsEndpoint: null
+  targetHPAName: null
+  leaseName: null
+  labelSelectors: null
+  memoryLimitBytes: null
+  globalMinReplicas: null
+  globalMaxReplicas: null
+
 # Affinity settings for pod assignment
 # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
 # Example:
