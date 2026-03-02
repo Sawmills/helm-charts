@@ -112,7 +112,6 @@ spec:
         {{- if $autoscaler.enabled }}
         - name: AUTOSCALER_ENABLED
           value: "true"
-        {{- end }}
         {{- if ne $autoscaler.dryRun nil }}
         - name: AUTOSCALER_DRY_RUN
           value: {{ printf "%t" $autoscaler.dryRun | quote }}
@@ -144,6 +143,7 @@ spec:
         {{- if ne $autoscaler.globalMaxReplicas nil }}
         - name: AUTOSCALER_GLOBAL_MAX_REPLICAS
           value: {{ $autoscaler.globalMaxReplicas | quote }}
+        {{- end }}
         {{- end }}
         resources:
             {{- toYaml .Values.resources | nindent 12 }}

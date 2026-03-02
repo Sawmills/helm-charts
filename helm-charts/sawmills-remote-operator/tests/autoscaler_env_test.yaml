@@ -75,3 +75,36 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_GLOBAL_MAX_REPLICAS")].value
           value: "50"
+
+  - it: should not emit autoscaler overrides when enabled is false
+    set:
+      autoscaler:
+        enabled: false
+        dryRun: false
+        metricsEndpoint: http://sawmills-collector:19465/metrics
+        targetHPAName: sawmills-collector-lb
+        leaseName: sawmills-operator-autoscaler-leader
+        labelSelectors:
+          exporter: ~.*loadbalancing/collector-loadbalancer.*
+        memoryLimitBytes: 2147483648
+        globalMinReplicas: 3
+        globalMaxReplicas: 50
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_ENABLED")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_DRY_RUN")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_METRICS_ENDPOINT")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_TARGET_HPA_NAME")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_LEASE_NAME")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_LABEL_SELECTORS")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_MEMORY_LIMIT_BYTES")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_GLOBAL_MIN_REPLICAS")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_GLOBAL_MAX_REPLICAS")]
