@@ -189,6 +189,10 @@ backend logs_http_{{ $config.from }}
   {{- $fall := default 1 $server.fall }}
   {{- $errorLimit := $.Values.haproxy.error_limit }}
   {{- $slowstart := "" }}
+  {{- $externalFallbackEnabled := true }}
+  {{- if and $.Values.haproxy.external_fallback (hasKey $.Values.haproxy.external_fallback "enabled") }}
+  {{- $externalFallbackEnabled = $.Values.haproxy.external_fallback.enabled }}
+  {{- end }}
   {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
   {{- $errorLimit = ($.Values.haproxy.refusal_fast_fail.error_limit | default 20) }}
   {{- $slowstart = ($.Values.haproxy.refusal_fast_fail.slowstart | default "") }}
@@ -203,10 +207,14 @@ backend logs_http_{{ $config.from }}
   # Sibling tier: round-robin across other LB pods via headless service DNS
   # "backup" ensures these only activate when local otel is DOWN
   server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ $config.from }} {{ $proto }} check port {{ $sf.check.port | default 13135 }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }} backup resolvers k8s init-addr none
+  {{- if $externalFallbackEnabled }}
   # External fallback: last resort (listed after siblings, so HAProxy tries siblings first)
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
+  {{- end }}
   {{- else }}
+  {{- if $externalFallbackEnabled }}
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
+  {{- end }}
   {{- end }}
   {{- else }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
@@ -238,12 +246,18 @@ backend logs_http_{{ $config.from }}_direct
   {{- $fall := default 1 $server.fall }}
   {{- $directErrorLimit := $.Values.haproxy.error_limit }}
   {{- $directSlowstart := "" }}
+  {{- $externalFallbackEnabled := true }}
+  {{- if and $.Values.haproxy.external_fallback (hasKey $.Values.haproxy.external_fallback "enabled") }}
+  {{- $externalFallbackEnabled = $.Values.haproxy.external_fallback.enabled }}
+  {{- end }}
   {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
   {{- $directErrorLimit = ($.Values.haproxy.refusal_fast_fail.error_limit | default 20) }}
   {{- $directSlowstart = ($.Values.haproxy.refusal_fast_fail.slowstart | default "") }}
   {{- end }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $directErrorLimit }} on-error mark-down{{ if ne $directSlowstart "" }} slowstart {{ $directSlowstart }}{{ end }}
+  {{- if $externalFallbackEnabled }}
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
+  {{- end }}
 {{- end }}
 {{- end }}
 {{- end -}} 

@@ -225,6 +225,25 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
 
+  - it: should keep sibling fallback but disable external fallback when configured
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.external_fallback.enabled: false
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling 10.*headless.*:4318.*backup.*resolvers k8s.*init-addr none"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
+
   - it: should use custom sibling health check settings
     template: haproxy-configmap.yaml
     set:
@@ -279,6 +298,28 @@ tests:
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318_direct[\\s\\S]*?server otel[\\s\\S]*?server fallback"
+
+  - it: should keep _direct backend otel-only when external fallback disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.external_fallback.enabled: false
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct[\\s\\S]*?server otel"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct[\\s\\S]*?server fallback"
 
   # ============================================================
   # 6. TCP mode - sibling fallback NOT applied (Phase 1 limitation)

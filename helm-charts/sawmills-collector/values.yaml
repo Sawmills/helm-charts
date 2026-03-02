@@ -743,6 +743,12 @@ haproxy:
       # Failed checks before marking sibling DOWN
       fall: 2
 
+  # External fallback controls whether HAProxy should use the configured
+  # fallback_endpoint as last-resort vendor path.
+  # Keep enabled=true by default for backward compatibility.
+  external_fallback:
+    enabled: true
+
   # Port mapping configuration
   # Each mapping can optionally enable TLS termination
   mapping: {}
