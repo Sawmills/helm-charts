@@ -394,6 +394,24 @@ false
 {{- end -}}
 
 {{/*
+Check if external fallback is enabled.
+Defaults to true for backward compatibility.
+Returns "true" or "false" as string.
+*/}}
+{{- define "sawmills-collector.externalFallbackEnabled" -}}
+{{- $cfg := default dict .Values.haproxy.external_fallback -}}
+{{- if kindIs "map" $cfg -}}
+  {{- if hasKey $cfg "enabled" -}}
+    {{- if $cfg.enabled -}}true{{- else -}}false{{- end -}}
+  {{- else -}}
+true
+  {{- end -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
 Get the fully qualified headless service name for sibling fallback DNS resolution.
 Returns "<fullname>-headless.<namespace>.svc.cluster.local".
 Note: assumes default cluster domain (cluster.local).
