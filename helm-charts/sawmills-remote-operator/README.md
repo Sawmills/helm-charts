@@ -33,6 +33,30 @@ helm upgrade --install remote-operator ./helm-charts/sawmills-remote-operator \
 
 When the values are empty (default), the operator connects directly without a proxy. Internal cluster calls (for example, Kubernetes API access) continue to bypass the proxy regardless of these settings.
 
+## Embedded autoscaler
+
+Configure the embedded autoscaler through the chart values below.
+Backward-compatible behavior:
+
+* `autoscaler.enabled=true` emits `AUTOSCALER_ENABLED=true`.
+* Other autoscaler fields are optional overrides and are emitted only when `autoscaler.enabled=true`.
+* When optional values are `null`, the chart does not emit the matching env var, so operator defaults remain in effect.
+
+```yaml
+autoscaler:
+  enabled: false
+  dryRun: null
+  metricsEndpoint: null
+  targetHPAName: null
+  leaseName: null
+  labelSelectors: null
+  memoryLimitBytes: null
+  globalMinReplicas: null
+  globalMaxReplicas: null
+```
+
+Set non-null values only for knobs you want to override from chart values.
+
 ## Additional references
 
 * `values.yaml` – full list of configurable settings
