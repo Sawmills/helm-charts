@@ -46,7 +46,10 @@ spec:
         {{- include "sawmills-collector.loadBalancerLabels" . | nindent 8 }}
     spec:
       serviceAccountName:  {{ include "sawmills-collector.serviceAccountName" . }}
-
+      {{- if .Values.loadBalancer.storage.enabled }}
+      securityContext:
+        fsGroup: 10001
+      {{- end }}
       terminationGracePeriodSeconds: {{ .Values.loadBalancer.terminationGracePeriodSeconds }}
       {{- if not (empty .Values.loadBalancer.nodeSelector) }}
       nodeSelector:
