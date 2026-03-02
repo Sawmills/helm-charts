@@ -2,6 +2,24 @@
   "$schema": "https://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
+    "autoscaler": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "dryRun": { "type": ["boolean", "null"] },
+        "metricsEndpoint": { "type": ["string", "null"] },
+        "targetHPAName": { "type": ["string", "null"] },
+        "leaseName": { "type": ["string", "null"] },
+        "labelSelectors": {
+          "type": ["object", "null"],
+          "additionalProperties": { "type": "string" }
+        },
+        "memoryLimitBytes": { "type": ["integer", "null"], "minimum": 1 },
+        "globalMinReplicas": { "type": ["integer", "null"], "minimum": 1 },
+        "globalMaxReplicas": { "type": ["integer", "null"], "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
     "proxy": {
       "type": "object",
       "properties": {

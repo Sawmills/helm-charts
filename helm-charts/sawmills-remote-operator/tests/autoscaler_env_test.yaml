@@ -1,0 +1,77 @@
+suite: autoscaler env wiring
+templates:
+  - deployment.yaml
+tests:
+  - it: should not emit autoscaler env vars by default
+    set:
+      autoscaler:
+        enabled: false
+        dryRun: null
+        metricsEndpoint: null
+        targetHPAName: null
+        leaseName: null
+        labelSelectors: null
+        memoryLimitBytes: null
+        globalMinReplicas: null
+        globalMaxReplicas: null
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_ENABLED")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_DRY_RUN")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_METRICS_ENDPOINT")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_TARGET_HPA_NAME")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_LEASE_NAME")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_LABEL_SELECTORS")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_MEMORY_LIMIT_BYTES")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_GLOBAL_MIN_REPLICAS")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_GLOBAL_MAX_REPLICAS")]
+
+  - it: should render all autoscaler env vars when values are explicitly set
+    set:
+      autoscaler:
+        enabled: true
+        dryRun: false
+        metricsEndpoint: http://sawmills-collector:19465/metrics
+        targetHPAName: sawmills-collector-lb
+        leaseName: sawmills-operator-autoscaler-leader
+        labelSelectors:
+          exporter: ~.*loadbalancing/collector-loadbalancer.*
+        memoryLimitBytes: 2147483648
+        globalMinReplicas: 3
+        globalMaxReplicas: 50
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_ENABLED")].value
+          value: "true"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_DRY_RUN")].value
+          value: "false"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_METRICS_ENDPOINT")].value
+          value: "http://sawmills-collector:19465/metrics"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_TARGET_HPA_NAME")].value
+          value: "sawmills-collector-lb"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_LEASE_NAME")].value
+          value: "sawmills-operator-autoscaler-leader"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_LABEL_SELECTORS")].value
+          value: "{\"exporter\":\"~.*loadbalancing/collector-loadbalancer.*\"}"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_MEMORY_LIMIT_BYTES")].value
+          value: "2147483648"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_GLOBAL_MIN_REPLICAS")].value
+          value: "3"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_GLOBAL_MAX_REPLICAS")].value
+          value: "50"
