@@ -204,6 +204,21 @@ tests:
             name: CLICKHOUSE_ANALYTICS_DSN
           any: true
 
+  - it: "ENABLED: CLICKHOUSE_ANALYTICS_DSN references sawmills-analytics-secret by default"
+    template: deployment.yaml
+    set:
+      metricsClickhouseRouting.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CLICKHOUSE_ANALYTICS_DSN
+            valueFrom:
+              secretKeyRef:
+                name: sawmills-analytics-secret
+                key: dsn
+          any: true
+
   - it: "DEFAULT: CLICKHOUSE_ANALYTICS_DSN env var is NOT injected into main-collector when metricsClickhouseRouting is disabled"
     template: deployment.yaml
     asserts:
