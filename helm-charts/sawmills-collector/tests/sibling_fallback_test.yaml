@@ -316,10 +316,10 @@ tests:
           pattern: "backend logs_http_4318_direct"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_direct[\\s\\S]*?server otel"
+          pattern: "backend logs_http_4318_direct\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel\\b"
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_direct[\\s\\S]*?server fallback"
+          pattern: "backend logs_http_4318_direct\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server fallback\\b"
 
   # ============================================================
   # 6. TCP mode - sibling fallback NOT applied (Phase 1 limitation)

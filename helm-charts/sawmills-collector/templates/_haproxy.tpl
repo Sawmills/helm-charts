@@ -189,10 +189,7 @@ backend logs_http_{{ $config.from }}
   {{- $fall := default 1 $server.fall }}
   {{- $errorLimit := $.Values.haproxy.error_limit }}
   {{- $slowstart := "" }}
-  {{- $externalFallbackEnabled := true }}
-  {{- if and $.Values.haproxy.external_fallback (hasKey $.Values.haproxy.external_fallback "enabled") }}
-  {{- $externalFallbackEnabled = $.Values.haproxy.external_fallback.enabled }}
-  {{- end }}
+  {{- $externalFallbackEnabled := eq (include "sawmills-collector.externalFallbackEnabled" $) "true" }}
   {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
   {{- $errorLimit = ($.Values.haproxy.refusal_fast_fail.error_limit | default 20) }}
   {{- $slowstart = ($.Values.haproxy.refusal_fast_fail.slowstart | default "") }}
@@ -246,10 +243,7 @@ backend logs_http_{{ $config.from }}_direct
   {{- $fall := default 1 $server.fall }}
   {{- $directErrorLimit := $.Values.haproxy.error_limit }}
   {{- $directSlowstart := "" }}
-  {{- $externalFallbackEnabled := true }}
-  {{- if and $.Values.haproxy.external_fallback (hasKey $.Values.haproxy.external_fallback "enabled") }}
-  {{- $externalFallbackEnabled = $.Values.haproxy.external_fallback.enabled }}
-  {{- end }}
+  {{- $externalFallbackEnabled := eq (include "sawmills-collector.externalFallbackEnabled" $) "true" }}
   {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
   {{- $directErrorLimit = ($.Values.haproxy.refusal_fast_fail.error_limit | default 20) }}
   {{- $directSlowstart = ($.Values.haproxy.refusal_fast_fail.slowstart | default "") }}
