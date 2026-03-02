@@ -396,6 +396,7 @@ false
 {{/*
 Check if external fallback is enabled.
 Defaults to true for backward compatibility.
+Returns "true" or "false" as string.
 */}}
 {{- define "sawmills-collector.externalFallbackEnabled" -}}
 {{- $cfg := default dict .Values.haproxy.external_fallback -}}
