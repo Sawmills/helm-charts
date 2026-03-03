@@ -814,7 +814,7 @@ metricsClickhouseRouting:
   enabled: false
   # Secret containing the ClickHouse DSN for the clickhousemetrics exporter
   secretRef:
-    name: clickhouse-analytics-secret
+    name: sawmills-analytics-secret
     key: dsn
   # Base config: filter processors, clickhousemetrics exporter, and CH pipeline
   config:
