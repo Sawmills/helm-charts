@@ -833,6 +833,7 @@ metricsClickhouseRouting:
       clickhousemetrics:
         dsn: ${env:CLICKHOUSE_ANALYTICS_DSN}
         database: metrics
+        enable_metric_labels: true
     service:
       pipelines:
         metrics/clickhouse:
