@@ -103,6 +103,13 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         {{- $managedChartsValues := default .Values.managedCharts .Values.managedChartsValues }}
+        {{- if .Values.analyticsExistingSecret }}
+        {{- $collector := default dict (index (default dict $managedChartsValues) "sawmills-collector") }}
+        {{- $existingRouting := default dict (index $collector "metricsClickhouseRouting") }}
+        {{- $_ := set $existingRouting "secretRef" (dict "name" .Values.analyticsExistingSecret "key" .Values.analyticsExistingSecretKey) }}
+        {{- $_ := set $collector "metricsClickhouseRouting" $existingRouting }}
+        {{- $_ := set $managedChartsValues "sawmills-collector" $collector }}
+        {{- end }}
         - name: MANAGED_CHARTS_VALUES
           value: {{ tpl ($managedChartsValues | toJson | quote) $ }}
         {{- $managedCharts := default (dict) .Values.managedChartsOverrides }}
