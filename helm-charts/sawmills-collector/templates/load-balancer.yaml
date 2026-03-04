@@ -346,6 +346,7 @@ spec:
                 path: telemetry-config.yaml
         - name: tmp
           emptyDir: {}
+        {{- /* LB-specific additionalVolumes take precedence; global additionalVolumes used as fallback */ -}}
         {{- with .Values.loadBalancer.additionalVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- else }}

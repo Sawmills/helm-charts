@@ -459,8 +459,9 @@ Fail fast for known invalid combinations.
 
       {{- $compressInMemory := default false (get $sendingQueue "compress_in_memory") -}}
       {{- if $compressInMemory -}}
+        {{- /* sending_queue.enabled defaults to true when omitted */ -}}
         {{- $enabled := get $sendingQueue "enabled" -}}
-        {{- if not (or (eq $enabled true) (eq (toString $enabled) "true")) -}}
+        {{- if and (ne $enabled nil) (not (or (eq $enabled true) (eq (toString $enabled) "true"))) -}}
           {{- fail (printf "exporters.%s.sending_queue.compress_in_memory requires sending_queue.enabled=true" $name) -}}
         {{- end -}}
 

@@ -110,3 +110,14 @@ tests:
             name: lb-extra
             configMap:
               name: lb-extra-config
+
+  - it: should fall back to global additionalVolumes when loadBalancer.additionalVolumes is empty
+    template: load-balancer.yaml
+    values:
+      - ./values/global_additional_volumes.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: global-extra
+            emptyDir: {}
