@@ -576,6 +576,58 @@ loadBalancer:
     className: "standard"
 ```
 
+#### Load Balancer Queue Compression Modes
+
+Configure these options in `loadBalancer.otelCollectorConfig.exporters.<loadbalancing-exporter>.sending_queue`:
+
+* `payload_compression`: `none`, `snappy`, or `zstd`
+* `compress_in_memory`: boolean (for in-memory queue payload compression)
+
+In-memory queue compression (no persistent storage):
+
+```yaml
+loadBalancer:
+  enabled: true
+  otelCollectorConfig:
+    exporters:
+      loadbalancing:
+        sending_queue:
+          enabled: true
+          queue_size: 2000
+          payload_compression: zstd
+          compress_in_memory: true
+```
+
+Persistent queue + compression (disk-backed queue):
+
+```yaml
+loadBalancer:
+  enabled: true
+  storage:
+    enabled: true
+    size: 1Gi
+    className: standard
+  otelCollectorConfig:
+    extensions:
+      file_storage/otc:
+        directory: /data/storage/otc
+    exporters:
+      loadbalancing:
+        sending_queue:
+          enabled: true
+          queue_size: 2000
+          storage: file_storage/otc
+          payload_compression: zstd
+    service:
+      extensions: [health_check, file_storage/otc]
+```
+
+Validation guardrails in this chart:
+
+* `sending_queue.storage` requires `loadBalancer.storage.enabled: true`
+* `compress_in_memory: true` requires `sending_queue.enabled: true`
+* `compress_in_memory: true` requires `payload_compression: snappy|zstd`
+
 ### KEDA Scaler
 
 Enable the KEDA scaler component:

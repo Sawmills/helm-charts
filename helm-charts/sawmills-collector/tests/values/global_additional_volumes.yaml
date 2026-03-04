@@ -1,0 +1,5 @@
+loadBalancer:
+  enabled: true
+additionalVolumes:
+  - name: global-extra
+    emptyDir: {}

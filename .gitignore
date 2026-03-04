@@ -5,3 +5,4 @@ dist/
 local/
 bin/
 .DS_Store
+.worktrees/

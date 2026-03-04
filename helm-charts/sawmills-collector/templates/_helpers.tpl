@@ -441,6 +441,42 @@ false
 {{- end -}}
 
 {{/*
+Validate load balancer queue compression settings for direct otelCollectorConfig mode.
+Fail fast for known invalid combinations.
+*/}}
+{{- define "sawmills-collector.validateLoadBalancerQueueCompression" -}}
+{{- if and .Values.loadBalancer.enabled (not .Values.loadBalancer.otelConfig.s3path) -}}
+{{- $cfg := default dict .Values.loadBalancer.otelCollectorConfig -}}
+{{- $exporters := default dict (get $cfg "exporters") -}}
+{{- range $name, $exporter := $exporters -}}
+  {{- if and (hasPrefix "loadbalancing" $name) (kindIs "map" $exporter) -}}
+    {{- $sendingQueue := default dict (get $exporter "sending_queue") -}}
+    {{- if kindIs "map" $sendingQueue -}}
+      {{- $storage := get $sendingQueue "storage" -}}
+      {{- if and $storage (ne (toString $storage) "") (not $.Values.loadBalancer.storage.enabled) -}}
+        {{- fail (printf "loadBalancer.storage.enabled must be true when exporters.%s.sending_queue.storage is set" $name) -}}
+      {{- end -}}
+
+      {{- $compressInMemory := default false (get $sendingQueue "compress_in_memory") -}}
+      {{- if $compressInMemory -}}
+        {{- /* sending_queue.enabled defaults to true when omitted */ -}}
+        {{- $enabled := get $sendingQueue "enabled" -}}
+        {{- if and (ne $enabled nil) (not (or (eq $enabled true) (eq (toString $enabled) "true"))) -}}
+          {{- fail (printf "exporters.%s.sending_queue.compress_in_memory requires sending_queue.enabled=true" $name) -}}
+        {{- end -}}
+
+        {{- $payloadCompression := lower (toString (default "" (get $sendingQueue "payload_compression"))) -}}
+        {{- if not (or (eq $payloadCompression "snappy") (eq $payloadCompression "zstd")) -}}
+          {{- fail (printf "exporters.%s.sending_queue.compress_in_memory requires sending_queue.payload_compression to be snappy or zstd" $name) -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 HAProxy container spec (shared between native sidecar and regular container paths).
 Caller passes context via dict with "root" (top-level context) and "nativeSidecar" (bool).
 */}}
