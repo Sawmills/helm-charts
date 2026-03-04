@@ -1192,6 +1192,35 @@ loadBalancer:
   otelConfig:
     s3path: ""
     encryptionKey: ""
+  # Direct LB OTel config. Queue compression options are configured under
+  # otelCollectorConfig.exporters.<loadbalancing-exporter>.sending_queue:
+  #   payload_compression: snappy|zstd|none
+  #   compress_in_memory: true|false
+  #
+  # In-memory queue compression example:
+  # otelCollectorConfig:
+  #   exporters:
+  #     loadbalancing:
+  #       sending_queue:
+  #         enabled: true
+  #         queue_size: 2000
+  #         payload_compression: zstd
+  #         compress_in_memory: true
+  #
+  # Persistent queue compression example (requires loadBalancer.storage.enabled=true):
+  # otelCollectorConfig:
+  #   extensions:
+  #     file_storage/otc:
+  #       directory: /data/storage/otc
+  #   exporters:
+  #     loadbalancing:
+  #       sending_queue:
+  #         enabled: true
+  #         queue_size: 2000
+  #         storage: file_storage/otc
+  #         payload_compression: zstd
+  #   service:
+  #     extensions: [health_check, file_storage/otc]
   extraEnv: []
   ports: {}
   # Pod disruption budget for LB pods. Enabled by default to prevent
@@ -1217,6 +1246,8 @@ loadBalancer:
       cpu: 500m
   additionalVolumes: []
   storage:
+    # Required when using a persistent sending_queue (sending_queue.storage).
+    # The chart mounts this PVC at /data for the load balancer collector.
     enabled: false
     size: 1Gi
     className: "standard"

@@ -1,0 +1,112 @@
+suite: test load balancer queue compression configuration
+templates:
+  - load-balancer-configmap.yaml
+  - load-balancer.yaml
+tests:
+  - it: should render persistent queue compression config and statefulset storage
+    template: load-balancer-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+      loadBalancer.otelCollectorConfig.extensions.file_storage/otc.directory: /data/storage/otc
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.queue_size: 2000
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.storage: file_storage/otc
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.payload_compression: zstd
+      loadBalancer.otelCollectorConfig.service.extensions[0]: health_check
+      loadBalancer.otelCollectorConfig.service.extensions[1]: file_storage/otc
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'payload_compression: zstd'
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'storage: file_storage/otc'
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'directory: /data/storage/otc'
+
+  - it: should render statefulset and pvc when persistent lb storage enabled
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+      loadBalancer.storage.size: 2Gi
+      loadBalancer.storage.className: gp3
+    asserts:
+      - equal:
+          path: kind
+          value: StatefulSet
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.resources.requests.storage
+          value: 2Gi
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.storageClassName
+          value: gp3
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[2].mountPath
+          value: /data
+
+  - it: should render in-memory queue compression config
+    template: load-balancer-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.queue_size: 2000
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.payload_compression: snappy
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.compress_in_memory: true
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'compress_in_memory: true'
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'payload_compression: snappy'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: 'storage:'
+
+  - it: should fail when sending_queue.storage is set but lb storage is disabled
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: false
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.storage: file_storage/otc
+    asserts:
+      - failedTemplate:
+          errorMessage: 'loadBalancer.storage.enabled must be true when exporters.loadbalancing.sending_queue.storage is set'
+
+  - it: should fail when compress_in_memory is enabled without sending_queue enabled
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.enabled: false
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.compress_in_memory: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.payload_compression: zstd
+    asserts:
+      - failedTemplate:
+          errorMessage: 'exporters.loadbalancing.sending_queue.compress_in_memory requires sending_queue.enabled=true'
+
+  - it: should fail when compress_in_memory is enabled with invalid payload_compression
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.compress_in_memory: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.sending_queue.payload_compression: none
+    asserts:
+      - failedTemplate:
+          errorMessage: 'exporters.loadbalancing.sending_queue.compress_in_memory requires sending_queue.payload_compression to be snappy or zstd'
+
+  - it: should wire loadBalancer.additionalVolumes into lb pod volumes
+    template: load-balancer.yaml
+    values:
+      - ./values/load_balancer_additional_volumes.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: lb-extra
+            configMap:
+              name: lb-extra-config

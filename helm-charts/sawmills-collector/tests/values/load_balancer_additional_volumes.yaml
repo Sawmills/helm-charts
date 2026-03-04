@@ -1,0 +1,6 @@
+loadBalancer:
+  enabled: true
+  additionalVolumes:
+    - name: lb-extra
+      configMap:
+        name: lb-extra-config

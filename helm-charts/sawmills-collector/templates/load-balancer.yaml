@@ -1,4 +1,5 @@
 {{- if .Values.loadBalancer.enabled }}
+{{- include "sawmills-collector.validateLoadBalancerQueueCompression" . }}
 apiVersion: apps/v1
 {{- if .Values.loadBalancer.storage.enabled }}
 kind: StatefulSet
@@ -345,8 +346,12 @@ spec:
                 path: telemetry-config.yaml
         - name: tmp
           emptyDir: {}
+        {{- with .Values.loadBalancer.additionalVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- else }}
         {{- with .Values.additionalVolumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
         {{- end }}
   {{- if .Values.loadBalancer.storage.enabled }}
   volumeClaimTemplates:
