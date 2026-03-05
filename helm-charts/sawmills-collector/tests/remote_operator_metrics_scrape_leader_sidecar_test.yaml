@@ -1,0 +1,105 @@
+suite: remote operator metrics scrape leader-election sidecar + rbac
+templates:
+  - deployment.yaml
+  - load-balancer.yaml
+  - remote-operator-scrape-leader-role.yaml
+  - remote-operator-scrape-leader-rolebinding.yaml
+tests:
+  - it: should not render sidecar when leader election disabled
+    set:
+      loadBalancer:
+        enabled: false
+      remoteOperatorMetricsScrape:
+        enabled: true
+        leaderElection:
+          enabled: false
+    template: deployment.yaml
+    asserts:
+      - notEqual:
+          path: spec.template.spec.containers[0].name
+          value: remote-operator-scrape-leader
+
+  - it: should render sidecar in deployment mode when leader election enabled
+    set:
+      loadBalancer:
+        enabled: false
+      remoteOperatorMetricsScrape:
+        enabled: true
+        serviceName: custom-remote-operator
+        namespace: custom-ns
+        port: 9090
+        leaderElection:
+          enabled: true
+          leaseName: ro-scrape-leader
+          leaseNamespace: custom-lease-ns
+          listenPort: 19777
+          leaseDuration: 31s
+          renewDeadline: 21s
+          retryPeriod: 6s
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: remote-operator-scrape-leader
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: /remote-operator
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: scrape-leader
+      - equal:
+          path: spec.template.spec.containers[0].args[1]
+          value: --lease-name=ro-scrape-leader
+      - equal:
+          path: spec.template.spec.containers[0].args[2]
+          value: --lease-namespace=custom-lease-ns
+      - equal:
+          path: spec.template.spec.containers[0].args[4]
+          value: --target=custom-remote-operator.custom-ns.svc.cluster.local:9090
+
+  - it: should render role when leader election enabled
+    set:
+      remoteOperatorMetricsScrape:
+        enabled: true
+        leaderElection:
+          enabled: true
+    template: remote-operator-scrape-leader-role.yaml
+    asserts:
+      - equal:
+          path: kind
+          value: Role
+      - equal:
+          path: rules[0].apiGroups[0]
+          value: coordination.k8s.io
+      - contains:
+          path: rules[0].verbs
+          content: create
+
+  - it: should render rolebinding when leader election enabled
+    set:
+      remoteOperatorMetricsScrape:
+        enabled: true
+        leaderElection:
+          enabled: true
+    template: remote-operator-scrape-leader-rolebinding.yaml
+    asserts:
+      - equal:
+          path: kind
+          value: RoleBinding
+      - equal:
+          path: roleRef.kind
+          value: Role
+
+  - it: should render sidecar in load balancer mode when leader election enabled
+    set:
+      loadBalancer:
+        enabled: true
+      remoteOperatorMetricsScrape:
+        enabled: true
+        leaderElection:
+          enabled: true
+    template: load-balancer.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: remote-operator-scrape-leader

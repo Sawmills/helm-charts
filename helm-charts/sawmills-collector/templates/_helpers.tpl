@@ -120,6 +120,43 @@ metric_statements: []
 {{- end -}}
 {{- end -}}
 
+
+{{/*
+Generate remote-operator metrics scrape receiver + pipeline.
+*/}}
+{{- define "sawmills-collector.remoteOperatorMetricsScrapeConfig" -}}
+{{- $cfg := .Values.remoteOperatorMetricsScrape -}}
+{{- $namespace := default .Release.Namespace $cfg.namespace -}}
+{{- $leaderElection := default (dict) $cfg.leaderElection -}}
+receivers:
+  prometheus/remote_operator:
+    config:
+      scrape_configs:
+        - job_name: remote-operator
+          scrape_interval: {{ $cfg.scrapeInterval }}
+          {{- if $leaderElection.enabled }}
+          http_sd_configs:
+            - url: {{ printf "http://127.0.0.1:%v/targets" $leaderElection.listenPort | quote }}
+              refresh_interval: {{ $leaderElection.sdRefreshInterval }}
+          {{- else }}
+          static_configs:
+            - targets:
+                - {{ printf "%s.%s.svc.cluster.local:%v" $cfg.serviceName $namespace $cfg.port | quote }}
+              labels:
+                scrape_source_pod: ${env:MY_POD_NAME}
+          relabel_configs:
+            - action: keep
+              source_labels: [scrape_source_pod]
+              regex: {{ $cfg.scraperPodKeepRegex | quote }}
+          {{- end }}
+service:
+  pipelines:
+    metrics/remote_operator:
+      receivers: [prometheus/remote_operator]
+      processors: [memory_limiter, batch]
+      exporters: [routing, forward]
+{{- end -}}
+
 {{/*
 Generate merged telemetry configuration with external labels
 */}}
@@ -131,6 +168,9 @@ Generate merged telemetry configuration with external labels
 {{- end }}
 {{- if .Values.kedaScaler.enabled }}
   {{- $config = merge $config .Values.kedaScaler.telemetryConfig }}
+{{- end }}
+{{- if and .Values.remoteOperatorMetricsScrape.enabled (not .Values.loadBalancer.enabled) }}
+  {{- $config = merge $config (include "sawmills-collector.remoteOperatorMetricsScrapeConfig" . | fromYaml) }}
 {{- end }}
 {{- /* Merge CH routing config BEFORE external config so CH pipeline overrides take precedence */ -}}
 {{- if .Values.metricsClickhouseRouting.enabled }}
@@ -163,6 +203,9 @@ Generate merged telemetry configuration with external labels
 {{- $config := deepCopy .Values.telemetryConfig }}
 {{- if .Values.haproxy.enabled }}
   {{- $config = merge $config .Values.haproxyConfig }}
+{{- end }}
+{{- if and .Values.remoteOperatorMetricsScrape.enabled .Values.loadBalancer.enabled }}
+  {{- $config = merge $config (include "sawmills-collector.remoteOperatorMetricsScrapeConfig" . | fromYaml) }}
 {{- end }}
 {{- if .Values.kedaScaler.enabled }}
   {{- $config = merge $config .Values.kedaScaler.telemetryConfig }}

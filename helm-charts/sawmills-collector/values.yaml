@@ -789,6 +789,50 @@ haproxyConfig:
           - batch
         exporters: [routing, forward]
 
+# Remote-operator metrics scrape configuration for telemetry-collector.
+# This adds a Prometheus receiver and metrics/remote_operator pipeline.
+# Intended for use with the remote-operator Service on port 8086.
+#
+# To avoid duplicate scrapes across multiple telemetry-collector replicas,
+# the scrape config keeps targets only on scraper pods matching scraperPodKeepRegex.
+# Default ".*-0$" is safe for StatefulSet-based LB telemetry collectors.
+remoteOperatorMetricsScrape:
+  enabled: false
+  serviceName: "sawmills-remote-operator-sawmills-remote-operator-chart"
+  namespace: ""
+  port: 8086
+  scrapeInterval: 15s
+  scraperPodKeepRegex: ".*-0$"
+  # Optional lease-based scrape ownership.
+  # When enabled, a sidecar acquires a Kubernetes Lease and exposes
+  # /targets over localhost for Prometheus http_sd.
+  # This works for both Deployment and StatefulSet collectors.
+
+
+  leaderElection:
+    enabled: false
+    leaseName: "sawmills-collector-remote-operator-scrape-leader"
+    leaseNamespace: ""
+    listenPort: 19466
+    sdRefreshInterval: 5s
+    leaseDuration: 30s
+    renewDeadline: 20s
+    retryPeriod: 5s
+    sidecar:
+      image:
+        repository: public.ecr.aws/s7a5m1b4/sawmills-remote-operator
+        pullPolicy: IfNotPresent
+        tag: 0.233.0
+        # Must be a remote-operator image that includes the `scrape-leader` command.
+
+      resources:
+        requests:
+          cpu: 20m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
 telemetryExternalConfig:
   type: "prometheus"
   prometheusConfig:
