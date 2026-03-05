@@ -15,9 +15,17 @@ tests:
           enabled: false
     template: deployment.yaml
     asserts:
-      - notEqual:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 2
+      - equal:
           path: spec.template.spec.containers[0].name
-          value: remote-operator-scrape-leader
+          value: telemetry-collector
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: main-collector
+      - notExists:
+          path: spec.template.spec.containers[2]
 
   - it: should render sidecar in deployment mode when leader election enabled
     set:
@@ -56,6 +64,20 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].args[4]
           value: --target=custom-remote-operator.custom-ns.svc.cluster.local:9090
+
+  - it: should not render deployment sidecar when lb mode is enabled
+    set:
+      loadBalancer:
+        enabled: true
+      remoteOperatorMetricsScrape:
+        enabled: true
+        leaderElection:
+          enabled: true
+    template: deployment.yaml
+    asserts:
+      - notEqual:
+          path: spec.template.spec.containers[0].name
+          value: remote-operator-scrape-leader
 
   - it: should render role when leader election enabled
     set:

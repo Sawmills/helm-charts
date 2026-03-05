@@ -124,7 +124,7 @@ spec:
         {{- if and .Values.haproxy.enabled (not .Values.loadBalancer.enabled) }}
         {{- include "sawmills-collector.haproxyContainer" (dict "root" . "nativeSidecar" false) | nindent 8 }}
         {{- end }}
-        {{- if and .Values.remoteOperatorMetricsScrape.enabled .Values.remoteOperatorMetricsScrape.leaderElection.enabled }}
+        {{- if and .Values.remoteOperatorMetricsScrape.enabled .Values.remoteOperatorMetricsScrape.leaderElection.enabled (not .Values.loadBalancer.enabled) }}
         - name: remote-operator-scrape-leader
           securityContext:
             runAsNonRoot: true

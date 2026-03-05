@@ -40,7 +40,7 @@ tests:
           pattern: 'sawmills-remote-operator-sawmills-remote-operator-chart\.NAMESPACE\.svc\.cluster\.local:8086'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'regex: .*\-0\$[\s\S]*source_labels:[\s\S]*- scrape_source_pod'
+          pattern: 'prometheus/remote_operator:[\s\S]{0,800}relabel_configs:[\s\S]{0,300}regex: .*\-0\$[\s\S]{0,200}source_labels:[\s\S]{0,60}- scrape_source_pod'
       - notMatchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'http_sd_configs:'
@@ -71,7 +71,7 @@ tests:
           pattern: 'refresh_interval: 7s'
       - notMatchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'prometheus/remote_operator:[\s\S]*source_labels: \[scrape_source_pod\]'
+          pattern: 'prometheus/remote_operator:[\s\S]{0,800}source_labels:[\s\S]{0,60}- scrape_source_pod'
 
   - it: should not duplicate remote operator scrape in deployment telemetry config when LB mode is on
     set:
@@ -109,7 +109,7 @@ tests:
           pattern: 'scrape_interval: 30s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'regex: .*collector.*[\s\S]*source_labels:[\s\S]*- scrape_source_pod'
+          pattern: 'prometheus/remote_operator:[\s\S]{0,800}relabel_configs:[\s\S]{0,300}regex: .*collector.*[\s\S]{0,200}source_labels:[\s\S]{0,60}- scrape_source_pod'
 
   - it: should render lease-based http_sd in deployment telemetry config when enabled
     set:
