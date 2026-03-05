@@ -75,8 +75,14 @@ tests:
           enabled: true
     template: deployment.yaml
     asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 2
       - notEqual:
           path: spec.template.spec.containers[0].name
+          value: remote-operator-scrape-leader
+      - notEqual:
+          path: spec.template.spec.containers[1].name
           value: remote-operator-scrape-leader
 
   - it: should render role when leader election enabled
