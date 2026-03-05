@@ -1,9 +1,10 @@
 {{- if and .Values.remoteOperatorMetricsScrape.enabled .Values.remoteOperatorMetricsScrape.leaderElection.enabled }}
+{{- $leaseNamespace := default .Release.Namespace .Values.remoteOperatorMetricsScrape.leaderElection.leaseNamespace -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ include "sawmills-collector.fullname" . }}-remote-operator-scrape-leader
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $leaseNamespace }}
   labels:
     {{- include "sawmills-collector.labels" . | nindent 4 }}
 subjects:

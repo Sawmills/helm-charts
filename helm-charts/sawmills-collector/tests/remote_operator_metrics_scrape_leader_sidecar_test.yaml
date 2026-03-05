@@ -75,6 +75,19 @@ tests:
           path: rules[0].verbs
           content: create
 
+  - it: should render role namespace from lease namespace override
+    set:
+      remoteOperatorMetricsScrape:
+        enabled: true
+        leaderElection:
+          enabled: true
+          leaseNamespace: custom-lease-ns
+    template: remote-operator-scrape-leader-role.yaml
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-lease-ns
+
   - it: should render rolebinding when leader election enabled
     set:
       remoteOperatorMetricsScrape:
@@ -89,6 +102,22 @@ tests:
       - equal:
           path: roleRef.kind
           value: Role
+
+  - it: should render rolebinding namespace from lease namespace override
+    set:
+      remoteOperatorMetricsScrape:
+        enabled: true
+        leaderElection:
+          enabled: true
+          leaseNamespace: custom-lease-ns
+    template: remote-operator-scrape-leader-rolebinding.yaml
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-lease-ns
+      - equal:
+          path: subjects[0].namespace
+          value: NAMESPACE
 
   - it: should render sidecar in load balancer mode when leader election enabled
     set:
