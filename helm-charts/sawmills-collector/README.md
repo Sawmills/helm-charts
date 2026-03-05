@@ -627,7 +627,6 @@ Validation guardrails in this chart:
 * `sending_queue.storage` requires `loadBalancer.storage.enabled: true`
 * `compress_in_memory: true` requires `sending_queue.enabled: true`
 * `compress_in_memory: true` requires `payload_compression: snappy|zstd`
-
 #### Remote Operator Metrics Scrape Leader Election
 
 Use `remoteOperatorMetricsScrape` to scrape the remote-operator metrics service from telemetry-collector.
@@ -665,7 +664,6 @@ Guardrails and dependencies:
 * `leaderElection.enabled` is only effective when `remoteOperatorMetricsScrape.enabled: true`
 * enabling leader election deploys an additional sidecar and Lease RBAC resources
 * use a dedicated service account for least-privilege deployments
-
 ### KEDA Scaler
 
 Enable the KEDA scaler component:
