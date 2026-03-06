@@ -281,6 +281,8 @@ telemetry:
   # Prometheus port for the telemetry collector, can be used by customers to scrape metrics
   prometheus:
     port: 19465
+  # OTLP/HTTP ingest port on the telemetry collector for remote-operator metrics
+  remoteOperatorOtlpHttpPort: 14319
 
 # Standard Kubernetes HPA (autoscaling/v2)
 autoscaling:

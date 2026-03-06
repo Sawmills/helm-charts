@@ -1,0 +1,56 @@
+suite: remote operator otlp ingress
+templates:
+  - load-balancer-telemetry-configmap.yaml
+  - load-balancer-service.yaml
+  - load-balancer.yaml
+tests:
+  - it: should configure telemetry collector to receive remote operator metrics via otlp http
+    template: load-balancer-telemetry-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*otlp/remote_operator:\n\s+protocols:\n\s+http:\n\s+endpoint: \$\{env:MY_POD_IP\}:14319\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/remote_operator:\n\s+exporters:\n\s+- routing\n\s+- forward\n\s+processors:\n\s+- memory_limiter\n\s+- transform/remove_unit_preserve_service_name\n\s+- deltatocumulative\n\s+- batch\n\s+receivers:\n\s+- otlp/remote_operator\n'
+
+  - it: should expose remote operator otlp http port on lb service
+    template: load-balancer-service.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: ro-otlp-http
+            port: 14319
+            targetPort: 14319
+            protocol: TCP
+
+  - it: should expose remote operator otlp http port from telemetry.remoteOperatorOtlpHttpPort on lb service
+    template: load-balancer-service.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.remoteOperatorOtlpHttpPort: 15431
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: ro-otlp-http
+            port: 15431
+            targetPort: 15431
+            protocol: TCP
+
+  - it: should expose remote operator otlp http port on telemetry collector container
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
+          content:
+            name: ro-otlp-http
+            containerPort: 14319
+            protocol: TCP

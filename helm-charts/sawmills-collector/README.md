@@ -628,6 +628,16 @@ Validation guardrails in this chart:
 * `compress_in_memory: true` requires `sending_queue.enabled: true`
 * `compress_in_memory: true` requires `payload_compression: snappy|zstd`
 
+### Remote Operator OTLP Ingest (LB Tier)
+
+When `loadBalancer.enabled: true`, the chart now configures the LB telemetry collector to accept OTLP/HTTP metrics from remote-operator on port `14319` and exposes it on the LB service as `ro-otlp-http`.
+
+Endpoint format:
+
+```text
+http://<release-name>:14319/v1/metrics
+```
+
 ### KEDA Scaler
 
 Enable the KEDA scaler component:

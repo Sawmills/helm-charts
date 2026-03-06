@@ -8,6 +8,7 @@ tests:
         enabled: false
         dryRun: null
         metricsEndpoint: null
+        otlpMetricsEndpoint: null
         targetHPAName: null
         leaseName: null
         labelSelectors: null
@@ -21,6 +22,8 @@ tests:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_DRY_RUN")]
       - notExists:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_METRICS_ENDPOINT")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")]
       - notExists:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_TARGET_HPA_NAME")]
       - notExists:
@@ -40,6 +43,7 @@ tests:
         enabled: true
         dryRun: false
         metricsEndpoint: http://sawmills-collector:19465/metrics
+        otlpMetricsEndpoint: http://sawmills-collector:14319/v1/metrics
         targetHPAName: sawmills-collector-lb
         leaseName: sawmills-operator-autoscaler-leader
         labelSelectors:
@@ -57,6 +61,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_METRICS_ENDPOINT")].value
           value: "http://sawmills-collector:19465/metrics"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")].value
+          value: "http://sawmills-collector:14319/v1/metrics"
       - equal:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_TARGET_HPA_NAME")].value
           value: "sawmills-collector-lb"
@@ -82,6 +89,7 @@ tests:
         enabled: false
         dryRun: false
         metricsEndpoint: http://sawmills-collector:19465/metrics
+        otlpMetricsEndpoint: http://sawmills-collector:14319/v1/metrics
         targetHPAName: sawmills-collector-lb
         leaseName: sawmills-operator-autoscaler-leader
         labelSelectors:
@@ -96,6 +104,8 @@ tests:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_DRY_RUN")]
       - notExists:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_METRICS_ENDPOINT")]
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")]
       - notExists:
           path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_TARGET_HPA_NAME")]
       - notExists:

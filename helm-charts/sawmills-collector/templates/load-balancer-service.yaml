@@ -19,6 +19,10 @@ spec:
       port: {{ .Values.telemetry.prometheus.port }}
       targetPort: {{ .Values.telemetry.prometheus.port }}
       name: prometheus
+    - protocol: TCP
+      port: {{ .Values.telemetry.remoteOperatorOtlpHttpPort }}
+      targetPort: {{ .Values.telemetry.remoteOperatorOtlpHttpPort }}
+      name: ro-otlp-http
     {{- range $name, $config := .Values.loadBalancer.service.ports }}
     - protocol: {{ $config.to.protocol }}
       port: {{ $config.to.port }}

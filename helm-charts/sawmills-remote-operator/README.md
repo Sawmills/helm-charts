@@ -47,6 +47,7 @@ autoscaler:
   enabled: false
   dryRun: null
   metricsEndpoint: null
+  otlpMetricsEndpoint: null
   targetHPAName: null
   leaseName: null
   labelSelectors: null
@@ -56,6 +57,7 @@ autoscaler:
 ```
 
 Set non-null values only for knobs you want to override from chart values.
+Use `autoscaler.otlpMetricsEndpoint` to emit `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` explicitly for OTel metric export.
 
 ## Additional references
 

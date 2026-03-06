@@ -8,6 +8,7 @@
         "enabled": { "type": "boolean" },
         "dryRun": { "type": ["boolean", "null"] },
         "metricsEndpoint": { "type": ["string", "null"], "minLength": 1 },
+        "otlpMetricsEndpoint": { "type": ["string", "null"], "minLength": 1 },
         "targetHPAName": { "type": ["string", "null"], "minLength": 1 },
         "leaseName": { "type": ["string", "null"], "minLength": 1 },
         "labelSelectors": {
