@@ -734,8 +734,11 @@ haproxy:
       hold_refused: "5s"
     # Sibling health check configuration
     check:
-      # HAProxy healthcheck port - returns 503 if local otel is DOWN
-      port: 13135
+      # Forwarding health endpoint port on sibling pods.
+      # This endpoint should return 503 when local forwarding is unavailable
+      # (for example: unresolvable backends / sustained downstream unavailability).
+      # Default is 13136 to keep fallback decisions independent from Kubernetes probes.
+      port: 13136
       # Check interval in milliseconds
       interval: 3000
       # Successful checks before marking sibling UP

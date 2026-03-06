@@ -192,7 +192,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server-template sibling 10.*headless.*:4318.*backup.*resolvers k8s.*init-addr none"
+          pattern: "server-template sibling 10.*headless.*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
 
   - it: should use custom max_servers for server-template
     template: haproxy-configmap.yaml
@@ -239,7 +239,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server-template sibling 10.*headless.*:4318.*backup.*resolvers k8s.*init-addr none"
+          pattern: "server-template sibling 10.*headless.*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
       - notMatchRegex:
           path: data["haproxy.cfg"]
           pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
@@ -248,7 +248,7 @@ tests:
     template: haproxy-configmap.yaml
     set:
       haproxy.sibling_fallback.enabled: true
-      haproxy.sibling_fallback.check.port: 13136
+      haproxy.sibling_fallback.check.port: 13137
       haproxy.sibling_fallback.check.interval: 5000
       haproxy.sibling_fallback.check.rise: 3
       haproxy.sibling_fallback.check.fall: 4
@@ -261,7 +261,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server-template sibling.*check port 13136 inter 5000 rise 3 fall 4"
+          pattern: "server-template sibling.*check port 13137 inter 5000 rise 3 fall 4"
 
   # ============================================================
   # 5. Sibling fallback ENABLED - Direct backend (loop prevention)
