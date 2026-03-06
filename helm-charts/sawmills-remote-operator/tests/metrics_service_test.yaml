@@ -1,0 +1,48 @@
+suite: metrics service exposure
+templates:
+  - deployment.yaml
+  - service.yaml
+tests:
+  - it: should render metrics service by default
+    template: service.yaml
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: spec.ports[0].name
+          value: metrics
+      - equal:
+          path: spec.ports[0].port
+          value: 8086
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 8086
+
+  - it: should render metrics container port when service enabled
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: metrics
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8086
+
+  - it: should disable metrics service and remove container port when disabled
+    set:
+      metricsService:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+    template: service.yaml
+
+  - it: should keep deployment valid when metrics service disabled
+    set:
+      metricsService:
+        enabled: false
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports
+          value: []

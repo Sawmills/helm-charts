@@ -8,10 +8,10 @@ echo "🔧 Checking if helm-unittest plugin is installed..."
 
 # Check if helm-unittest is already installed
 if ! helm plugin list | grep -q unittest; then
-    echo "📦 Installing helm-unittest plugin..."
-    helm plugin install https://github.com/helm-unittest/helm-unittest
+	echo "📦 Installing helm-unittest plugin..."
+	helm plugin install https://github.com/helm-unittest/helm-unittest
 else
-    echo "✅ helm-unittest plugin is already installed"
+	echo "✅ helm-unittest plugin is already installed"
 fi
 
 echo ""

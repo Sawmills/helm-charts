@@ -701,6 +701,9 @@ haproxy:
     port: 8405 # Default prometheus port
     # Logging is always disabled for prometheus frontend
 
+  # Remote operator OTLP/HTTP ingest port
+  remoteOperatorOtlpHttpPort: 14319
+
   # Stats page configuration
   stats:
     enabled: true
