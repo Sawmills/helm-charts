@@ -130,6 +130,10 @@ spec:
         - name: AUTOSCALER_METRICS_ENDPOINT
           value: {{ $autoscaler.metricsEndpoint | quote }}
         {{- end }}
+        {{- if $autoscaler.otlpMetricsEndpoint }}
+        - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+          value: {{ $autoscaler.otlpMetricsEndpoint | quote }}
+        {{- end }}
         {{- if $autoscaler.targetHPAName }}
         - name: AUTOSCALER_TARGET_HPA_NAME
           value: {{ $autoscaler.targetHPAName | quote }}

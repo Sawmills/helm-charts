@@ -291,6 +291,9 @@ spec:
             - name: prometheus
               containerPort: {{ .Values.telemetry.prometheus.port }}
               protocol: TCP
+            - name: ro-otlp-http
+              containerPort: 14319
+              protocol: TCP
           livenessProbe:
             httpGet:
               path: /healthcheck

@@ -1,0 +1,42 @@
+suite: remote operator otlp ingress
+templates:
+  - load-balancer-telemetry-configmap.yaml
+  - load-balancer-service.yaml
+  - load-balancer.yaml
+tests:
+  - it: should configure telemetry collector to receive remote operator metrics via otlp http
+    template: load-balancer-telemetry-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otlp/remote_operator:[\s\S]*protocols:[\s\S]*http:[\s\S]*endpoint: \$\{env:MY_POD_IP\}:14319'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/remote_operator:[\s\S]*receivers:[\s\S]*-\s*otlp/remote_operator'
+
+  - it: should expose remote operator otlp http port on lb service
+    template: load-balancer-service.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: ro-otlp-http
+            port: 14319
+            targetPort: 14319
+            protocol: TCP
+
+  - it: should expose remote operator otlp http port on telemetry collector container
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
+          content:
+            name: ro-otlp-http
+            containerPort: 14319
+            protocol: TCP

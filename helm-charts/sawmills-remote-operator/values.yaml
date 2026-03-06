@@ -99,6 +99,7 @@ autoscaler:
   enabled: false
   dryRun: null
   metricsEndpoint: null
+  otlpMetricsEndpoint: null
   targetHPAName: null
   leaseName: null
   labelSelectors: null

@@ -879,6 +879,11 @@ telemetryConfig:
             ca_file: /etc/otel/certs/ca-cert.pem
           endpoint: 127.0.0.1:14318
           max_recv_msg_size_mib: 10
+    # Dedicated OTLP/HTTP ingress for remote-operator metrics into the LB telemetry collector.
+    otlp/remote_operator:
+      protocols:
+        http:
+          endpoint: ${env:MY_POD_IP}:14319
 
   exporters:
     debug:
@@ -978,6 +983,16 @@ telemetryConfig:
 
       metrics/telemetry_collector:
         receivers: [otlp/telemetry_collector]
+        processors:
+          - memory_limiter
+          - transform/remove_unit
+          - transform/mark_as_telemetry
+          - deltatocumulative
+          - batch
+        exporters: [routing, forward]
+
+      metrics/remote_operator:
+        receivers: [otlp/remote_operator]
         processors:
           - memory_limiter
           - transform/remove_unit
@@ -1260,7 +1275,12 @@ loadBalancer:
       enabled: true
     internalTrafficPolicy: ""
     annotations: {}
-    ports: {}
+    ports:
+      ro-otlp-http:
+        from: 14319
+        to:
+          protocol: TCP
+          port: 14319
   keda:
     enabled: false
     minReplicas: 2
