@@ -16,6 +16,19 @@ tests:
           path: data["telemetry-config.yaml"]
           pattern: 'metrics/remote_operator:'
 
+  - it: should not render remote operator scrape receiver by default in deployment mode
+    set:
+      loadBalancer:
+        enabled: false
+    template: telemetry-configmap.yaml
+    asserts:
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'prometheus/remote_operator:'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/remote_operator:'
+
   - it: should render remote operator pod discovery in LB telemetry config when enabled
     set:
       loadBalancer:

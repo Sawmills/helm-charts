@@ -67,6 +67,17 @@ tests:
           path: metadata.namespace
           value: custom-remote-operator-ns
 
+  - it: should render pod-discovery role in release namespace when remote operator namespace is empty
+    set:
+      remoteOperatorMetricsScrape:
+        enabled: true
+        namespace: ""
+    template: remote-operator-scrape-leader-role.yaml
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: NAMESPACE
+
   - it: should render rolebinding for pod-discovery role
     set:
       remoteOperatorMetricsScrape:
