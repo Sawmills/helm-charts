@@ -627,43 +627,45 @@ Validation guardrails in this chart:
 * `sending_queue.storage` requires `loadBalancer.storage.enabled: true`
 * `compress_in_memory: true` requires `sending_queue.enabled: true`
 * `compress_in_memory: true` requires `payload_compression: snappy|zstd`
-#### Remote Operator Metrics Scrape Leader Election
+
+#### Remote Operator Metrics Scrape
 
 Use `remoteOperatorMetricsScrape` to scrape the remote-operator metrics service from telemetry-collector.
 
-When `remoteOperatorMetricsScrape.leaderElection.enabled: true`:
+When `remoteOperatorMetricsScrape.enabled: true`:
 
-* the chart switches `prometheus/remote_operator` from static target mode to local `http_sd` mode
-* a `remote-operator-scrape-leader` sidecar is added (LB pods in LB mode, deployment pods otherwise)
-* namespaced `Role`/`RoleBinding` resources are created to allow Lease operations in `leaderElection.leaseNamespace`
+* the chart configures `prometheus/remote_operator` with Kubernetes pod discovery (`kubernetes_sd_configs`)
+* all matching remote-operator pods in `remoteOperatorMetricsScrape.namespace` are scraped on `remoteOperatorMetricsScrape.port`
+* metrics are labeled with:
+  * `remote_operator_pod` (pod name)
+  * `remote_operator_namespace` (pod namespace)
+* namespaced `Role`/`RoleBinding` resources are created to allow pod list/watch/get for discovery
 
-Configuration path: `remoteOperatorMetricsScrape.leaderElection`
+Configuration path: `remoteOperatorMetricsScrape`
 
-* `enabled`: `true|false`
-* `leaseName`, `leaseNamespace`
-* `listenPort`, `sdRefreshInterval`
-* `leaseDuration`, `renewDeadline`, `retryPeriod`
-* `sidecar.image.*`, `sidecar.resources.*`
+* `enabled`
+* `namespace`
+* `port`
+* `scrapeInterval`
+* `podLabelSelectors`
 
 Minimal example:
 
 ```yaml
 remoteOperatorMetricsScrape:
   enabled: true
-  serviceName: sawmills-remote-operator-sawmills-remote-operator-chart
   namespace: sawmills-o11y
   port: 8086
-  leaderElection:
-    enabled: true
-    leaseName: sawmills-collector-remote-operator-scrape-leader
-    leaseNamespace: sawmills-o11y
+  podLabelSelectors:
+    app.kubernetes.io/name: sawmills-remote-operator-chart
 ```
 
 Guardrails and dependencies:
 
-* `leaderElection.enabled` is only effective when `remoteOperatorMetricsScrape.enabled: true`
-* enabling leader election deploys an additional sidecar and Lease RBAC resources
+* requires RBAC permissions for telemetry-collector service account to list/watch/get pods in target namespace
+* scraping all remote-operator pods can increase ingest cardinality and sample volume
 * use a dedicated service account for least-privilege deployments
+
 ### KEDA Scaler
 
 Enable the KEDA scaler component:

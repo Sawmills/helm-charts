@@ -96,59 +96,6 @@ spec:
         {{- if and .Values.haproxy.enabled (not $useNativeSidecar) }}
         {{- include "sawmills-collector.haproxyContainer" (dict "root" . "nativeSidecar" false) | nindent 8 }}
         {{- end }}
-        {{- if and .Values.remoteOperatorMetricsScrape.enabled .Values.remoteOperatorMetricsScrape.leaderElection.enabled }}
-        - name: remote-operator-scrape-leader
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
-            seccompProfile:
-              type: RuntimeDefault
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          image: {{ .Values.remoteOperatorMetricsScrape.leaderElection.sidecar.image.repository }}:{{ .Values.remoteOperatorMetricsScrape.leaderElection.sidecar.image.tag }}
-          imagePullPolicy: {{ .Values.remoteOperatorMetricsScrape.leaderElection.sidecar.image.pullPolicy }}
-          command: ["/remote-operator"]
-          args:
-            - scrape-leader
-            - --lease-name={{ .Values.remoteOperatorMetricsScrape.leaderElection.leaseName }}
-            - --lease-namespace={{ default .Release.Namespace .Values.remoteOperatorMetricsScrape.leaderElection.leaseNamespace }}
-            - --listen-address=:{{ .Values.remoteOperatorMetricsScrape.leaderElection.listenPort }}
-            - --target={{ printf "%s.%s.svc.cluster.local:%v" .Values.remoteOperatorMetricsScrape.serviceName (default .Release.Namespace .Values.remoteOperatorMetricsScrape.namespace) .Values.remoteOperatorMetricsScrape.port }}
-            - --lease-duration={{ .Values.remoteOperatorMetricsScrape.leaderElection.leaseDuration }}
-            - --renew-deadline={{ .Values.remoteOperatorMetricsScrape.leaderElection.renewDeadline }}
-            - --retry-period={{ .Values.remoteOperatorMetricsScrape.leaderElection.retryPeriod }}
-          env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-          ports:
-            - name: scrape-leader
-              containerPort: {{ .Values.remoteOperatorMetricsScrape.leaderElection.listenPort }}
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: {{ .Values.remoteOperatorMetricsScrape.leaderElection.listenPort }}
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: {{ .Values.remoteOperatorMetricsScrape.leaderElection.listenPort }}
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          resources:
-            {{- toYaml .Values.remoteOperatorMetricsScrape.leaderElection.sidecar.resources | nindent 12 }}
-        {{- end }}
         - name: main-collector
           securityContext:
             runAsNonRoot: true

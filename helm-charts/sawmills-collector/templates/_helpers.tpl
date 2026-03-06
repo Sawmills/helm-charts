@@ -127,28 +127,40 @@ Generate remote-operator metrics scrape receiver + pipeline.
 {{- define "sawmills-collector.remoteOperatorMetricsScrapeConfig" -}}
 {{- $cfg := .Values.remoteOperatorMetricsScrape -}}
 {{- $namespace := default .Release.Namespace $cfg.namespace -}}
-{{- $leaderElection := default (dict) $cfg.leaderElection -}}
 receivers:
   prometheus/remote_operator:
     config:
       scrape_configs:
         - job_name: remote-operator
           scrape_interval: {{ $cfg.scrapeInterval }}
-          {{- if $leaderElection.enabled }}
-          http_sd_configs:
-            - url: {{ printf "http://127.0.0.1:%v/targets" $leaderElection.listenPort | quote }}
-              refresh_interval: {{ $leaderElection.sdRefreshInterval }}
-          {{- else }}
-          static_configs:
-            - targets:
-                - {{ printf "%s.%s.svc.cluster.local:%v" $cfg.serviceName $namespace $cfg.port | quote }}
-              labels:
-                scrape_source_pod: ${env:MY_POD_NAME}
+          kubernetes_sd_configs:
+            - role: pod
+              namespaces:
+                names:
+                  - {{ $namespace | quote }}
           relabel_configs:
             - action: keep
-              source_labels: [scrape_source_pod]
-              regex: {{ $cfg.scraperPodKeepRegex | quote }}
-          {{- end }}
+              source_labels:
+                - __meta_kubernetes_pod_phase
+              regex: Running
+            - action: keep
+              source_labels:
+                - __meta_kubernetes_pod_container_port_number
+              regex: {{ printf "%v" $cfg.port | quote }}
+            {{- range $k, $v := $cfg.podLabelSelectors }}
+            - action: keep
+              source_labels:
+                - {{ printf "__meta_kubernetes_pod_label_%s" ($k | replace "." "_" | replace "/" "_" | replace "-" "_") }}
+              regex: {{ $v | quote }}
+            {{- end }}
+            - action: replace
+              source_labels:
+                - __meta_kubernetes_pod_name
+              target_label: remote_operator_pod
+            - action: replace
+              source_labels:
+                - __meta_kubernetes_namespace
+              target_label: remote_operator_namespace
 service:
   pipelines:
     metrics/remote_operator:

@@ -16,14 +16,12 @@ tests:
           path: data["telemetry-config.yaml"]
           pattern: 'metrics/remote_operator:'
 
-  - it: should render remote operator scrape in LB telemetry config when enabled with regex mode
+  - it: should render remote operator pod discovery in LB telemetry config when enabled
     set:
       loadBalancer:
         enabled: true
       remoteOperatorMetricsScrape:
         enabled: true
-        leaderElection:
-          enabled: false
     template: load-balancer-telemetry-configmap.yaml
     asserts:
       - matchRegex:
@@ -37,41 +35,25 @@ tests:
           pattern: 'job_name: remote-operator'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'sawmills-remote-operator-sawmills-remote-operator-chart\.NAMESPACE\.svc\.cluster\.local:8086'
+          pattern: 'kubernetes_sd_configs:'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'prometheus/remote_operator:[\s\S]{0,800}relabel_configs:[\s\S]{0,300}regex: .*\-0\$[\s\S]{0,200}source_labels:[\s\S]{0,60}- scrape_source_pod'
+          pattern: 'role: pod'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '__meta_kubernetes_pod_label_app_kubernetes_io_name'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'target_label: remote_operator_pod'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'target_label: remote_operator_namespace'
       - notMatchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'http_sd_configs:'
-
-  - it: should render remote operator scrape in LB telemetry config with lease-based http_sd when enabled
-    set:
-      loadBalancer:
-        enabled: true
-      remoteOperatorMetricsScrape:
-        enabled: true
-        leaderElection:
-          enabled: true
-          listenPort: 19466
-          sdRefreshInterval: 7s
-    template: load-balancer-telemetry-configmap.yaml
-    asserts:
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'prometheus/remote_operator:'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'http_sd_configs:'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'url: ?"?http://127.0.0.1:19466/targets"?'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'refresh_interval: 7s'
       - notMatchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'prometheus/remote_operator:[\s\S]{0,800}source_labels:[\s\S]{0,60}- scrape_source_pod'
+          pattern: 'svc\.cluster\.local'
 
   - it: should not duplicate remote operator scrape in deployment telemetry config when LB mode is on
     set:
@@ -85,17 +67,17 @@ tests:
           path: data["telemetry-config.yaml"]
           pattern: 'prometheus/remote_operator:'
 
-  - it: should render remote operator scrape in deployment telemetry config when LB is disabled
+  - it: should render remote operator pod discovery in deployment telemetry config with overrides
     set:
       loadBalancer:
         enabled: false
       remoteOperatorMetricsScrape:
         enabled: true
         namespace: custom-ns
-        serviceName: custom-remote-operator
         port: 9090
         scrapeInterval: 30s
-        scraperPodKeepRegex: ".*collector.*"
+        podLabelSelectors:
+          app.kubernetes.io/name: custom-ro
     template: telemetry-configmap.yaml
     asserts:
       - matchRegex:
@@ -103,35 +85,22 @@ tests:
           pattern: 'prometheus/remote_operator:'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'custom-remote-operator\.custom-ns\.svc\.cluster\.local:9090'
+          pattern: 'role: pod'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '- custom-ns'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'scrape_interval: 30s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'prometheus/remote_operator:[\s\S]{0,800}relabel_configs:[\s\S]{0,300}regex: .*collector.*[\s\S]{0,200}source_labels:[\s\S]{0,60}- scrape_source_pod'
-
-  - it: should render lease-based http_sd in deployment telemetry config when enabled
-    set:
-      loadBalancer:
-        enabled: false
-      remoteOperatorMetricsScrape:
-        enabled: true
-        leaderElection:
-          enabled: true
-          listenPort: 19777
-          sdRefreshInterval: 9s
-    template: telemetry-configmap.yaml
-    asserts:
+          pattern: '__meta_kubernetes_pod_container_port_number'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'http_sd_configs:'
+          pattern: 'regex: "9090"'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'url: ?"?http://127.0.0.1:19777/targets"?'
+          pattern: '__meta_kubernetes_pod_label_app_kubernetes_io_name'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'refresh_interval: 9s'
-      - notMatchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'scrape_source_pod:'
+          pattern: 'regex: custom-ro'
