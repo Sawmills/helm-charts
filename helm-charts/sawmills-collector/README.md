@@ -635,7 +635,7 @@ When `loadBalancer.enabled: true`, the chart now configures the LB telemetry col
 Endpoint format:
 
 ```text
-http://<release>-sawmills-collector:14319/v1/metrics
+http://<release-name>:14319/v1/metrics
 ```
 
 ### KEDA Scaler
