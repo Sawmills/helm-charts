@@ -203,6 +203,8 @@ backend logs_http_{{ $config.from }}
   {{- $sf := $.Values.haproxy.sibling_fallback }}
   # Sibling tier: round-robin across other LB pods via headless service DNS
   # "backup" ensures these only activate when local otel is DOWN
+  # Check port 13136 is served by the forwarding_health extension in
+  # sawmills-collector (PR #811); chart + collector changes must ship together.
   server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ $config.from }} {{ $proto }} check port {{ $sf.check.port | default 13136 }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }} backup resolvers k8s init-addr none
   {{- if $externalFallbackEnabled }}
   # External fallback: last resort (listed after siblings, so HAProxy tries siblings first)
