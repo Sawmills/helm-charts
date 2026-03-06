@@ -29,6 +29,20 @@ tests:
             targetPort: 14319
             protocol: TCP
 
+  - it: should expose remote operator otlp http port from telemetry.remoteOperatorOtlpHttpPort on lb service
+    template: load-balancer-service.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.remoteOperatorOtlpHttpPort: 15431
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: ro-otlp-http
+            port: 15431
+            targetPort: 15431
+            protocol: TCP
+
   - it: should expose remote operator otlp http port on telemetry collector container
     template: load-balancer.yaml
     set:

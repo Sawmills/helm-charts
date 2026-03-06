@@ -1262,12 +1262,7 @@ loadBalancer:
       enabled: true
     internalTrafficPolicy: ""
     annotations: {}
-    ports:
-      ro-otlp-http:
-        from: 14319
-        to:
-          protocol: TCP
-          port: 14319
+    ports: {}
   keda:
     enabled: false
     minReplicas: 2
