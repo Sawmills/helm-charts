@@ -292,7 +292,7 @@ spec:
               containerPort: {{ .Values.telemetry.prometheus.port }}
               protocol: TCP
             - name: ro-otlp-http
-              containerPort: {{ .Values.telemetry.remoteOperatorOtlpHttpPort }}
+              containerPort: {{ .Values.telemetry.remoteOperatorOtlpHttpPort | default 14319 }}
               protocol: TCP
           livenessProbe:
             httpGet:
