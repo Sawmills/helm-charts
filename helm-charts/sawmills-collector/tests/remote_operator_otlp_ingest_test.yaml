@@ -16,6 +16,16 @@ tests:
           path: data["telemetry-config.yaml"]
           pattern: '(?ms)^\s*metrics/remote_operator:\n\s+exporters:\n\s+- routing\n\s+- forward\n\s+processors:\n\s+- memory_limiter\n\s+- transform/remove_unit_preserve_service_name\n\s+- deltatocumulative\n\s+- batch\n\s+receivers:\n\s+- otlp/remote_operator\n'
 
+  - it: should default remote operator otlp http receiver endpoint to 14319 when telemetry.remoteOperatorOtlpHttpPort is null
+    template: load-balancer-telemetry-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.remoteOperatorOtlpHttpPort: null
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*otlp/remote_operator:\n\s+protocols:\n\s+http:\n\s+endpoint: \$\{env:MY_POD_IP\}:14319\n'
+
   - it: should expose remote operator otlp http port on lb service
     template: load-balancer-service.yaml
     set:
@@ -43,10 +53,37 @@ tests:
             targetPort: 15431
             protocol: TCP
 
+  - it: should default remote operator otlp http service port to 14319 when telemetry.remoteOperatorOtlpHttpPort is null
+    template: load-balancer-service.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.remoteOperatorOtlpHttpPort: null
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: ro-otlp-http
+            port: 14319
+            targetPort: 14319
+            protocol: TCP
+
   - it: should expose remote operator otlp http port on telemetry collector container
     template: load-balancer.yaml
     set:
       loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
+          content:
+            name: ro-otlp-http
+            containerPort: 14319
+            protocol: TCP
+
+  - it: should default remote operator otlp http container port to 14319 when telemetry.remoteOperatorOtlpHttpPort is null
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.remoteOperatorOtlpHttpPort: null
     asserts:
       - contains:
           path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
