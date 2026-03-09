@@ -196,7 +196,7 @@ telemetryExtraEnv: []
 image:
   repository: public.ecr.aws/s7a5m1b4/sawmills-collector
   pullPolicy: IfNotPresent
-  tag: 1.558.0
+  tag: 1.770.0
 
 # The node selector for the Sawmills collector
 nodeSelector: {}

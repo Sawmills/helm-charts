@@ -10,8 +10,8 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'helm-charts/sawmills-collector/**'
-      - 'helm-charts/sawmills-remote-operator/**'
+      - "helm-charts/sawmills-collector/**"
+      - "helm-charts/sawmills-remote-operator/**"
 
 jobs:
   general-actions:
@@ -22,24 +22,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Identify changed areas
         run: |
           echo "PR merged with changes outside of Helm charts"
           echo "Changed files:"
           git diff --name-only HEAD~1 HEAD
-          
+
           # Identify what type of changes were made
           if git diff --name-only HEAD~1 HEAD | grep -q "^\.github/workflows/"; then
             echo "🔧 GitHub Actions workflows were modified"
           fi
-          
+
           if git diff --name-only HEAD~1 HEAD | grep -q "^scripts/"; then
             echo "📜 Scripts were modified"
           fi
-          
+
           if git diff --name-only HEAD~1 HEAD | grep -q -E "^(README|CONTRIBUTING|LICENSE)"; then
             echo "📚 Documentation was modified"
           fi
-          
-          echo "✅ No Helm chart deployments needed for these changes" 
+
+          echo "✅ No Helm chart deployments needed for these changes"

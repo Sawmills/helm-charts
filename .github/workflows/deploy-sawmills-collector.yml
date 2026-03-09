@@ -12,7 +12,7 @@ on:
     branches:
       - main
     paths:
-      - 'helm-charts/sawmills-collector/**'
+      - "helm-charts/sawmills-collector/**"
 
 jobs:
   version-and-tag:
@@ -45,4 +45,4 @@ jobs:
           aws_region: ${{ vars.AWS_REGION }}
           aws_role: ${{ vars.AWS_ROLE }}
           ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-          tag: ${{ needs.version-and-tag.outputs.tag }} 
+          tag: ${{ needs.version-and-tag.outputs.tag }}
