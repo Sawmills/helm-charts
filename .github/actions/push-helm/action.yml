@@ -44,8 +44,15 @@ runs:
         ./get_helm.sh
     - name: Prepare Helm chart
       shell: bash
+      env:
+        CHART_NAME: ${{ inputs.chart-name }}
+        CHART_PATH: ${{ inputs.chart-path }}
+        CHART_REPO: ${{ inputs.chart-repo }}
+        INPUT_TAG: ${{ inputs.tag }}
+        AWS_REGION: ${{ inputs.aws_region }}
+        RUNNER_TEMP_DIR: ${{ runner.temp }}
       run: |
-        tag="${{ inputs.tag }}"
+        tag="$INPUT_TAG"
         echo "Input tag: $tag"
 
         # Extract version from tag (handles both "v1.2.3" and "prefix-v1.2.3" formats)
@@ -66,25 +73,25 @@ runs:
         echo "Extracted version: $version"
         echo "App version: $appVersion"
 
-        dst=${{ runner.temp }}/charts
-        package=${{ runner.temp }}/charts/${{ inputs.chart-name }}
-        mkdir ${{ runner.temp }}/charts
-        cp -r ${{ inputs.chart-path }} ${{ runner.temp }}/charts
+        dst="$RUNNER_TEMP_DIR/charts"
+        package="$RUNNER_TEMP_DIR/charts/$CHART_NAME"
+        mkdir "$RUNNER_TEMP_DIR/charts"
+        cp -r "$CHART_PATH" "$RUNNER_TEMP_DIR/charts"
 
         # in case the last part of the path of chart-path is not equal to chart-name rename to chart-name
-        chart_path_basename=$(basename "${{ inputs.chart-path }}")
-        if [[ $chart_path_basename != ${{ inputs.chart-name }} ]]; then
-          mv ${{ runner.temp }}/charts/$chart_path_basename ${{ runner.temp }}/charts/${{ inputs.chart-name }}
+        chart_path_basename=$(basename "$CHART_PATH")
+        if [[ "$chart_path_basename" != "$CHART_NAME" ]]; then
+          mv "$RUNNER_TEMP_DIR/charts/$chart_path_basename" "$RUNNER_TEMP_DIR/charts/$CHART_NAME"
         fi
 
-        helm package ${package} \
-          --version ${version} \
-          --app-version ${appVersion} \
-          --destination ${{ runner.temp }}/charts
+        helm package "$package" \
+          --version "$version" \
+          --app-version "$appVersion" \
+          --destination "$RUNNER_TEMP_DIR/charts"
 
         aws ecr-public get-login-password \
-          --region ${{ inputs.aws_region }} | helm registry login \
+          --region "$AWS_REGION" | helm registry login \
           --username AWS \
-          --password-stdin ${{ inputs.chart-repo }}
+          --password-stdin "$CHART_REPO"
 
-        helm push ${package}-${version}.tgz oci://${{ inputs.chart-repo }}
+        helm push "${package}-${version}.tgz" "oci://$CHART_REPO"
