@@ -1,0 +1,103 @@
+suite: telemetry keda overlay
+templates:
+  - deployment.yaml
+  - load-balancer.yaml
+  - telemetry-keda-configmap.yaml
+tests:
+  - it: telemetry collector does not set explicit args when telemetryOtelConfig.s3path is unset and keda is disabled
+    template: deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].args
+
+  - it: telemetry collector uses S3 config when telemetryOtelConfig.s3path is set
+    template: deployment.yaml
+    set:
+      telemetryOtelConfig.s3path: s3://bucket/telemetry.yaml
+      telemetryOtelConfig.encryptionKey: test-key
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].args[0]
+          value: --config=s3://bucket/telemetry.yaml@test-key
+
+  - it: keda enabled adds keda overlay arg and mount for telemetry collector
+    template: deployment.yaml
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].args[1]
+          value: --config=file:/etc/otel/keda.yaml
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].volumeMounts
+          content:
+            name: sawmills-telemetry-keda-config
+            mountPath: /etc/otel/keda.yaml
+            subPath: keda.yaml
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: sawmills-telemetry-keda-config
+            configMap:
+              name: RELEASE-NAME-telemetry-keda-config
+              items:
+                - key: keda.yaml
+                  path: keda.yaml
+
+  - it: load balancer telemetry collector does not set explicit args when telemetryOtelConfig.s3path is unset and keda is disabled
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].args
+
+  - it: load balancer telemetry collector uses S3 config when telemetryOtelConfig.s3path is set
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryOtelConfig.s3path: s3://bucket/lb-telemetry.yaml
+      loadBalancer.telemetryOtelConfig.encryptionKey: lb-key
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].args[0]
+          value: --config=s3://bucket/lb-telemetry.yaml@lb-key
+
+  - it: keda enabled adds keda overlay arg and mount for load balancer telemetry collector
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      kedaScaler.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].args[1]
+          value: --config=file:/etc/otel/keda.yaml
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].volumeMounts
+          content:
+            name: sawmills-telemetry-keda-config
+            mountPath: /etc/otel/keda.yaml
+            subPath: keda.yaml
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: sawmills-telemetry-keda-config
+            configMap:
+              name: RELEASE-NAME-telemetry-keda-config
+              items:
+                - key: keda.yaml
+                  path: keda.yaml
+
+  - it: renders telemetry keda configmap from kedaScaler.telemetryConfig when enabled
+    template: telemetry-keda-configmap.yaml
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - exists:
+          path: data["keda.yaml"]
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: '(?m)^\s*service:\s*$'
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: '(?m)^\s*metrics/keda:\s*$'
