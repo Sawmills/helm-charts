@@ -129,18 +129,6 @@ Generate merged telemetry configuration with external labels
 {{- if and .Values.haproxy.enabled (not .Values.loadBalancer.enabled) }}
   {{- $config = merge $config .Values.haproxyConfig }}
 {{- end }}
-{{- if .Values.kedaScaler.enabled }}
-  {{- $config = merge $config .Values.kedaScaler.telemetryConfig }}
-{{- end }}
-{{- /* Merge CH routing config BEFORE external config so CH pipeline overrides take precedence */ -}}
-{{- if .Values.metricsClickhouseRouting.enabled }}
-  {{- $config = merge $config .Values.metricsClickhouseRouting.config }}
-  {{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
-    {{- $config = merge $config .Values.metricsClickhouseRouting.prometheusConfig }}
-  {{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
-    {{- $config = merge $config .Values.metricsClickhouseRouting.arrowConfig }}
-  {{- end }}
-{{- end }}
 {{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
   {{- $config = merge $config .Values.telemetryExternalConfig.prometheusConfig }}
 {{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
@@ -163,9 +151,6 @@ Generate merged telemetry configuration with external labels
 {{- $config := deepCopy .Values.telemetryConfig }}
 {{- if .Values.haproxy.enabled }}
   {{- $config = merge $config .Values.haproxyConfig }}
-{{- end }}
-{{- if .Values.kedaScaler.enabled }}
-  {{- $config = merge $config .Values.kedaScaler.telemetryConfig }}
 {{- end }}
 {{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
   {{- $config = merge $config .Values.telemetryExternalConfig.prometheusConfig }}

@@ -233,6 +233,17 @@ spec:
                 - ALL
           image: {{ .Values.image.repository }}:{{ default "dev" .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if or .Values.loadBalancer.telemetryOtelConfig.s3path .Values.kedaScaler.enabled }}
+          args:
+            {{- if .Values.loadBalancer.telemetryOtelConfig.s3path }}
+            - "--config={{ .Values.loadBalancer.telemetryOtelConfig.s3path }}@{{ .Values.loadBalancer.telemetryOtelConfig.encryptionKey }}"
+            {{- else }}
+            - "--config=file:/etc/otel/config.yaml"
+            {{- end }}
+            {{- if .Values.kedaScaler.enabled }}
+            - "--config=file:/etc/otel/keda.yaml"
+            {{- end }}
+          {{- end }}
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -320,6 +331,11 @@ spec:
             - name: sawmills-load-balancer-telemetry-config
               mountPath: /etc/otel/config.yaml
               subPath: telemetry-config.yaml
+            {{- if .Values.kedaScaler.enabled }}
+            - name: sawmills-telemetry-keda-config
+              mountPath: /etc/otel/keda.yaml
+              subPath: keda.yaml
+            {{- end }}
             - name: tmp
               mountPath: /tmp
       volumes:
@@ -347,6 +363,14 @@ spec:
             items:
               - key: telemetry-config.yaml
                 path: telemetry-config.yaml
+        {{- if .Values.kedaScaler.enabled }}
+        - name: sawmills-telemetry-keda-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-telemetry-keda-config
+            items:
+              - key: keda.yaml
+                path: keda.yaml
+        {{- end }}
         - name: tmp
           emptyDir: {}
         {{- /* LB-specific additionalVolumes take precedence; global additionalVolumes used as fallback */ -}}
