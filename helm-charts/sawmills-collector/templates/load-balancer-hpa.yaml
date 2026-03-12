@@ -1,4 +1,7 @@
 {{- if and .Values.loadBalancer.enabled .Values.loadBalancer.autoscaling (eq .Values.loadBalancer.autoscaling.enabled true) (not (and .Values.loadBalancer.keda (eq .Values.loadBalancer.keda.enabled true))) }}
+{{- if not (or .Values.loadBalancer.autoscaling.targetCPUUtilizationPercentage .Values.loadBalancer.autoscaling.targetMemoryUtilizationPercentage) }}
+  {{- fail "loadBalancer.autoscaling requires at least one of targetCPUUtilizationPercentage or targetMemoryUtilizationPercentage" }}
+{{- end }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
