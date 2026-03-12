@@ -1,0 +1,40 @@
+{{- if and .Values.loadBalancer.enabled .Values.loadBalancer.autoscaling (eq .Values.loadBalancer.autoscaling.enabled true) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-lb
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    {{- if and .Values.loadBalancer.storage (eq .Values.loadBalancer.storage.enabled true) }}
+    kind: StatefulSet
+    {{- else }}
+    kind: Deployment
+    {{- end }}
+    name: {{ include "sawmills-collector.fullname" . }}-lb
+  minReplicas: {{ .Values.loadBalancer.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.loadBalancer.autoscaling.maxReplicas }}
+  metrics:
+  {{- if .Values.loadBalancer.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.loadBalancer.autoscaling.targetCPUUtilizationPercentage }}
+  {{- end }}
+  {{- if .Values.loadBalancer.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.loadBalancer.autoscaling.targetMemoryUtilizationPercentage }}
+  {{- end }}
+  {{- if .Values.loadBalancer.autoscaling.behavior }}
+  behavior:
+    {{- toYaml .Values.loadBalancer.autoscaling.behavior | nindent 4 }}
+  {{- end }}
+{{- end }}
