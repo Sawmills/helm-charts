@@ -112,7 +112,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- if .Values.loadBalancer.otelConfig.s3path }}
           args:
-            - "--config={{ .Values.loadBalancer.otelConfig.s3path }}@{{ .Values.loadBalancer.otelConfig.encryptionKey }}"
+            - "--config={{ .Values.loadBalancer.otelConfig.s3path }}{{- if .Values.loadBalancer.otelConfig.encryptionKey }}@{{ .Values.loadBalancer.otelConfig.encryptionKey }}{{- end }}"
           {{- end }}
           env:
             - name: MY_POD_NAME
@@ -236,7 +236,7 @@ spec:
           {{- if or .Values.loadBalancer.telemetryOtelConfig.s3path .Values.kedaScaler.enabled }}
           args:
             {{- if .Values.loadBalancer.telemetryOtelConfig.s3path }}
-            - "--config={{ .Values.loadBalancer.telemetryOtelConfig.s3path }}@{{ .Values.loadBalancer.telemetryOtelConfig.encryptionKey }}"
+            - "--config={{ .Values.loadBalancer.telemetryOtelConfig.s3path }}{{- if .Values.loadBalancer.telemetryOtelConfig.encryptionKey }}@{{ .Values.loadBalancer.telemetryOtelConfig.encryptionKey }}{{- end }}"
             {{- else }}
             - "--config=file:/etc/otel/config.yaml"
             {{- end }}
