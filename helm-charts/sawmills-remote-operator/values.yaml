@@ -25,12 +25,6 @@ apiKeyExistingSecret: ""
 # The key for the API key in the existing secret
 apiKeyExistingSecretKey: api-key
 
-# The existing secret containing the ClickHouse analytics DSN
-analyticsExistingSecret: ""
-
-# The key for the DSN in the analytics existing secret
-analyticsExistingSecretKey: dsn
-
 # The collector name of the Sawmills operator
 collectorName: ""
 

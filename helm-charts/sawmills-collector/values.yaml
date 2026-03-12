@@ -484,6 +484,10 @@ otelConfig:
   # The encryption key used to decrypt the configuration file
   encryptionKey: ""
 
+telemetryOtelConfig:
+  s3path: ""
+  encryptionKey: ""
+
 # Direct configuration (used if otelConfig.s3path is not set)
 otelCollectorConfig: {}
 # Example configuration:
@@ -809,56 +813,6 @@ telemetryExternalConfig:
         metrics/external/otelarrow:
           receivers: [forward]
           processors: [transform/external_labels]
-          exporters: [otelarrow]
-
-# -- Route metric-signal THP metrics to ClickHouse instead of Victoria Metrics.
-# When enabled, metric-signal THP metrics (received_metric_*, metric_attribute*)
-# are filtered out of the VM/Arrow pipeline and routed to clickhousemetrics exporter.
-# Controlled per-deployment by collectors-service.
-metricsClickhouseRouting:
-  enabled: false
-  # Secret containing the ClickHouse DSN for the clickhousemetrics exporter
-  secretRef:
-    name: sawmills-analytics-secret
-    key: dsn
-  # Base config: filter processors, clickhousemetrics exporter, and CH pipeline
-  config:
-    processors:
-      filter/exclude_metric_thp:
-        error_mode: ignore
-        metrics:
-          metric:
-            - 'IsMatch(name, "otelcol_processor_(central_)?thp_(received_metric_|metric_).*")'
-      filter/include_metric_thp:
-        error_mode: ignore
-        metrics:
-          metric:
-            - 'not IsMatch(name, "otelcol_processor_(central_)?thp_(received_metric_|metric_).*")'
-    exporters:
-      clickhousemetrics:
-        dsn: ${env:CLICKHOUSE_ANALYTICS_DSN}
-        database: metrics
-    service:
-      pipelines:
-        metrics/clickhouse:
-          receivers: [forward]
-          processors: [filter/include_metric_thp]
-          exporters: [clickhousemetrics]
-  # Override VM pipeline to prepend exclude filter
-  prometheusConfig:
-    service:
-      pipelines:
-        metrics/external/prometheusremotewrite:
-          receivers: [forward]
-          processors: [filter/exclude_metric_thp, transform/external_labels]
-          exporters: [prometheusremotewrite]
-  # Override Arrow pipeline to prepend exclude filter
-  arrowConfig:
-    service:
-      pipelines:
-        metrics/external/otelarrow:
-          receivers: [forward]
-          processors: [filter/exclude_metric_thp, transform/external_labels]
           exporters: [otelarrow]
 
 telemetryConfig:
@@ -1195,6 +1149,9 @@ loadBalancer:
   topologySpreadConstraints: []
   additionalContainers: {}
   otelConfig:
+    s3path: ""
+    encryptionKey: ""
+  telemetryOtelConfig:
     s3path: ""
     encryptionKey: ""
   # Direct LB OTel config. Queue compression options are configured under

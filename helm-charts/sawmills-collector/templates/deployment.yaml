@@ -138,6 +138,17 @@ spec:
                 - ALL
           image: {{ .Values.image.repository }}:{{ default "dev" .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if or .Values.telemetryOtelConfig.s3path .Values.kedaScaler.enabled }}
+          args:
+            {{- if .Values.telemetryOtelConfig.s3path }}
+            - "--config={{ .Values.telemetryOtelConfig.s3path }}{{- if .Values.telemetryOtelConfig.encryptionKey }}@{{ .Values.telemetryOtelConfig.encryptionKey }}{{- end }}"
+            {{- else }}
+            - "--config=file:/etc/otel/config.yaml"
+            {{- end }}
+            {{- if .Values.kedaScaler.enabled }}
+            - "--config=file:/etc/otel/keda.yaml"
+            {{- end }}
+          {{- end }}
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -171,13 +182,6 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "sawmills-collector.secretConfig" . | nindent 18 }}
-            {{- if .Values.metricsClickhouseRouting.enabled }}
-            - name: CLICKHOUSE_ANALYTICS_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.metricsClickhouseRouting.secretRef.name }}
-                  key: {{ .Values.metricsClickhouseRouting.secretRef.key }}
-            {{- end }}
             {{- include "sawmills-collector.proxyEnv" . | nindent 12 }}
             {{- if .Values.telemetryExtraEnv }}
             {{- toYaml .Values.telemetryExtraEnv | nindent 12 }}
@@ -212,6 +216,11 @@ spec:
             - name: sawmills-telemetry-config
               mountPath: /etc/otel/config.yaml
               subPath: telemetry-config.yaml
+            {{- if .Values.kedaScaler.enabled }}
+            - name: sawmills-telemetry-keda-config
+              mountPath: /etc/otel/keda.yaml
+              subPath: keda.yaml
+            {{- end }}
             - name: tmp
               mountPath: /tmp
         - name: main-collector
@@ -230,7 +239,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- if .Values.otelConfig.s3path }}
           args:
-            - "--config={{ .Values.otelConfig.s3path }}@{{ .Values.otelConfig.encryptionKey }}"
+            - "--config={{ .Values.otelConfig.s3path }}{{- if .Values.otelConfig.encryptionKey }}@{{ .Values.otelConfig.encryptionKey }}{{- end }}"
           {{- end }}
           env:
             - name: MY_POD_NAME
@@ -257,13 +266,6 @@ spec:
             {{- if and .Values.aws .Values.aws.disableIMDS }}
             - name: AWS_EC2_METADATA_DISABLED
               value: "true"
-            {{- end }}
-            {{- if .Values.metricsClickhouseRouting.enabled }}
-            - name: CLICKHOUSE_ANALYTICS_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.metricsClickhouseRouting.secretRef.name }}
-                  key: {{ .Values.metricsClickhouseRouting.secretRef.key }}
             {{- end }}
             {{- include "sawmills-collector.proxyEnv" . | nindent 12 }}
             {{- if .Values.extraEnv }}
@@ -354,6 +356,14 @@ spec:
             items:
               - key: telemetry-config.yaml
                 path: telemetry-config.yaml
+        {{- if .Values.kedaScaler.enabled }}
+        - name: sawmills-telemetry-keda-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-telemetry-keda-config
+            items:
+              - key: keda.yaml
+                path: keda.yaml
+        {{- end }}
         - name: sawmills-livetail-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-livetail-config
