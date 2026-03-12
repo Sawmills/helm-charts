@@ -85,8 +85,9 @@ tests:
                   value: 25
                   periodSeconds: 120
     asserts:
-      - isNotEmpty:
-          path: spec.behavior.scaleDown
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 300
 
   - it: should not render when keda is also enabled
     set:

@@ -1245,7 +1245,7 @@ loadBalancer:
   # Standard Kubernetes HPA (mutually exclusive with keda)
   autoscaling:
     enabled: false
-    minReplicas: 2
+    minReplicas: 3
     maxReplicas: 50
     targetCPUUtilizationPercentage: 80
     targetMemoryUtilizationPercentage: 80
