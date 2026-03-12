@@ -1,4 +1,4 @@
-{{- if and .Values.loadBalancer.enabled .Values.loadBalancer.autoscaling (eq .Values.loadBalancer.autoscaling.enabled true) }}
+{{- if and .Values.loadBalancer.enabled .Values.loadBalancer.autoscaling (eq .Values.loadBalancer.autoscaling.enabled true) (not (and .Values.loadBalancer.keda (eq .Values.loadBalancer.keda.enabled true))) }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -33,8 +33,8 @@ spec:
           type: Utilization
           averageUtilization: {{ .Values.loadBalancer.autoscaling.targetMemoryUtilizationPercentage }}
   {{- end }}
-  {{- if .Values.loadBalancer.autoscaling.behavior }}
+  {{- with .Values.loadBalancer.autoscaling.behavior }}
   behavior:
-    {{- toYaml .Values.loadBalancer.autoscaling.behavior | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}
