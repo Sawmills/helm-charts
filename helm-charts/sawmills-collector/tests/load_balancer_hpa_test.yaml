@@ -1,0 +1,89 @@
+suite: Load Balancer HPA Tests
+templates:
+  - templates/load-balancer-hpa.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should not render when loadBalancer is disabled
+    set:
+      loadBalancer:
+        enabled: false
+        autoscaling:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when autoscaling is disabled
+    set:
+      loadBalancer:
+        enabled: true
+        autoscaling:
+          enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render HPA targeting Deployment by default
+    set:
+      loadBalancer:
+        enabled: true
+        autoscaling:
+          enabled: true
+          minReplicas: 3
+          maxReplicas: 20
+          targetCPUUtilizationPercentage: 70
+          targetMemoryUtilizationPercentage: 75
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: spec.scaleTargetRef.kind
+          value: Deployment
+      - matchRegex:
+          path: spec.scaleTargetRef.name
+          pattern: "-lb$"
+      - equal:
+          path: spec.minReplicas
+          value: 3
+      - equal:
+          path: spec.maxReplicas
+          value: 20
+
+  - it: should target StatefulSet when storage is enabled
+    set:
+      loadBalancer:
+        enabled: true
+        storage:
+          enabled: true
+        autoscaling:
+          enabled: true
+          minReplicas: 2
+          maxReplicas: 10
+          targetCPUUtilizationPercentage: 80
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.kind
+          value: StatefulSet
+
+  - it: should include behavior when configured
+    set:
+      loadBalancer:
+        enabled: true
+        autoscaling:
+          enabled: true
+          minReplicas: 2
+          maxReplicas: 10
+          targetCPUUtilizationPercentage: 80
+          behavior:
+            scaleDown:
+              stabilizationWindowSeconds: 300
+              policies:
+                - type: Percent
+                  value: 25
+                  periodSeconds: 120
+    asserts:
+      - isNotEmpty:
+          path: spec.behavior.scaleDown
