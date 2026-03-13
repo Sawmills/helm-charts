@@ -89,7 +89,7 @@ tests:
           path: spec.behavior.scaleDown.stabilizationWindowSeconds
           value: 300
 
-  - it: should fail when no metric targets are set
+  - it: should render HPA without metrics block when no metric targets are set
     set:
       loadBalancer:
         enabled: true
@@ -100,8 +100,12 @@ tests:
           targetCPUUtilizationPercentage: 0
           targetMemoryUtilizationPercentage: 0
     asserts:
-      - failedTemplate:
-          errorMessage: "loadBalancer.autoscaling requires at least one of targetCPUUtilizationPercentage or targetMemoryUtilizationPercentage"
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - isNull:
+          path: spec.metrics
 
   - it: should not render when keda is also enabled
     set:
