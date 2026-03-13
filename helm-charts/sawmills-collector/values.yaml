@@ -1021,6 +1021,8 @@ kedaScaler:
       cpu: 500m
       memory: 128Mi
   telemetryConfig:
+    connectors:
+      forward:
     processors:
       filter/keda:
         error_mode: ignore

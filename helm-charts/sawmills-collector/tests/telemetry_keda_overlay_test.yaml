@@ -2,6 +2,7 @@ suite: telemetry keda overlay
 templates:
   - deployment.yaml
   - load-balancer.yaml
+  - telemetry-configmap.yaml
   - telemetry-keda-configmap.yaml
 tests:
   - it: telemetry collector does not set explicit args when telemetryOtelConfig.s3path is unset and keda is disabled
@@ -101,3 +102,28 @@ tests:
       - matchRegex:
           path: data["keda.yaml"]
           pattern: '(?m)^\s*metrics/keda:\s*$'
+
+  - it: base telemetry config exports metrics through forward connector when keda is enabled
+    template: telemetry-configmap.yaml
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?m)^\s*connectors:\s*$[\s\S]*^\s*forward:\s*null\s*$'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?m)^\s*metrics/customer_collector:\s*$[\s\S]*^\s*-\s*forward\s*$'
+
+  - it: keda overlay declares forward connector and consumes it in metrics pipeline
+    template: telemetry-keda-configmap.yaml
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: '(?m)^\s*connectors:\s*$[\s\S]*^\s*forward:\s*null\s*$'
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: '(?m)^\s*metrics/keda:\s*$[\s\S]*^\s*receivers:\s*$[\s\S]*-\s*forward\s*$'
+
