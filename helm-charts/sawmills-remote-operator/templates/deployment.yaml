@@ -57,9 +57,9 @@ spec:
         {{ end }}
         - name: OPERATOR_NAME
           value: {{ tpl .Values.collectorName $ }}/$(POD_NAME)
+        {{- if .Values.apiKeyExistingSecret }}
         - name: LEVEL
           value: {{ .Values.logLevel }}
-        {{- if .Values.apiKeyExistingSecret }}
         - name: API_KEY
           valueFrom:
             secretKeyRef:
