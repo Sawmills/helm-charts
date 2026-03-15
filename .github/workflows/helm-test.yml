@@ -72,6 +72,10 @@ jobs:
           echo "Testing with LoadBalancer mode..."
           helm template test-release . --values values.yaml --set loadBalancer.enabled=true > /dev/null
 
+          # Test with LoadBalancer + standard HPA
+          echo "Testing with LoadBalancer + standard HPA..."
+          helm template test-release . --values values.yaml --set loadBalancer.enabled=true --set loadBalancer.autoscaling.enabled=true > /dev/null
+
           echo "✅ All configuration variations validated"
 
       - name: Generate test summary

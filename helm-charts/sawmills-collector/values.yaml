@@ -1242,3 +1242,25 @@ loadBalancer:
       memory:
         enabled: true
         targetUtilization: 80
+  # Standard Kubernetes HPA (mutually exclusive with keda)
+  # NOTE: Setting both targetCPUUtilizationPercentage and targetMemoryUtilizationPercentage
+  # to 0 omits spec.metrics; K8s then defaults to 80% avg CPU. Use autoscaling.enabled=false to disable HPA.
+  autoscaling:
+    enabled: false
+    minReplicas: 3
+    maxReplicas: 50
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 120
+        policies:
+          - type: Percent
+            value: 50
+            periodSeconds: 120
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Percent
+            value: 25
+            periodSeconds: 120
