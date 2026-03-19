@@ -18,6 +18,8 @@ tests:
           count: 0
 
   - it: should not render when both headless services are disabled
+    release:
+      upgrade: true
     set:
       service:
         headless:
