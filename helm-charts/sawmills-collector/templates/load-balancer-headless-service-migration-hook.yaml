@@ -1,11 +1,11 @@
-{{- if and .Release.IsUpgrade .Values.loadBalancer.enabled .Values.loadBalancer.service.headless.enabled }}
+{{- if and .Release.IsUpgrade (or .Values.service.headless.enabled .Values.loadBalancer.service.headless.enabled) }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: {{ include "sawmills-collector.fullname" . }}-headless-migration
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: pre-upgrade
     helm.sh/hook-weight: "-3"
@@ -17,7 +17,7 @@ metadata:
   name: {{ include "sawmills-collector.fullname" . }}-headless-migration
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: pre-upgrade
     helm.sh/hook-weight: "-2"
@@ -33,7 +33,7 @@ metadata:
   name: {{ include "sawmills-collector.fullname" . }}-headless-migration
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: pre-upgrade
     helm.sh/hook-weight: "-1"
@@ -53,7 +53,7 @@ metadata:
   name: {{ include "sawmills-collector.fullname" . }}-headless-migration
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: pre-upgrade
     helm.sh/hook-weight: "0"
@@ -64,7 +64,7 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 8 }}
+        {{- include "sawmills-collector.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "sawmills-collector.fullname" . }}-headless-migration
       restartPolicy: Never
