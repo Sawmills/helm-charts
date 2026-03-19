@@ -192,7 +192,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server-template sibling 10.*headless.*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
+          pattern: "server-template sibling 10.*lb-headless.*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
 
   - it: should use custom max_servers for server-template
     template: haproxy-configmap.yaml
@@ -239,7 +239,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server-template sibling 10.*headless.*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
+          pattern: "server-template sibling 10.*lb-headless.*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
       - notMatchRegex:
           path: data["haproxy.cfg"]
           pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
@@ -409,6 +409,12 @@ tests:
             port: 4318
             fallback_endpoint: vendor.example.com
     asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lb-headless
+      - equal:
+          path: spec.clusterIP
+          value: None
       - contains:
           path: spec.ports
           content:
@@ -428,6 +434,12 @@ tests:
             port: 4318
             fallback_endpoint: vendor.example.com
     asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lb-headless
+      - equal:
+          path: spec.clusterIP
+          value: None
       - notContains:
           path: spec.ports
           content:
