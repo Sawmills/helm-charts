@@ -1,0 +1,48 @@
+suite: Load Balancer Headless Service Migration Hook
+templates:
+  - templates/load-balancer-headless-service-migration-hook.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should not render on install
+    release:
+      upgrade: false
+    set:
+      loadBalancer:
+        enabled: true
+        service:
+          headless:
+            enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when LB headless service is disabled
+    set:
+      loadBalancer:
+        enabled: true
+        service:
+          headless:
+            enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render cleanup hook resources on upgrade
+    release:
+      upgrade: true
+    set:
+      loadBalancer:
+        enabled: true
+        service:
+          headless:
+            enabled: true
+    asserts:
+      - hasDocuments:
+          count: 4
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-headless-migration
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-upgrade

@@ -1,0 +1,81 @@
+{{- if and .Release.IsUpgrade .Values.loadBalancer.enabled .Values.loadBalancer.service.headless.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-headless-migration
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "-3"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-headless-migration
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "-2"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-headless-migration
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "-1"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "sawmills-collector.fullname" . }}-headless-migration
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "sawmills-collector.fullname" . }}-headless-migration
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-headless-migration
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "sawmills-collector.fullname" . }}-headless-migration
+      restartPolicy: Never
+      containers:
+        - name: delete-legacy-headless-service
+          image: registry.k8s.io/kubectl:v1.33.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - delete
+            - service
+            - {{ include "sawmills-collector.fullname" . }}-headless
+            - --ignore-not-found=true
+            - --namespace={{ .Release.Namespace }}
+{{- end }}
