@@ -401,11 +401,12 @@ true
 
 {{/*
 Get the fully qualified headless service name for sibling fallback DNS resolution.
-Returns "<fullname>-lb-headless.<namespace>.svc.cluster.local".
+Returns the stable external headless service DNS name
+"<fullname>-headless.<namespace>.svc.cluster.local".
 Note: assumes default cluster domain (cluster.local).
 */}}
 {{- define "sawmills-collector.lbHeadlessSvcFQDN" -}}
-{{- printf "%s-lb-headless.%s.svc.cluster.local" (include "sawmills-collector.fullname" .) .Release.Namespace -}}
+{{- printf "%s-headless.%s.svc.cluster.local" (include "sawmills-collector.fullname" .) .Release.Namespace -}}
 {{- end -}}
 
 {{/*

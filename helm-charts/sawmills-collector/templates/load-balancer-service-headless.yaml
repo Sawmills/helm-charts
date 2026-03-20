@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "sawmills-collector.fullname" . }}-lb-headless
+  name: {{ include "sawmills-collector.fullname" . }}-headless
   labels:
     {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
   {{- if .Values.loadBalancer.service.annotations }}
