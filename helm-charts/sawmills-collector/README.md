@@ -442,6 +442,7 @@ service:
 * In LoadBalancer mode, do not rename or remove `{{ fullname }}-headless` without an explicit migration plan.
 * Internal chart refactors must preserve that DNS contract even if implementation details change.
 * Changes to this service name are breaking changes and must be called out as such in the PR and release notes.
+* Upgrade note: clusters that briefly ran chart versions with the intermediate `{{ fullname }}-lb-headless` name should verify `{{ fullname }}-headless` exists again after upgrade and prune any orphaned `{{ fullname }}-lb-headless` Service if it remains.
 
 ### ServiceMonitor (Prometheus Operator)
 
