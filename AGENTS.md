@@ -243,6 +243,12 @@ helm template test . --set mode=daemonSet
 helm template test . --set loadBalancer.enabled=true
 ```
 
+## Stable Service Contracts
+
+* Treat `{{ fullname }}-headless` in `sawmills-collector` LoadBalancer mode as an external compatibility contract, not an internal implementation detail.
+* Do not rename, remove, or retarget that Service without an explicit migration plan and a clearly marked breaking-change review.
+* If a PR touches headless Service naming or sibling-fallback DNS, add or update regression tests that lock the stable service name in place.
+
 ## CI Checks
 
 PR checks that must pass:
