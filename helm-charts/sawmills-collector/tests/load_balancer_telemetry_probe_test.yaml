@@ -14,6 +14,8 @@ tests:
       haproxy.mapping.logs_http_10000.to.port: 10518
       haproxy.mapping.logs_http_10000.to.protocol: "TCP"
     asserts:
+      # With HAProxy enabled, LB container order is:
+      # [0]=haproxy, [1]=main-collector, [2]=telemetry-collector
       - equal:
           path: kind
           value: Deployment
@@ -41,6 +43,8 @@ tests:
       haproxy.mapping.logs_http_10000.to.port: 10518
       haproxy.mapping.logs_http_10000.to.protocol: "TCP"
     asserts:
+      # With HAProxy enabled, LB container order is:
+      # [0]=haproxy, [1]=main-collector, [2]=telemetry-collector
       - equal:
           path: kind
           value: StatefulSet
