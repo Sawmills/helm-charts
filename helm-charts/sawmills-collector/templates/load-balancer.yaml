@@ -312,12 +312,6 @@ spec:
             initialDelaySeconds: {{ .Values.rollout.telemetry.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.telemetry.probes.liveness.periodSeconds }}
             failureThreshold: {{ .Values.rollout.telemetry.probes.liveness.failureThreshold }}
-          readinessProbe:
-            httpGet:
-              path: /healthcheck
-              port: 13134
-            initialDelaySeconds: {{ .Values.rollout.telemetry.probes.readiness.initialDelaySeconds }}
-            periodSeconds: {{ .Values.rollout.telemetry.probes.readiness.periodSeconds }}
           resources:
             {{- if .Values.telemetry.resources.requests }}
             requests:
