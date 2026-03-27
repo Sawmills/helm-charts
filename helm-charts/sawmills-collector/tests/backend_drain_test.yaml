@@ -60,7 +60,7 @@ tests:
           count: 1
       - matchRegex:
           path: data["config.yaml"]
-          pattern: '(?ms)^extensions:\n\s+backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://127.0.0.1:13133/healthcheck\n\s+drain_duration: 15s\n'
+          pattern: '(?ms)^extensions:\n\s+backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 15s\n'
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroupruntime\n\s+- backend_drain\n'

@@ -98,7 +98,7 @@ rollout:
       readinessPath: /ready
       drainPath: /drain
       # Backend drain readiness proxies this health endpoint until drain starts.
-      healthCheckEndpoint: http://127.0.0.1:13133/healthcheck
+      healthCheckEndpoint: http://${env:MY_POD_IP}:13133/healthcheck
       # Preserve the standard collector extensions when rendering the
       # backend_drain overlay, especially for S3-backed main configs where the
       # chart cannot inspect the remote file directly.
