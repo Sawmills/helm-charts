@@ -161,8 +161,9 @@ tests:
     set:
       loadBalancer.enabled: true
       rollout.main.drain.enabled: true
-      rollout.main.drain.duration: 60s
+      rollout.main.drain.duration: 50s
+      rollout.main.drain.shutdownReserve: 10s
       rollout.terminationGracePeriodSeconds: 60
     asserts:
       - failedTemplate:
-          errorMessage: 'rollout.main.drain.duration (60s) must be less than rollout.terminationGracePeriodSeconds (60s)'
+          errorMessage: 'rollout.main.drain.duration (50s) plus rollout.main.drain.shutdownReserve (10s) must be less than rollout.terminationGracePeriodSeconds (60s)'

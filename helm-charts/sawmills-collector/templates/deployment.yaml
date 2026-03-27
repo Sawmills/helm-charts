@@ -1,9 +1,10 @@
 {{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled .Values.rollout.main.drain.enabled }}
 {{- if $mainCollectorDrainEnabled }}
 {{- $drainDurationMs := include "sawmills-collector.durationToMilliseconds" .Values.rollout.main.drain.duration | atoi }}
+{{- $shutdownReserveMs := include "sawmills-collector.durationToMilliseconds" .Values.rollout.main.drain.shutdownReserve | atoi }}
 {{- $terminationGracePeriodMs := mul (int .Values.rollout.terminationGracePeriodSeconds) 1000 }}
-{{- if ge $drainDurationMs $terminationGracePeriodMs }}
-{{- fail (printf "rollout.main.drain.duration (%s) must be less than rollout.terminationGracePeriodSeconds (%ds)" .Values.rollout.main.drain.duration (int .Values.rollout.terminationGracePeriodSeconds)) }}
+{{- if ge (add $drainDurationMs $shutdownReserveMs) $terminationGracePeriodMs }}
+{{- fail (printf "rollout.main.drain.duration (%s) plus rollout.main.drain.shutdownReserve (%s) must be less than rollout.terminationGracePeriodSeconds (%ds)" .Values.rollout.main.drain.duration .Values.rollout.main.drain.shutdownReserve (int .Values.rollout.terminationGracePeriodSeconds)) }}
 {{- end }}
 {{- end }}
 {{- if eq .Values.mode "daemonSet" }}

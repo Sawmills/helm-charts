@@ -487,6 +487,7 @@ rollout:
       healthCheckEndpoint: http://${env:MY_POD_IP}:13133/healthcheck
       serviceExtensions: [health_check, cgroupruntime]
       duration: 15s
+      shutdownReserve: 10s
     preStopSleepSeconds: 15
 ```
 
@@ -506,6 +507,7 @@ rollout:
       healthCheckEndpoint: http://${env:MY_POD_IP}:13133/healthcheck
       serviceExtensions: [health_check, cgroupruntime]
       duration: 15s
+      shutdownReserve: 10s
 ```
 
 With that topology enabled, the chart:
@@ -518,7 +520,7 @@ With that topology enabled, the chart:
 * Uses a `preStop.httpGet` hook to call `/drain`, which flips readiness immediately and blocks for the configured drain duration.
 * Leaves liveness and startup probes on the normal `health_check` endpoint (`13133`) so crash detection stays unchanged.
 
-Keep `rollout.main.drain.duration` below `rollout.terminationGracePeriodSeconds` so the collector still has time to receive and process `SIGTERM` after the drain hook returns.
+Keep `rollout.main.drain.duration + rollout.main.drain.shutdownReserve` below `rollout.terminationGracePeriodSeconds` so the collector still has explicit post-drain shutdown time before kubelet force-kills the pod.
 
 ### Pod Disruption Budget
 
