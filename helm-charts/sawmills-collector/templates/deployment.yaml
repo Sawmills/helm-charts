@@ -1,4 +1,11 @@
 {{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled .Values.rollout.main.drain.enabled }}
+{{- if $mainCollectorDrainEnabled }}
+{{- $drainDurationMs := include "sawmills-collector.durationToMilliseconds" .Values.rollout.main.drain.duration | atoi }}
+{{- $terminationGracePeriodMs := mul (int .Values.rollout.terminationGracePeriodSeconds) 1000 }}
+{{- if ge $drainDurationMs $terminationGracePeriodMs }}
+{{- fail (printf "rollout.main.drain.duration (%s) must be less than rollout.terminationGracePeriodSeconds (%ds)" .Values.rollout.main.drain.duration (int .Values.rollout.terminationGracePeriodSeconds)) }}
+{{- end }}
+{{- end }}
 {{- if eq .Values.mode "daemonSet" }}
 apiVersion: apps/v1
 kind: DaemonSet

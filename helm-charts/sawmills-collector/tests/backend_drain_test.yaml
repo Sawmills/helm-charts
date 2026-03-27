@@ -9,6 +9,7 @@ tests:
       - ../values.yaml
     set:
       loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
     asserts:
       - equal:
           path: spec.template.spec.containers[1].name
@@ -53,6 +54,7 @@ tests:
       - ../values.yaml
     set:
       loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
     asserts:
       - hasDocuments:
           count: 1
@@ -140,3 +142,27 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: should not render backend drain overlay when drain is explicitly disabled
+    template: backend-drain-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should fail when drain duration consumes the full termination grace period
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+      rollout.main.drain.duration: 60s
+      rollout.terminationGracePeriodSeconds: 60
+    asserts:
+      - failedTemplate:
+          errorMessage: 'rollout.main.drain.duration (60s) must be less than rollout.terminationGracePeriodSeconds (60s)'
