@@ -1,3 +1,4 @@
+{{- if and .Values.loadBalancer.enabled .Values.rollout.main.drain.enabled }}
 {{- $serviceExtensions := list }}
 {{- if and (kindIs "map" .Values.otelCollectorConfig) (hasKey .Values.otelCollectorConfig "service") (kindIs "map" .Values.otelCollectorConfig.service) (hasKey .Values.otelCollectorConfig.service "extensions") }}
 {{- $serviceExtensions = deepCopy .Values.otelCollectorConfig.service.extensions }}
@@ -13,7 +14,6 @@
 {{- if not (has "backend_drain" $filteredServiceExtensions) }}
 {{- $filteredServiceExtensions = append $filteredServiceExtensions "backend_drain" }}
 {{- end }}
-{{- if and .Values.loadBalancer.enabled .Values.rollout.main.drain.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

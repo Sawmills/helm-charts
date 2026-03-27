@@ -83,6 +83,27 @@ tests:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
           value: "15"
 
+  - it: should fall back to sleep-based prestop when drain is disabled in load balancer topology
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13133
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[0]
+          value: /bin/sleep
+      - equal:
+          path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
+          value: "15"
+
   - it: should still add the backend drain overlay when main collector config comes from s3
     template: deployment.yaml
     values:
