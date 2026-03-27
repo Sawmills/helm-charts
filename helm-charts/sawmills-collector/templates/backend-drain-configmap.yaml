@@ -1,0 +1,36 @@
+{{- $serviceExtensions := list }}
+{{- if and (kindIs "map" .Values.otelCollectorConfig) (hasKey .Values.otelCollectorConfig "service") (kindIs "map" .Values.otelCollectorConfig.service) (hasKey .Values.otelCollectorConfig.service "extensions") }}
+{{- $serviceExtensions = deepCopy .Values.otelCollectorConfig.service.extensions }}
+{{- else }}
+{{- $serviceExtensions = deepCopy (default (list "health_check" "cgroupruntime") .Values.rollout.main.drain.serviceExtensions) }}
+{{- end }}
+{{- $filteredServiceExtensions := list }}
+{{- range $serviceExtensions }}
+{{- if . }}
+{{- $filteredServiceExtensions = append $filteredServiceExtensions . }}
+{{- end }}
+{{- end }}
+{{- if not (has "backend_drain" $filteredServiceExtensions) }}
+{{- $filteredServiceExtensions = append $filteredServiceExtensions "backend_drain" }}
+{{- end }}
+{{- if and .Values.loadBalancer.enabled .Values.rollout.main.drain.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-backend-drain-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    extensions:
+      backend_drain:
+        endpoint: ${env:MY_POD_IP}:{{ .Values.rollout.main.drain.port }}
+        readiness_path: {{ .Values.rollout.main.drain.readinessPath }}
+        drain_path: {{ .Values.rollout.main.drain.drainPath }}
+        health_check_endpoint: {{ .Values.rollout.main.drain.healthCheckEndpoint }}
+        drain_duration: {{ .Values.rollout.main.drain.duration }}
+    service:
+      extensions:
+{{- toYaml $filteredServiceExtensions | nindent 8 }}
+{{- end }}

@@ -479,8 +479,45 @@ rollout:
         enabled: true
         periodSeconds: 5
         failureThreshold: 12
+    drain:
+      enabled: true
+      port: 13137
+      readinessPath: /ready
+      drainPath: /drain
+      healthCheckEndpoint: http://127.0.0.1:13133/healthcheck
+      serviceExtensions: [health_check, cgroupruntime]
+      duration: 15s
     preStopSleepSeconds: 15
 ```
+
+### Backend Drain Wiring For LB Topology
+
+When `loadBalancer.enabled: true`, the chart can protect backend collector rollouts with a dedicated drain listener on the main collector:
+
+```yaml
+rollout:
+  terminationGracePeriodSeconds: 60
+  main:
+    drain:
+      enabled: true
+      port: 13137
+      readinessPath: /ready
+      drainPath: /drain
+      healthCheckEndpoint: http://127.0.0.1:13133/healthcheck
+      serviceExtensions: [health_check, cgroupruntime]
+      duration: 15s
+```
+
+With that topology enabled, the chart:
+
+* Adds a separate `backend_drain` config overlay as an extra `--config`, including S3-backed main collector configs.
+* Preserves the main collector extension list by defaulting to `health_check`, `cgroupruntime`, and appending `backend_drain` unless `otelCollectorConfig.service.extensions` already specifies a custom list.
+* Configures the drain-aware readiness server to mirror the normal `health_check` endpoint until drain starts, so readiness still tracks real collector health.
+* Switches the main collector readiness probe to the drain-aware endpoint.
+* Uses a `preStop.httpGet` hook to call `/drain`, which flips readiness immediately and blocks for the configured drain duration.
+* Leaves liveness and startup probes on the normal `health_check` endpoint (`13133`) so crash detection stays unchanged.
+
+Keep `rollout.main.drain.duration` below `rollout.terminationGracePeriodSeconds` so the collector still has time to receive and process `SIGTERM` after the drain hook returns.
 
 ### Pod Disruption Budget
 

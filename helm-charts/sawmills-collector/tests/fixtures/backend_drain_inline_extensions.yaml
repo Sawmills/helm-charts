@@ -1,0 +1,5 @@
+otelCollectorConfig:
+  service:
+    extensions:
+      - health_check
+      - basicauth/client
