@@ -1,3 +1,8 @@
+rollout:
+  main:
+    drain:
+      enabled: true
+
 otelCollectorConfig:
   service:
     extensions:
