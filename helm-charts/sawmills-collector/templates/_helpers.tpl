@@ -170,6 +170,32 @@ Generate merged telemetry configuration with external labels
 {{- end -}}
 
 {{/*
+Convert a Go-style duration string into milliseconds.
+Supported units: ms, s, m, h. Composite values are allowed, e.g. 1m30s.
+*/}}
+{{- define "sawmills-collector.durationToMilliseconds" -}}
+{{- $duration := toString . -}}
+{{- $matches := regexFindAll "[0-9]+(?:ms|s|m|h)" $duration -1 -}}
+{{- if or (eq (len $matches) 0) (ne (join "" $matches) $duration) -}}
+{{- fail (printf "unsupported duration %q; use Go-style duration values such as 15s, 1m, or 1500ms" $duration) -}}
+{{- end -}}
+{{- $total := 0 -}}
+{{- range $match := $matches -}}
+  {{- $value := atoi (regexFind "[0-9]+" $match) -}}
+  {{- if hasSuffix "ms" $match -}}
+    {{- $total = add $total $value -}}
+  {{- else if hasSuffix "s" $match -}}
+    {{- $total = add $total (mul $value 1000) -}}
+  {{- else if hasSuffix "m" $match -}}
+    {{- $total = add $total (mul $value 60000) -}}
+  {{- else if hasSuffix "h" $match -}}
+    {{- $total = add $total (mul $value 3600000) -}}
+  {{- end -}}
+{{- end -}}
+{{- $total -}}
+{{- end -}}
+
+{{/*
 Static NO_PROXY entries that are always added when proxy.http or proxy.https is set.
 */}}
 {{- define "sawmills-collector.addNoProxy" -}}

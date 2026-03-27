@@ -86,7 +86,32 @@ rollout:
         initialDelaySeconds: 0
         periodSeconds: 5
         failureThreshold: 12
+    # Sleep-based fallback used when backend drain mode is disabled or the
+    # deployment is not using the loadBalancer topology.
     preStopSleepSeconds: 15
+    drain:
+      # When loadBalancer.enabled=true, the chart adds a small backend_drain
+      # overlay config and switches the main collector readiness/preStop hooks
+      # to this dedicated endpoint.
+      enabled: true
+      port: 13137
+      readinessPath: /ready
+      drainPath: /drain
+      # Backend drain readiness proxies this health endpoint until drain starts.
+      healthCheckEndpoint: http://${env:MY_POD_IP}:13133/healthcheck
+      # Preserve the standard collector extensions when rendering the
+      # backend_drain overlay, especially for S3-backed main configs where the
+      # chart cannot inspect the remote file directly.
+      serviceExtensions:
+        - health_check
+        - cgroupruntime
+      # Keep drain.duration + shutdownReserve below
+      # rollout.terminationGracePeriodSeconds so the collector still has time
+      # to handle SIGTERM after the drain hook returns.
+      duration: 15s
+      # Reserve explicit post-drain shutdown time inside the pod termination
+      # grace period for collector shutdown and kubelet bookkeeping.
+      shutdownReserve: 10s
 
   # Telemetry collector specific settings
   telemetry:

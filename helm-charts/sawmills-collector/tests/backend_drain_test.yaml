@@ -1,0 +1,169 @@
+suite: backend drain wiring
+templates:
+  - deployment.yaml
+  - backend-drain-configmap.yaml
+tests:
+  - it: should wire backend drain readiness and prestop only for load balancer topology
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: main-collector
+      - equal:
+          path: spec.template.spec.containers[1].args[0]
+          value: --config=file:/etc/otel/config.yaml
+      - equal:
+          path: spec.template.spec.containers[1].args[1]
+          value: --config=file:/etc/otel/backend-drain-config.yaml
+      - equal:
+          path: spec.template.spec.containers[1].livenessProbe.httpGet.port
+          value: 13133
+      - equal:
+          path: spec.template.spec.containers[1].livenessProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13137
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /ready
+      - equal:
+          path: spec.template.spec.containers[1].startupProbe.httpGet.port
+          value: 13133
+      - equal:
+          path: spec.template.spec.containers[1].startupProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[1].lifecycle.preStop.httpGet.port
+          value: 13137
+      - equal:
+          path: spec.template.spec.containers[1].lifecycle.preStop.httpGet.path
+          value: /drain
+      - equal:
+          path: spec.template.spec.containers[1].lifecycle.preStop.httpGet.scheme
+          value: HTTP
+
+  - it: should add backend drain overlay config for load balancer topology
+    template: backend-drain-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?ms)^extensions:\n\s+backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 15s\n'
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroupruntime\n\s+- backend_drain\n'
+
+  - it: should keep existing main collector health wiring when load balancer topology is disabled
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13133
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[0]
+          value: /bin/sleep
+      - equal:
+          path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
+          value: "15"
+
+  - it: should fall back to sleep-based prestop when drain is disabled in load balancer topology
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13133
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[0]
+          value: /bin/sleep
+      - equal:
+          path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
+          value: "15"
+
+  - it: should still add the backend drain overlay when main collector config comes from s3
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      otelConfig.s3path: s3://test-bucket/config.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].args[0]
+          value: --config=s3://test-bucket/config.yaml
+      - equal:
+          path: spec.template.spec.containers[1].args[1]
+          value: --config=file:/etc/otel/backend-drain-config.yaml
+
+  - it: should preserve explicit main collector service extensions when configured inline
+    template: backend-drain-configmap.yaml
+    values:
+      - ../values.yaml
+      - fixtures/backend_drain_inline_extensions.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- basicauth/client\n\s+- backend_drain\n'
+
+  - it: should not render backend drain overlay when load balancer topology is disabled
+    template: backend-drain-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render backend drain overlay when drain is explicitly disabled
+    template: backend-drain-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should fail when drain duration consumes the full termination grace period
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+      rollout.main.drain.duration: 50s
+      rollout.main.drain.shutdownReserve: 10s
+      rollout.terminationGracePeriodSeconds: 60
+    asserts:
+      - failedTemplate:
+          errorMessage: 'rollout.main.drain.duration (50s) plus rollout.main.drain.shutdownReserve (10s) must be less than rollout.terminationGracePeriodSeconds (60s)'

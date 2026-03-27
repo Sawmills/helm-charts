@@ -1,0 +1,10 @@
+rollout:
+  main:
+    drain:
+      enabled: true
+
+otelCollectorConfig:
+  service:
+    extensions:
+      - health_check
+      - basicauth/client

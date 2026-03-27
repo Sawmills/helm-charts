@@ -1,3 +1,12 @@
+{{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled .Values.rollout.main.drain.enabled }}
+{{- if $mainCollectorDrainEnabled }}
+{{- $drainDurationMs := include "sawmills-collector.durationToMilliseconds" .Values.rollout.main.drain.duration | atoi }}
+{{- $shutdownReserveMs := include "sawmills-collector.durationToMilliseconds" .Values.rollout.main.drain.shutdownReserve | atoi }}
+{{- $terminationGracePeriodMs := mul (int .Values.rollout.terminationGracePeriodSeconds) 1000 }}
+{{- if ge (add $drainDurationMs $shutdownReserveMs) $terminationGracePeriodMs }}
+{{- fail (printf "rollout.main.drain.duration (%s) plus rollout.main.drain.shutdownReserve (%s) must be less than rollout.terminationGracePeriodSeconds (%ds)" .Values.rollout.main.drain.duration .Values.rollout.main.drain.shutdownReserve (int .Values.rollout.terminationGracePeriodSeconds)) }}
+{{- end }}
+{{- end }}
 {{- if eq .Values.mode "daemonSet" }}
 apiVersion: apps/v1
 kind: DaemonSet
@@ -237,9 +246,16 @@ spec:
                 - ALL
           image: {{ .Values.image.repository }}:{{ default "dev" .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if .Values.otelConfig.s3path }}
+          {{- if or .Values.otelConfig.s3path $mainCollectorDrainEnabled }}
           args:
+            {{- if .Values.otelConfig.s3path }}
             - "--config={{ .Values.otelConfig.s3path }}{{- if .Values.otelConfig.encryptionKey }}@{{ .Values.otelConfig.encryptionKey }}{{- end }}"
+            {{- else }}
+            - "--config=file:/etc/otel/config.yaml"
+            {{- end }}
+            {{- if $mainCollectorDrainEnabled }}
+            - "--config=file:/etc/otel/backend-drain-config.yaml"
+            {{- end }}
           {{- end }}
           env:
             - name: MY_POD_NAME
@@ -286,8 +302,13 @@ spec:
             failureThreshold: {{ .Values.rollout.main.probes.liveness.failureThreshold }}
           readinessProbe:
             httpGet:
+              {{- if $mainCollectorDrainEnabled }}
+              path: {{ .Values.rollout.main.drain.readinessPath }}
+              port: {{ .Values.rollout.main.drain.port }}
+              {{- else }}
               path: /healthcheck
               port: 13133
+              {{- end }}
             initialDelaySeconds: {{ .Values.rollout.main.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.main.probes.readiness.periodSeconds }}
           {{- if .Values.rollout.main.probes.startup.enabled }}
@@ -299,7 +320,14 @@ spec:
             periodSeconds: {{ .Values.rollout.main.probes.startup.periodSeconds }}
             failureThreshold: {{ .Values.rollout.main.probes.startup.failureThreshold }}
           {{- end }}
-          {{- if .Values.rollout.main.preStopSleepSeconds }}
+          {{- if $mainCollectorDrainEnabled }}
+          lifecycle:
+            preStop:
+              httpGet:
+                path: {{ .Values.rollout.main.drain.drainPath }}
+                port: {{ .Values.rollout.main.drain.port }}
+                scheme: HTTP
+          {{- else if .Values.rollout.main.preStopSleepSeconds }}
           lifecycle:
             preStop:
               exec:
@@ -320,6 +348,11 @@ spec:
           {{- if not .Values.otelConfig.s3path }}
             - name: sawmills-collector-config
               mountPath: /etc/otel/config.yaml
+              subPath: config.yaml
+          {{- end }}
+          {{- if $mainCollectorDrainEnabled }}
+            - name: sawmills-backend-drain-config
+              mountPath: /etc/otel/backend-drain-config.yaml
               subPath: config.yaml
           {{- end }}
             - name: sawmills-livetail-config
@@ -346,6 +379,14 @@ spec:
         - name: sawmills-collector-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-config
+            items:
+              - key: config.yaml
+                path: config.yaml
+        {{- end }}
+        {{- if $mainCollectorDrainEnabled }}
+        - name: sawmills-backend-drain-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-backend-drain-config
             items:
               - key: config.yaml
                 path: config.yaml
