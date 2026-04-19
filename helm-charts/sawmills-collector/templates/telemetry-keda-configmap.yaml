@@ -9,6 +9,6 @@ metadata:
 data:
   keda.yaml: |
     {{- with .Values.kedaScaler.telemetryConfig }}
-      {{- toYaml . | nindent 4 }}
+      {{- tpl (toYaml .) $ | nindent 4 }}
     {{- end }}
 {{- end }}

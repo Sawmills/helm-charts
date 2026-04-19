@@ -1,0 +1,47 @@
+suite: keda scaler address namespace templating
+templates:
+  - keda-hpa.yaml
+tests:
+  - it: external trigger scalerAddress resolves to the release namespace (non-LB path)
+    template: keda-hpa.yaml
+    release:
+      name: my-release
+      namespace: any-ns
+    set:
+      keda.enabled: true
+      keda.scaling.external.enabled: true
+      loadBalancer.enabled: false
+    asserts:
+      - matchRegex:
+          path: spec.triggers[?(@.type=="external")].metadata.scalerAddress
+          pattern: '^my-release-keda-otel-scaler\.any-ns\.svc\.cluster\.local:\d+$'
+
+  - it: external trigger scalerAddress resolves to the release namespace (LB path)
+    template: keda-hpa.yaml
+    release:
+      name: my-release
+      namespace: any-ns
+    set:
+      keda.enabled: true
+      keda.scaling.external.enabled: true
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: spec.triggers[?(@.type=="external")].metadata.scalerAddress
+          pattern: '^my-release-keda-otel-scaler\.any-ns\.svc\.cluster\.local:\d+$'
+
+  - it: scalerAddress never contains a literal non-release namespace
+    template: keda-hpa.yaml
+    release:
+      name: sawmills-collector
+      namespace: sawmills-o11y
+    set:
+      keda.enabled: true
+      keda.scaling.external.enabled: true
+    asserts:
+      - matchRegex:
+          path: spec.triggers[?(@.type=="external")].metadata.scalerAddress
+          pattern: '\.sawmills-o11y\.svc\.cluster\.local'
+      - notMatchRegex:
+          path: spec.triggers[?(@.type=="external")].metadata.scalerAddress
+          pattern: '\.sawmills\.svc\.cluster\.local'

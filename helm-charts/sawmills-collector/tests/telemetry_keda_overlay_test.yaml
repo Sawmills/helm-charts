@@ -101,3 +101,18 @@ tests:
       - matchRegex:
           path: data["keda.yaml"]
           pattern: '(?m)^\s*metrics/keda:\s*$'
+
+  - it: keda otlp exporter endpoint resolves to the release namespace, not a hardcoded one
+    template: telemetry-keda-configmap.yaml
+    release:
+      name: my-release
+      namespace: any-ns
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: 'my-release-keda-otel-scaler\.any-ns\.svc\.cluster\.local'
+      - notMatchRegex:
+          path: data["keda.yaml"]
+          pattern: '\.sawmills\.svc\.cluster\.local'
