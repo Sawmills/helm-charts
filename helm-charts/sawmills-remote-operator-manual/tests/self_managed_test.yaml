@@ -3,6 +3,8 @@ templates:
   - deployment.yaml
 tests:
   - it: defaults the manual chart to self-managed mode
+    set:
+      collectorName: sawmills-collector
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -12,6 +14,7 @@ tests:
 
   - it: allows overriding self-managed mode explicitly
     set:
+      collectorName: sawmills-collector
       selfManaged: false
     asserts:
       - contains:

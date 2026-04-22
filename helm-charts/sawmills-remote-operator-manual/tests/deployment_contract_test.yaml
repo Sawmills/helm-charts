@@ -5,6 +5,7 @@ tests:
   - it: always emits LEVEL even when using the chart-managed secret
     set:
       apiKey: aaaa
+      collectorName: sawmills-collector
       logLevel: debug
     asserts:
       - contains:
@@ -19,6 +20,7 @@ tests:
   - it: uses an existing secret without dropping LEVEL
     set:
       apiKeyExistingSecret: existing
+      collectorName: sawmills-collector
       logLevel: warn
     asserts:
       - contains:
@@ -33,6 +35,7 @@ tests:
   - it: wires service account and security context from values
     set:
       apiKey: aaaa
+      collectorName: sawmills-collector
       rbac:
         createServiceAccount: true
         createRole: true
@@ -76,3 +79,11 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].securityContext.capabilities.drop[0]
           value: NET_RAW
+
+  - it: fails when collectorName is empty
+    set:
+      apiKey: aaaa
+      collectorName: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: collectorName must be set

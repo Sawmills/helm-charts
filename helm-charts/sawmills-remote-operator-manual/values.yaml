@@ -29,7 +29,7 @@ apiKeyExistingSecret: ""
 # The key for the API key in the existing secret
 apiKeyExistingSecretKey: api-key
 
-# The collector name of the Sawmills operator
+# The collector name of the Sawmills operator. Required.
 collectorName: ""
 
 # The image pull policy and tag the Sawmills operator

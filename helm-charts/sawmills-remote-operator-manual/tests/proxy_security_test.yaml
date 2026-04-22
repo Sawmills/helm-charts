@@ -5,6 +5,7 @@ tests:
   - it: renders proxy env vars from an existing secret
     set:
       apiKey: aaaa
+      collectorName: sawmills-collector
       proxy:
         existingSecret: proxy
         existingSecretHttpKey: http
@@ -29,6 +30,7 @@ tests:
   - it: fails when proxy.http contains inline credentials
     set:
       apiKey: aaaa
+      collectorName: sawmills-collector
       proxy:
         http: http://u:@p:1
     asserts:
@@ -38,6 +40,7 @@ tests:
   - it: fails when proxy.https contains inline credentials
     set:
       apiKey: aaaa
+      collectorName: sawmills-collector
       proxy:
         https: http://u:@p:1
     asserts:

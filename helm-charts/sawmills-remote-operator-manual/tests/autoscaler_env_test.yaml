@@ -4,6 +4,7 @@ templates:
 tests:
   - it: should not emit autoscaler env vars by default
     set:
+      collectorName: sawmills-collector
       autoscaler:
         enabled: false
         dryRun: null
@@ -39,6 +40,7 @@ tests:
 
   - it: should render all autoscaler env vars when values are explicitly set
     set:
+      collectorName: sawmills-collector
       autoscaler:
         enabled: true
         dryRun: false
@@ -85,6 +87,7 @@ tests:
 
   - it: should not emit autoscaler overrides when enabled is false
     set:
+      collectorName: sawmills-collector
       autoscaler:
         enabled: false
         dryRun: false
@@ -121,6 +124,7 @@ tests:
 
   - it: should fail when autoscaler global min is greater than global max
     set:
+      collectorName: sawmills-collector
       autoscaler:
         enabled: true
         globalMinReplicas: 10

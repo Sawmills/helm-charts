@@ -55,8 +55,12 @@ spec:
         - name: GRPC_TRACE
           value: {{ .Values.grpcTrace }}
         {{ end }}
+        {{- $collectorName := tpl .Values.collectorName . | trim }}
+        {{- if not $collectorName }}
+        {{- fail "collectorName must be set" }}
+        {{- end }}
         - name: OPERATOR_NAME
-          value: {{ tpl .Values.collectorName . }}/$(POD_NAME)
+          value: {{ printf "%s/$(POD_NAME)" $collectorName | quote }}
         - name: LEVEL
           value: {{ .Values.logLevel }}
         {{- if .Values.apiKeyExistingSecret }}

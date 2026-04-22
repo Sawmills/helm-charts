@@ -23,6 +23,7 @@ jobs:
       chart_name: sawmills-remote-operator-manual
       tag_prefix: remote-operator-manual
       default_bump_type: patch
+      first_release_version: 0.1.0
       version_has_quotes: true
     secrets: inherit
 

@@ -5,6 +5,7 @@ tests:
   # 1a. If there is neither proxy.http/https set, proxy.noProxy should remain unset
   - it: should not set NO_PROXY when proxy is not configured
     set:
+      collectorName: sawmills-collector
       proxy: null
     asserts:
       - notExists:
@@ -13,6 +14,7 @@ tests:
   # 1b. If proxy is an empty dict, NO_PROXY should also not be set
   - it: should not set NO_PROXY when proxy is an empty dict
     set:
+      collectorName: sawmills-collector
       proxy: {}
     asserts:
       - notExists:
@@ -22,6 +24,7 @@ tests:
   #    NO_PROXY will be set to what user passed without adding POD_IP
   - it: should not append POD_IP when only proxy.noProxy (string) is set
     set:
+      collectorName: sawmills-collector
       proxy:
         noProxy: "foo "
     asserts:
@@ -32,6 +35,7 @@ tests:
   # 3. If proxy.http is set and proxy.noProxy is unset, NO_PROXY should be static entries plus "$(POD_IP)"
   - it: should set NO_PROXY to POD_IP when only proxy.http is set
     set:
+      collectorName: sawmills-collector
       proxy:
         http: URL
     asserts:
@@ -43,6 +47,7 @@ tests:
   #    NO_PROXY should include "<proxy.noProxy>, static entries and $(POD_IP)"
   - it: should append POD_IP when proxy.http and proxy.noProxy CSV string are set
     set:
+      collectorName: sawmills-collector
       proxy:
         https: URL
         noProxy: " xxx "
@@ -55,6 +60,7 @@ tests:
   #    NO_PROXY should include "<proxy.noProxy>, static entries and $(POD_IP)"
   - it: should append POD_IP when both proxies and proxy.noProxy list are set
     set:
+      collectorName: sawmills-collector
       proxy:
         http: URL
         noProxy: " xxx ,  yyy,  "
@@ -67,6 +73,7 @@ tests:
   #    NO_PROXY should include "<proxy.noProxy>, static entries and $(POD_IP)"
   - it: should append POD_IP when both proxies and proxy.noProxy list entries are set
     set:
+      collectorName: sawmills-collector
       proxy:
         http: URL
         https: URL

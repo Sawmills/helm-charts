@@ -31,6 +31,7 @@ helm upgrade --install sawmills-remote-operator \
 
 All existing values from the standard remote-operator chart remain available. This chart is intended for manual deployment flows only.
 It defaults the operator to `SELF_MANAGED=true`.
+`collectorName` is required.
 
 ## Outbound proxy support
 
