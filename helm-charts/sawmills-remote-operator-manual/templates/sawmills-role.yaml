@@ -1,0 +1,30 @@
+{{- if .Values.rbac.createRole }}
+{{- if not .Values.rbac.roleName }}
+{{- fail "roleName must be set when createRole is true" }}
+{{- end }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: sawmills-operator
+  name: {{ .Values.rbac.roleName }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create, delete, get, patch, update]
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  {{- $autoscaler := default dict .Values.autoscaler }}
+  {{- if $autoscaler.enabled }}
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, update]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [create, get, list, update]
+  {{- end }}
+{{- end }}

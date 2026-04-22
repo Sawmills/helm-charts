@@ -1,0 +1,68 @@
+suite: manual RBAC scope
+templates:
+  - sawmills-role.yaml
+tests:
+  - it: renders only non-helm permissions by default
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: rules[0].apiGroups
+          value: [""]
+      - equal:
+          path: rules[0].resources
+          value: [configmaps]
+      - equal:
+          path: rules[0].verbs
+          value: [create, delete, get, patch, update]
+      - equal:
+          path: rules[1].apiGroups
+          value: [""]
+      - equal:
+          path: rules[1].resources
+          value: [services]
+      - equal:
+          path: rules[1].verbs
+          value: [get]
+      - equal:
+          path: rules[2].apiGroups
+          value: [""]
+      - equal:
+          path: rules[2].resources
+          value: [pods]
+      - equal:
+          path: rules[2].verbs
+          value: [get, list]
+      - notContains:
+          path: rules[2].verbs
+          content: patch
+      - notExists:
+          path: rules[3]
+
+  - it: adds only autoscaler permissions when autoscaler is enabled
+    set:
+      autoscaler:
+        enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: rules[3].apiGroups
+          value: [autoscaling]
+      - equal:
+          path: rules[3].resources
+          value: [horizontalpodautoscalers]
+      - equal:
+          path: rules[3].verbs
+          value: [get, list, update]
+      - equal:
+          path: rules[4].apiGroups
+          value: [coordination.k8s.io]
+      - equal:
+          path: rules[4].resources
+          value: [leases]
+      - equal:
+          path: rules[4].verbs
+          value: [create, get, list, update]
+      - notExists:
+          path: rules[5]
