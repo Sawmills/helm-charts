@@ -156,6 +156,19 @@ frontend logs_http_frontend_{{ $config.from }}
   {{ if .timeout.client }}timeout client {{ .timeout.client }}{{- end }}
   {{- end }}
   {{- end }}
+  {{- if and $to.metrics_proxy_endpoint (ne $mode "tcp") }}
+  {{- if not $to.metrics_proxy_api_key }}
+  {{- fail (printf "metrics_proxy_api_key is required when metrics_proxy_endpoint is set (port mapping %s)" $name) }}
+  {{- end }}
+  # Metrics proxy: forward unsupported DD metrics endpoints directly to Datadog
+  # Placed before sibling-hop check so distribution_points/sketches are always proxied,
+  # even on sibling-retried requests that would otherwise 405 on the direct backend.
+  acl is_distribution_points path_beg /api/v1/distribution_points
+  acl is_sketches path_beg /api/v1/sketches
+  acl is_beta_sketches path_beg /api/beta/sketches
+  http-request set-header DD-API-KEY {{ $to.metrics_proxy_api_key }} if is_distribution_points or is_sketches or is_beta_sketches
+  use_backend datadog_metrics_direct_{{ $config.from }} if is_distribution_points or is_sketches or is_beta_sketches
+  {{- end }}
   {{- if $siblingEnabled }}
   # Sibling fallback: detect forwarded requests to prevent routing loops (max 1 hop)
   acl is_sibling_hop hdr(X-Sibling-Hop) -m found
@@ -218,6 +231,13 @@ backend logs_http_{{ $config.from }}
   {{- else }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
   {{- end }}
+
+{{- if and $to.metrics_proxy_endpoint (ne $mode "tcp") }}
+# Datadog metrics direct backend: forwards distribution_points/sketches to DD API
+backend datadog_metrics_direct_{{ $config.from }}
+  mode http
+  server datadog {{ $to.metrics_proxy_endpoint }}:443 ssl verify required ca-file /etc/ssl/certs/ca-certificates.crt sni str({{ $to.metrics_proxy_endpoint }}) verifyhost {{ $to.metrics_proxy_endpoint }}
+{{- end }}
 
 {{- if $siblingEnabled }}
 # Direct backend for sibling-forwarded requests (no sibling tier to prevent loops)
