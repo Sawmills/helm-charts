@@ -161,14 +161,12 @@ frontend logs_http_frontend_{{ $config.from }}
   acl is_sibling_hop hdr(X-Sibling-Hop) -m found
   use_backend logs_http_{{ $config.from }}_direct if is_sibling_hop
   {{- end }}
-  {{- if $to.metrics_proxy_endpoint }}
+  {{- if and $to.metrics_proxy_endpoint $to.metrics_proxy_api_key (ne $mode "tcp") }}
   # Metrics proxy: forward unsupported DD metrics endpoints directly to Datadog
   acl is_distribution_points path_beg /api/v1/distribution_points
   acl is_sketches path_beg /api/v1/sketches
   acl is_beta_sketches path_beg /api/beta/sketches
-  {{- if $to.metrics_proxy_api_key }}
   http-request set-header DD-API-KEY {{ $to.metrics_proxy_api_key }} if is_distribution_points or is_sketches or is_beta_sketches
-  {{- end }}
   use_backend datadog_metrics_direct_{{ $config.from }} if is_distribution_points or is_sketches or is_beta_sketches
   {{- end }}
   default_backend logs_http_{{ $config.from }}
@@ -229,11 +227,11 @@ backend logs_http_{{ $config.from }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
   {{- end }}
 
-{{- if $to.metrics_proxy_endpoint }}
+{{- if and $to.metrics_proxy_endpoint $to.metrics_proxy_api_key (ne $mode "tcp") }}
 # Datadog metrics direct backend: forwards distribution_points/sketches to DD API
 backend datadog_metrics_direct_{{ $config.from }}
   mode http
-  server datadog {{ $to.metrics_proxy_endpoint }}:443 ssl verify none
+  server datadog {{ $to.metrics_proxy_endpoint }}:443 ssl verify required ca-file /etc/ssl/certs/ca-certificates.crt
 {{- end }}
 
 {{- if $siblingEnabled }}
