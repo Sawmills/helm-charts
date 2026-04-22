@@ -156,7 +156,10 @@ frontend logs_http_frontend_{{ $config.from }}
   {{ if .timeout.client }}timeout client {{ .timeout.client }}{{- end }}
   {{- end }}
   {{- end }}
-  {{- if and $to.metrics_proxy_endpoint $to.metrics_proxy_api_key (ne $mode "tcp") }}
+  {{- if and $to.metrics_proxy_endpoint (ne $mode "tcp") }}
+  {{- if not $to.metrics_proxy_api_key }}
+  {{- fail (printf "metrics_proxy_api_key is required when metrics_proxy_endpoint is set (port mapping %s)" $name) }}
+  {{- end }}
   # Metrics proxy: forward unsupported DD metrics endpoints directly to Datadog
   # Placed before sibling-hop check so distribution_points/sketches are always proxied,
   # even on sibling-retried requests that would otherwise 405 on the direct backend.
@@ -229,7 +232,7 @@ backend logs_http_{{ $config.from }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
   {{- end }}
 
-{{- if and $to.metrics_proxy_endpoint $to.metrics_proxy_api_key (ne $mode "tcp") }}
+{{- if and $to.metrics_proxy_endpoint (ne $mode "tcp") }}
 # Datadog metrics direct backend: forwards distribution_points/sketches to DD API
 backend datadog_metrics_direct_{{ $config.from }}
   mode http
