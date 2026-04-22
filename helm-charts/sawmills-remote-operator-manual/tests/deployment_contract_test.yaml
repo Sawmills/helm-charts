@@ -41,15 +41,38 @@ tests:
         roleName: custom-role
         roleBindingName: custom-rolebinding
       securityContext:
+        runAsNonRoot: false
         runAsUser: 20001
         runAsGroup: 20002
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: true
+        seccompProfile:
+          type: Localhost
+        capabilities:
+          drop:
+            - NET_RAW
     asserts:
       - equal:
           path: spec.template.spec.serviceAccountName
           value: custom-operator-sa
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: false
       - equal:
           path: spec.template.spec.containers[0].securityContext.runAsUser
           value: 20001
       - equal:
           path: spec.template.spec.containers[0].securityContext.runAsGroup
           value: 20002
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.seccompProfile.type
+          value: Localhost
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop[0]
+          value: NET_RAW

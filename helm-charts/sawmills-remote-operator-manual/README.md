@@ -36,10 +36,13 @@ It defaults the operator to `SELF_MANAGED=true`.
 
 Customers that require all internet-bound traffic to pass through an HTTP/HTTPS proxy can set the `proxy` block. The chart wires these values into the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables consumed by the operator so TLS sessions still terminate at `controller.sawmills.ai`.
 
+If your proxy URL includes credentials, do not put `http://user:pass@...` directly in `values.yaml`. Use `proxy.existingSecret` instead so the credentials stay in a Kubernetes `Secret` instead of the Deployment manifest and Helm release history.
+
 ```yaml
 proxy:
-  http: http://user:pass@corp-proxy.example.com:32281
-  https: http://user:pass@corp-proxy.example.com:32281
+  existingSecret: corp-proxy-secret
+  existingSecretHttpKey: proxy-http
+  existingSecretHttpsKey: proxy-ssl
   noProxy:
     - 10.0.0.0/8
 ```
@@ -55,13 +58,26 @@ You can also set them via the CLI:
 
 ```bash
 helm upgrade --install remote-operator ./helm-charts/sawmills-remote-operator-manual \
-  --set proxy.https="http://$USER:$HOSTNAME@bar.proxy.square:32281" \
-  --set proxy.http="http://$USER:$HOSTNAME@bar.proxy.square:32281" \
+  --set proxy.http="http://proxy.internal:32281" \
+  --set proxy.https="http://proxy.internal:32281" \
   --set proxy.noProxy[0]="kubernetes.default.svc" \
   --set proxy.noProxy[1]="10.0.0.0/8"
 ```
 
 When the values are empty (default), the operator connects directly without a proxy. Internal cluster calls (for example, Kubernetes API access) continue to bypass the proxy regardless of these settings.
+
+If you need authenticated proxies, create a `Secret` that contains the full URLs:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: corp-proxy-secret
+type: Opaque
+stringData:
+  proxy-http: http://user:pass@corp-proxy.example.com:32281
+  proxy-ssl: http://user:pass@corp-proxy.example.com:32281
+```
 
 ## Embedded autoscaler
 

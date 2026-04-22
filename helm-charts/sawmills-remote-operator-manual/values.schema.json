@@ -26,12 +26,43 @@
       "properties": {
         "http": { "type": "string" },
         "https": { "type": "string" },
+        "existingSecret": { "type": "string" },
+        "existingSecretHttpKey": { "type": "string", "minLength": 1 },
+        "existingSecretHttpsKey": { "type": "string", "minLength": 1 },
         "noProxy": {
           "oneOf": [
             { "type": "null" },
             { "type": "string" },
             { "type": "array", "items": { "type": "string" } }
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "securityContext": {
+      "type": "object",
+      "properties": {
+        "runAsNonRoot": { "type": "boolean" },
+        "runAsUser": { "type": "integer" },
+        "runAsGroup": { "type": "integer" },
+        "readOnlyRootFilesystem": { "type": "boolean" },
+        "allowPrivilegeEscalation": { "type": "boolean" },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "drop": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

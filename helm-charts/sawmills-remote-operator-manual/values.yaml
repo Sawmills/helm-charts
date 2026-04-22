@@ -63,6 +63,9 @@ selfManaged: true
 proxy:
   http: ""
   https: ""
+  existingSecret: ""
+  existingSecretHttpKey: proxy-http
+  existingSecretHttpsKey: proxy-ssl
   # Optional: Additional domains/IPs to exclude from proxying (comma-separated string or array)
   noProxy: []
 
@@ -84,8 +87,16 @@ resources:
 
 # The security context for the Sawmills operator
 securityContext:
+  runAsNonRoot: true
   runAsUser: 10001
   runAsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
 
 # The log level for the Sawmills operator
 logLevel: info

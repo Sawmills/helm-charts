@@ -81,7 +81,7 @@ Static values added here. Dynamic values (e.g. POD_IP) are appended in deploymen
   {{- $userNoProxy = join "," $userNoProxy -}}
 {{- end -}}
 
-{{- if not (or $proxy.http $proxy.https) }}
+{{- if not (or $proxy.http $proxy.https $proxy.existingSecret) }}
   {{- $userNoProxy -}}
 {{- else }}
   {{- $addNoProxy := include "sawmills-remote-operator.addNoProxy" . -}}

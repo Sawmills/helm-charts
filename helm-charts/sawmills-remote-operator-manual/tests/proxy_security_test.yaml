@@ -1,0 +1,45 @@
+suite: proxy security
+templates:
+  - deployment.yaml
+tests:
+  - it: renders proxy env vars from an existing secret
+    set:
+      apiKey: aaaa
+      proxy:
+        existingSecret: proxy
+        existingSecretHttpKey: http
+        existingSecretHttpsKey: ssl
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="HTTP_PROXY")].valueFrom.secretKeyRef.name
+          value: proxy
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="HTTP_PROXY")].valueFrom.secretKeyRef.key
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="HTTPS_PROXY")].valueFrom.secretKeyRef.name
+          value: proxy
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="HTTPS_PROXY")].valueFrom.secretKeyRef.key
+          value: ssl
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          value: "$(KUBERNETES_SERVICE_HOST),.cluster.local,.svc,.svc.cluster.local,127.0.0.1,::1,kubernetes,kubernetes.default.svc,localhost,$(POD_IP)"
+
+  - it: fails when proxy.http contains inline credentials
+    set:
+      apiKey: aaaa
+      proxy:
+        http: http://u:@p:1
+    asserts:
+      - failedTemplate:
+          errorMessage: "proxy.http must not include inline credentials; use proxy.existingSecret instead"
+
+  - it: fails when proxy.https contains inline credentials
+    set:
+      apiKey: aaaa
+      proxy:
+        https: http://u:@p:1
+    asserts:
+      - failedTemplate:
+          errorMessage: "proxy.https must not include inline credentials; use proxy.existingSecret instead"

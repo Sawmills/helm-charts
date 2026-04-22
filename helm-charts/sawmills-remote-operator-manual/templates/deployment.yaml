@@ -77,18 +77,45 @@ spec:
         - name: SELF_MANAGED
           value: {{ printf "%t" .Values.selfManaged | quote }}
         {{- $proxy := default dict .Values.proxy }}
-        {{- with $proxy.http }}
-        - name: HTTP_PROXY
-          value: {{ tpl . $ | quote }}
+        {{- $renderedHttpProxy := "" }}
+        {{- if $proxy.http }}
+        {{- $renderedHttpProxy = tpl $proxy.http $ }}
         {{- end }}
-        {{- with $proxy.https }}
+        {{- $renderedHttpsProxy := "" }}
+        {{- if $proxy.https }}
+        {{- $renderedHttpsProxy = tpl $proxy.https $ }}
+        {{- end }}
+        {{- if and $renderedHttpProxy (regexMatch "^[A-Za-z][A-Za-z0-9+.-]*://[^/@]+(:[^/@]*)?@" $renderedHttpProxy) }}
+        {{- fail "proxy.http must not include inline credentials; use proxy.existingSecret instead" }}
+        {{- end }}
+        {{- if and $renderedHttpsProxy (regexMatch "^[A-Za-z][A-Za-z0-9+.-]*://[^/@]+(:[^/@]*)?@" $renderedHttpsProxy) }}
+        {{- fail "proxy.https must not include inline credentials; use proxy.existingSecret instead" }}
+        {{- end }}
+        {{- if $proxy.existingSecret }}
+        - name: HTTP_PROXY
+          valueFrom:
+            secretKeyRef:
+              name: {{ $proxy.existingSecret | quote }}
+              key: {{ default "proxy-http" $proxy.existingSecretHttpKey | quote }}
         - name: HTTPS_PROXY
-          value: {{ tpl . $ | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ $proxy.existingSecret | quote }}
+              key: {{ default "proxy-ssl" $proxy.existingSecretHttpsKey | quote }}
+        {{- else }}
+        {{- with $renderedHttpProxy }}
+        - name: HTTP_PROXY
+          value: {{ . | quote }}
+        {{- end }}
+        {{- with $renderedHttpsProxy }}
+        - name: HTTPS_PROXY
+          value: {{ . | quote }}
+        {{- end }}
         {{- end }}
         {{- $noProxy := include "sawmills-remote-operator.noProxyValue" . }}
-        {{- if or $proxy.http $proxy.https $noProxy }}
+        {{- if or $renderedHttpProxy $renderedHttpsProxy $proxy.existingSecret $noProxy }}
         - name: NO_PROXY
-          {{- if or $proxy.http $proxy.https }}
+          {{- if or $renderedHttpProxy $renderedHttpsProxy $proxy.existingSecret }}
             {{- if $noProxy }}
           value: {{ printf "%s,$(POD_IP)" $noProxy | quote }}
             {{- else }}
@@ -166,18 +193,10 @@ spec:
             port: 8086
           initialDelaySeconds: 5
           periodSeconds: 5
-        {{- $securityContext := default dict .Values.securityContext }}
+        {{- $defaultSecurityContext := dict "runAsNonRoot" true "runAsUser" 10001 "runAsGroup" 10001 "seccompProfile" (dict "type" "RuntimeDefault") "readOnlyRootFilesystem" false "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL")) }}
+        {{- $securityContext := mergeOverwrite (deepCopy $defaultSecurityContext) (default dict .Values.securityContext) }}
         securityContext:
-          runAsNonRoot: true
-          runAsUser: {{ default 10001 $securityContext.runAsUser }}
-          runAsGroup: {{ default 10001 $securityContext.runAsGroup }}
-          seccompProfile:
-            type: RuntimeDefault
-          readOnlyRootFilesystem: false
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
+          {{- toYaml $securityContext | nindent 10 }}
       volumes:
       - name: cache-volume
         emptyDir:
