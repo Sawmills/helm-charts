@@ -4,6 +4,7 @@
   "properties": {
     "autoscaler": {
       "type": "object",
+      "description": "Unsupported in manual mode. Any non-default autoscaler setting will cause template rendering to fail.",
       "properties": {
         "enabled": { "type": "boolean" },
         "dryRun": { "type": ["boolean", "null"] },

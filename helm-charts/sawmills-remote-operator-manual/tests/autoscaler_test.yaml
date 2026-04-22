@@ -1,0 +1,42 @@
+suite: autoscaler unsupported
+templates:
+  - deployment.yaml
+tests:
+  - it: should render with default autoscaler values
+    set:
+      collectorName: sawmills-collector
+      autoscaler:
+        enabled: false
+        dryRun: null
+        metricsEndpoint: null
+        otlpMetricsEndpoint: null
+        targetHPAName: null
+        leaseName: null
+        labelSelectors: null
+        memoryLimitBytes: null
+        globalMinReplicas: null
+        globalMaxReplicas: null
+    asserts:
+      - hasDocuments:
+          count: 1
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="AUTOSCALER_ENABLED")]
+
+  - it: should fail when autoscaler is enabled
+    set:
+      collectorName: sawmills-collector
+      autoscaler:
+        enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "autoscaler is not supported in sawmills-remote-operator-manual; manual deployments must manage scaling outside the remote operator"
+
+  - it: should fail when any autoscaler override is set
+    set:
+      collectorName: sawmills-collector
+      autoscaler:
+        enabled: false
+        targetHPAName: sawmills-collector-lb
+    asserts:
+      - failedTemplate:
+          errorMessage: "autoscaler is not supported in sawmills-remote-operator-manual; manual deployments must manage scaling outside the remote operator"

@@ -92,3 +92,24 @@ Static values added here. Dynamic values (e.g. POD_IP) are appended in deploymen
   {{- join "," ($noProxy | compact | sortAlpha | uniq) -}}
 {{- end }}
 {{- end }}
+
+{{/*
+Fail fast if callers try to enable the embedded autoscaler in manual mode.
+*/}}
+{{- define "sawmills-remote-operator.failIfManualAutoscalerConfigured" -}}
+{{- $autoscaler := default dict .Values.autoscaler -}}
+{{- if or
+    $autoscaler.enabled
+    (ne $autoscaler.dryRun nil)
+    $autoscaler.metricsEndpoint
+    $autoscaler.otlpMetricsEndpoint
+    $autoscaler.targetHPAName
+    $autoscaler.leaseName
+    (ne $autoscaler.labelSelectors nil)
+    (ne $autoscaler.memoryLimitBytes nil)
+    (ne $autoscaler.globalMinReplicas nil)
+    (ne $autoscaler.globalMaxReplicas nil)
+}}
+{{- fail "autoscaler is not supported in sawmills-remote-operator-manual; manual deployments must manage scaling outside the remote operator" }}
+{{- end }}
+{{- end }}

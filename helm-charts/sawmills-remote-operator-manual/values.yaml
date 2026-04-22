@@ -101,9 +101,8 @@ securityContext:
 # The log level for the Sawmills operator
 logLevel: info
 
-# Embedded autoscaler configuration.
-# `enabled=true` emits AUTOSCALER_ENABLED=true.
-# Other keys are optional overrides (null means: don't emit env var, keep operator defaults).
+# Unsupported in manual mode.
+# Any non-default autoscaler setting causes the chart render to fail.
 autoscaler:
   enabled: false
   dryRun: null

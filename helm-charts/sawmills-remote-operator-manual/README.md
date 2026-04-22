@@ -5,12 +5,12 @@ This chart deploys the Sawmills Remote Operator for environments where collector
 * the chart defaults `selfManaged=true`
 * pipeline changes generate a Helm command for the customer to run manually
 * the remote operator does not get RBAC to install, upgrade, list, or uninstall the collector chart
+* autoscaling must stay outside the remote operator in this mode
 
 The manual Role is narrowed to the runtime paths that still exist in this mode:
 
 * startup bookkeeping plus hot reload / Live Tail session writes via `ConfigMap`
 * deployment status sampling via `Pods` + collector `Service` lookups
-* optional embedded autoscaler access to `HorizontalPodAutoscaler` + `Lease`
 
 Permissions that are not part of the manual-deployment path were removed from this chart, including all collector-chart Helm lifecycle resources, `events`, `pods/log`, `pods/metrics`, `jobs`, `podmonitors`, `rbac.authorization.k8s.io/*`, and `opentelemetry.io/*`.
 
@@ -32,6 +32,7 @@ helm upgrade --install sawmills-remote-operator \
 All existing values from the standard remote-operator chart remain available. This chart is intended for manual deployment flows only.
 It defaults the operator to `SELF_MANAGED=true`.
 `collectorName` is required.
+Any non-default `autoscaler.*` value will fail rendering.
 
 ## Outbound proxy support
 
@@ -79,32 +80,6 @@ stringData:
   proxy-http: http://user:pass@corp-proxy.example.com:32281
   proxy-ssl: http://user:pass@corp-proxy.example.com:32281
 ```
-
-## Embedded autoscaler
-
-Configure the embedded autoscaler through the chart values below.
-Backward-compatible behavior:
-
-* `autoscaler.enabled=true` emits `AUTOSCALER_ENABLED=true`.
-* Other autoscaler fields are optional overrides and are emitted only when `autoscaler.enabled=true`.
-* When optional values are `null`, the chart does not emit the matching env var, so operator defaults remain in effect.
-
-```yaml
-autoscaler:
-  enabled: false
-  dryRun: null
-  metricsEndpoint: null
-  otlpMetricsEndpoint: null
-  targetHPAName: null
-  leaseName: null
-  labelSelectors: null
-  memoryLimitBytes: null
-  globalMinReplicas: null
-  globalMaxReplicas: null
-```
-
-Set non-null values only for knobs you want to override from chart values.
-Use `autoscaler.otlpMetricsEndpoint` to emit `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` explicitly for OTel metric export.
 
 ## Additional references
 
