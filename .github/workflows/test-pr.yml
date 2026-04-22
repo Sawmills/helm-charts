@@ -15,7 +15,7 @@ jobs:
     uses: ./.github/workflows/check-codeowners.yml
 
   helm-test-collector:
-    name: Helm Chart Tests / Test Helm Chart
+    name: Helm Chart Tests
     uses: ./.github/workflows/helm-test.yml
 
   helm-test-remote-operator:
