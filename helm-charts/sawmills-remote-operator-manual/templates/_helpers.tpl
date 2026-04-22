@@ -54,10 +54,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Create the name of the service account to use
 */}}
 {{- define "sawmills-remote-operator.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "sawmills-remote-operator.fullname" .) .Values.serviceAccount.name }}
+{{- $rbac := default dict .Values.rbac -}}
+{{- if $rbac.createServiceAccount }}
+{{- required "rbac.serviceAccountName must be set when rbac.createServiceAccount is true" $rbac.serviceAccountName }}
 {{- else }}
-{{- default "default" .Values.serviceAccount.name }}
+{{- default "default" $rbac.serviceAccountName }}
 {{- end }}
 {{- end }}
 

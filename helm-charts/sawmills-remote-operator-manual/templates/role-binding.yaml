@@ -1,16 +1,13 @@
 {{- if .Values.rbac.createRoleBinding }}
-{{- if not .Values.rbac.roleBindingName }}
-{{- fail "roleBindingName must be set when createRoleBinding is true" }}
-{{- end }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ .Values.rbac.roleBindingName }}
+  name: {{ required "rbac.roleBindingName must be set when rbac.createRoleBinding is true" .Values.rbac.roleBindingName }}
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.rbac.serviceAccountName }}
+  name: {{ include "sawmills-remote-operator.serviceAccountName" . }}
 roleRef:
   kind: Role
-  name: {{ .Values.rbac.roleName }}
+  name: {{ required "rbac.roleName must be set when rbac.createRoleBinding is true" .Values.rbac.roleName }}
   apiGroup: rbac.authorization.k8s.io
 {{- end }}

@@ -1,0 +1,55 @@
+suite: deployment contract
+templates:
+  - deployment.yaml
+tests:
+  - it: always emits LEVEL even when using the chart-managed secret
+    set:
+      apiKey: aaaa
+      logLevel: debug
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LEVEL
+            value: debug
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="API_KEY")].valueFrom.secretKeyRef.name
+          value: remote-operator
+
+  - it: uses an existing secret without dropping LEVEL
+    set:
+      apiKeyExistingSecret: existing
+      logLevel: warn
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LEVEL
+            value: warn
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="API_KEY")].valueFrom.secretKeyRef.name
+          value: existing
+
+  - it: wires service account and security context from values
+    set:
+      apiKey: aaaa
+      rbac:
+        createServiceAccount: true
+        createRole: true
+        createRoleBinding: true
+        serviceAccountName: custom-operator-sa
+        roleName: custom-role
+        roleBindingName: custom-rolebinding
+      securityContext:
+        runAsUser: 20001
+        runAsGroup: 20002
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: custom-operator-sa
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 20001
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsGroup
+          value: 20002

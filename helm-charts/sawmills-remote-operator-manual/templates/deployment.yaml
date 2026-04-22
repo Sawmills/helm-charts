@@ -17,7 +17,7 @@ spec:
         {{- include "sawmills-remote-operator.labels" . | nindent 8 }}
       name: remote-operator
     spec:
-      serviceAccountName: {{ .Values.rbac.serviceAccountName }}
+      serviceAccountName: {{ include "sawmills-remote-operator.serviceAccountName" . }}
       {{- if .Values.affinity }}
       affinity:
         {{- toYaml .Values.affinity | nindent 8 }}
@@ -57,9 +57,9 @@ spec:
         {{ end }}
         - name: OPERATOR_NAME
           value: {{ tpl .Values.collectorName $ }}/$(POD_NAME)
-        {{- if .Values.apiKeyExistingSecret }}
         - name: LEVEL
           value: {{ .Values.logLevel }}
+        {{- if .Values.apiKeyExistingSecret }}
         - name: API_KEY
           valueFrom:
             secretKeyRef:
@@ -166,10 +166,11 @@ spec:
             port: 8086
           initialDelaySeconds: 5
           periodSeconds: 5
+        {{- $securityContext := default dict .Values.securityContext }}
         securityContext:
           runAsNonRoot: true
-          runAsUser: 10001
-          runAsGroup: 10001
+          runAsUser: {{ default 10001 $securityContext.runAsUser }}
+          runAsGroup: {{ default 10001 $securityContext.runAsGroup }}
           seccompProfile:
             type: RuntimeDefault
           readOnlyRootFilesystem: false

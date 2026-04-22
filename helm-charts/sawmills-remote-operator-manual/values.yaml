@@ -55,9 +55,9 @@ selfManaged: true
 #
 # NO_PROXY behavior:
 # - When HTTP_PROXY or HTTPS_PROXY is set, NO_PROXY is automatically populated with:
-#.  * Mandatory values:
-#.    - statis: localhost,127.0.0.1,::1,kubernetes,kubernetes.default.svc,.svc,.svc.cluster.local,.cluster.local
-#.    - dynamic: $(KUBERNETES_SERVICE_IP),$(POD_IP)
+#   * Mandatory values:
+#     - static: localhost,127.0.0.1,::1,kubernetes,kubernetes.default.svc,.svc,.svc.cluster.local,.cluster.local
+#     - dynamic: $(KUBERNETES_SERVICE_HOST),$(POD_IP)
 #   * User-defined values from noProxy (additive only)
 # - Users cannot remove mandatory values, only add additional domains/IPs
 proxy:
@@ -84,8 +84,8 @@ resources:
 
 # The security context for the Sawmills operator
 securityContext:
-  runAsUser: 1000
-  runAsGroup: 1000
+  runAsUser: 10001
+  runAsGroup: 10001
 
 # The log level for the Sawmills operator
 logLevel: info

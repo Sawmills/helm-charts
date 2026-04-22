@@ -54,7 +54,7 @@ Use `noProxy` to extend that list with any additional domains or CIDRs that must
 You can also set them via the CLI:
 
 ```bash
-helm upgrade --install remote-operator ./helm-charts/sawmills-remote-operator \
+helm upgrade --install remote-operator ./helm-charts/sawmills-remote-operator-manual \
   --set proxy.https="http://$USER:$HOSTNAME@bar.proxy.square:32281" \
   --set proxy.http="http://$USER:$HOSTNAME@bar.proxy.square:32281" \
   --set proxy.noProxy[0]="kubernetes.default.svc" \

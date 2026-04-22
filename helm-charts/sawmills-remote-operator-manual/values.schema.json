@@ -28,6 +28,7 @@
         "https": { "type": "string" },
         "noProxy": {
           "oneOf": [
+            { "type": "null" },
             { "type": "string" },
             { "type": "array", "items": { "type": "string" } }
           ]
