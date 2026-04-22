@@ -52,10 +52,10 @@ jobs:
           version: 3.18.0
 
       - name: Run Helm lint
-        run: helm lint helm-charts/sawmills-remote-operator-manual
+        run: helm lint helm-charts/sawmills-remote-operator-manual --set apiKey=aaaa
 
       - name: Run Helm template validation
-        run: helm template test-release helm-charts/sawmills-remote-operator-manual --values helm-charts/sawmills-remote-operator-manual/values.yaml > /dev/null
+        run: helm template test-release helm-charts/sawmills-remote-operator-manual --values helm-charts/sawmills-remote-operator-manual/values.yaml --set apiKey=aaaa > /dev/null
 
       - name: Run Helm unit tests
         run: cd helm-charts/sawmills-remote-operator-manual && ./tests/run-tests.sh
