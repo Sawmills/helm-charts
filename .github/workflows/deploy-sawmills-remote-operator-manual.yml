@@ -1,0 +1,49 @@
+name: Deploy Sawmills Remote Operator Manual Helm Chart
+
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+    paths:
+      - helm-charts/sawmills-remote-operator-manual/**
+
+jobs:
+  version-and-tag:
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/deploy-helm-chart.yml
+    with:
+      chart_path: helm-charts/sawmills-remote-operator-manual
+      chart_name: sawmills-remote-operator-manual
+      tag_prefix: remote-operator-manual
+      default_bump_type: patch
+      first_release_version: 0.1.0
+      version_has_quotes: true
+    secrets: inherit
+
+  build-and-deploy:
+    if: github.event.pull_request.merged == true
+    needs: [version-and-tag]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Push Sawmills Remote Operator Manual Helm chart
+        uses: ./.github/actions/push-helm
+        with:
+          chart-path: helm-charts/sawmills-remote-operator-manual
+          chart-repo: public.ecr.aws/s7a5m1b4
+          chart-name: sawmills-remote-operator-manual-chart
+          aws_region: ${{ vars.AWS_REGION }}
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          tag: ${{ needs.version-and-tag.outputs.tag }}

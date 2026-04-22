@@ -1,0 +1,184 @@
+# Preserve the current rendered resource names/selectors even though this chart
+# is published under a different OCI/chart name.
+nameOverride: sawmills-remote-operator-chart
+
+# Number of replicas for the Sawmills operator
+replicaCount: 3
+
+# RBAC configuration
+rbac:
+  # Whether to create ServiceAccount
+  createServiceAccount: true
+  # Whether to create Role
+  createRole: true
+  # Whether to create RoleBinding
+  createRoleBinding: true
+  # The name of the ServiceAccount to use (if not creating one)
+  serviceAccountName: sawmills-operator-sa
+  # The name of the Role to use (if not creating one)
+  roleName: sawmills-role
+  # The name of the RoleBinding to create
+  roleBindingName: sawmills-operator-rolebinding
+
+# DEPRECATED: The API key for the Sawmills operator
+apiKey: ""
+
+# The existing secret for the Sawmills operator, will override the deprecated `apiKey`
+apiKeyExistingSecret: ""
+
+# The key for the API key in the existing secret
+apiKeyExistingSecretKey: api-key
+
+# The collector name of the Sawmills operator. Required.
+collectorName: ""
+
+# The image pull policy and tag the Sawmills operator
+# The image tag is the Sawmills Remote Operator image tag
+# The image pull policy is the policy to use when pulling the image
+image:
+  repository: public.ecr.aws/s7a5m1b4/sawmills-remote-operator
+  pullPolicy: Always
+  tag: 0.247.0 # Sawmills Remote Operator image tag
+
+# The address of the Sawmills operator
+operatorAddress: https://controller.sawmills.ai
+
+# The remote write URL for the Sawmills operator
+remoteWriteUrl: https://ingress.sawmills.ai
+
+# Whether the operator is self-managed
+selfManaged: true
+
+# Configure outbound HTTP/HTTPS proxies for all traffic sent to Sawmills services.
+# When set, the chart writes the values into HTTP_PROXY / HTTPS_PROXY / NO_PROXY env vars
+# that the operator binary consumes automatically.
+#
+# NO_PROXY behavior:
+# - When HTTP_PROXY or HTTPS_PROXY is set, NO_PROXY is automatically populated with:
+#   * Mandatory values:
+#     - static: localhost,127.0.0.1,::1,kubernetes,kubernetes.default.svc,.svc,.svc.cluster.local,.cluster.local
+#     - dynamic: $(KUBERNETES_SERVICE_HOST),$(POD_IP)
+#   * User-defined values from noProxy (additive only)
+# - Users cannot remove mandatory values, only add additional domains/IPs
+proxy:
+  http: ""
+  https: ""
+  existingSecret: ""
+  existingSecretHttpKey: proxy-http
+  existingSecretHttpsKey: proxy-ssl
+  # Optional: Additional domains/IPs to exclude from proxying (comma-separated string or array)
+  noProxy: []
+
+# enable grpc tracing, by default it is disabled
+grpcTrace: ""
+
+# The cache is used for storing the state of the operator
+cacheVolume:
+  sizeLimit: 500Mi
+
+# The resources for the Sawmills operator
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 250m
+  limits:
+    memory: 2Gi
+    cpu: 500m
+
+# The security context for the Sawmills operator
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# The log level for the Sawmills operator
+logLevel: info
+
+# Unsupported in manual mode.
+# Any non-default autoscaler setting causes the chart render to fail.
+autoscaler:
+  enabled: false
+  dryRun: null
+  metricsEndpoint: null
+  otlpMetricsEndpoint: null
+  targetHPAName: null
+  leaseName: null
+  labelSelectors: null
+  memoryLimitBytes: null
+  globalMinReplicas: null
+  globalMaxReplicas: null
+
+# Affinity settings for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+# Example:
+# affinity:
+#   nodeAffinity:
+#     requiredDuringSchedulingIgnoredDuringExecution:
+#       nodeSelectorTerms:
+#       - matchExpressions:
+#         - key: kubernetes.io/e2e-az-name
+#           operator: In
+#           values:
+#           - e2e-az1
+#           - e2e-az2
+#   podAntiAffinity:
+#     preferredDuringSchedulingIgnoredDuringExecution:
+#     - weight: 100
+#       podAffinityTerm:
+#         labelSelector:
+#           matchExpressions:
+#           - key: app.kubernetes.io/name
+#             operator: In
+#             values:
+#             - sawmills-remote-operator
+#         topologyKey: kubernetes.io/hostname
+affinity: {}
+
+# Node selector for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+# Example:
+# nodeSelector:
+#   kubernetes.io/os: linux
+#   node-type: worker
+nodeSelector: {}
+
+# Tolerations for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+# Example:
+# tolerations:
+# - key: "key"
+#   operator: "Equal"
+#   value: "value"
+#   effect: "NoSchedule"
+tolerations: []
+
+# Values merged into managed releases (consumed by --managed-charts-values).
+# Example structure (matches legacy managedCharts format):
+# managedChartsValues:
+#   sawmills-collector:
+#     # affinity: {}
+#     # nodeSelector: {}
+#     # tolerations: []
+#     replicaCount: 3
+#     image:
+#       tag: latest
+# Prefer managedChartsValues; managedCharts is kept as a backward-compatible alias.
+managedChartsValues: {}
+
+# Deprecated alias for managedChartsValues (will be removed in a future release).
+managedCharts: {}
+
+# Chart/repository overrides for managed releases (consumed by --managed-charts).
+# Example:
+# managedChartsOverrides:
+#   sawmills-collector:
+#     chartName: oci://registry.example.com/sawmills-collector
+#     version: 1.2.3
+managedChartsOverrides: {}

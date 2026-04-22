@@ -20,6 +20,11 @@ on:
         required: false
         type: string
         default: "patch"
+      first_release_version:
+        description: Exact version to publish when no tags exist yet
+        required: false
+        type: string
+        default: ""
       version_has_quotes:
         description: "Whether the version in Chart.yaml is quoted"
         required: false
@@ -81,22 +86,39 @@ jobs:
           LATEST_TAG=$(git tag --sort=-version:refname | grep "^${{ inputs.tag_prefix }}-v" | head -n 1)
 
           if [ -z "$LATEST_TAG" ]; then
-            echo "No existing tags found for ${{ inputs.tag_prefix }}, starting with 0.0.0"
-            CURRENT_VERSION="0.0.0"
+            if [ -n "${{ inputs.first_release_version }}" ]; then
+              echo "No existing tags found for ${{ inputs.tag_prefix }}, publishing configured first release version ${{ inputs.first_release_version }}"
+              CURRENT_VERSION="${{ inputs.first_release_version }}"
+              SKIP_BUMP="true"
+            else
+              echo "No existing tags found for ${{ inputs.tag_prefix }}, starting with 0.0.0"
+              CURRENT_VERSION="0.0.0"
+              SKIP_BUMP="false"
+            fi
           else
             # Extract version from tag (remove prefix and 'v')
             CURRENT_VERSION="${LATEST_TAG#${{ inputs.tag_prefix }}-v}"
+            SKIP_BUMP="false"
             echo "Latest tag for ${{ inputs.tag_prefix }}: ${LATEST_TAG}"
             echo "Current version: ${CURRENT_VERSION}"
           fi
 
           echo "current_version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+          echo "skip_bump=${SKIP_BUMP}" >> $GITHUB_OUTPUT
 
       - name: Calculate next version
         id: get_version
         run: |
           CURRENT_VERSION="${{ steps.current_version.outputs.current_version }}"
           BUMP_TYPE="${{ steps.bump_type.outputs.bump_type }}"
+          SKIP_BUMP="${{ steps.current_version.outputs.skip_bump }}"
+
+          if [ "$SKIP_BUMP" = "true" ]; then
+            NEW_VERSION="${CURRENT_VERSION}"
+            echo "new_tag=${NEW_VERSION}" >> $GITHUB_OUTPUT
+            echo "Publishing configured first release version: ${NEW_VERSION}"
+            exit 0
+          fi
 
           # Parse version into major, minor, patch
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"

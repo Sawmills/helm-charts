@@ -1,0 +1,24 @@
+suite: self managed defaults
+templates:
+  - deployment.yaml
+tests:
+  - it: defaults the manual chart to self-managed mode
+    set:
+      collectorName: sawmills-collector
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SELF_MANAGED
+            value: "true"
+
+  - it: allows overriding self-managed mode explicitly
+    set:
+      collectorName: sawmills-collector
+      selfManaged: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SELF_MANAGED
+            value: "false"

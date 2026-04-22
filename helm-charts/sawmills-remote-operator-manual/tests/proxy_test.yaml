@@ -1,0 +1,86 @@
+suite: test noProxy helper
+templates:
+  - deployment.yaml
+tests:
+  # 1a. If there is neither proxy.http/https set, proxy.noProxy should remain unset
+  - it: should not set NO_PROXY when proxy is not configured
+    set:
+      collectorName: sawmills-collector
+      proxy: null
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")]
+
+  # 1b. If proxy is an empty dict, NO_PROXY should also not be set
+  - it: should not set NO_PROXY when proxy is an empty dict
+    set:
+      collectorName: sawmills-collector
+      proxy: {}
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")]
+
+  # 2. If proxy.http/https are not set but proxy.noProxy is set,
+  #    NO_PROXY will be set to what user passed without adding POD_IP
+  - it: should not append POD_IP when only proxy.noProxy (string) is set
+    set:
+      collectorName: sawmills-collector
+      proxy:
+        noProxy: "foo "
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          pattern: "^foo $"
+
+  # 3. If proxy.http is set and proxy.noProxy is unset, NO_PROXY should be static entries plus "$(POD_IP)"
+  - it: should set NO_PROXY to POD_IP when only proxy.http is set
+    set:
+      collectorName: sawmills-collector
+      proxy:
+        http: URL
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          value: "$(KUBERNETES_SERVICE_HOST),.cluster.local,.svc,.svc.cluster.local,127.0.0.1,::1,kubernetes,kubernetes.default.svc,localhost,$(POD_IP)"
+
+  # 4a. If proxy.http or proxy.https is set and proxy.noProxy is set (single string),
+  #    NO_PROXY should include "<proxy.noProxy>, static entries and $(POD_IP)"
+  - it: should append POD_IP when proxy.http and proxy.noProxy CSV string are set
+    set:
+      collectorName: sawmills-collector
+      proxy:
+        https: URL
+        noProxy: " xxx "
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          value: "$(KUBERNETES_SERVICE_HOST),.cluster.local,.svc,.svc.cluster.local,127.0.0.1,::1,kubernetes,kubernetes.default.svc,localhost,xxx,$(POD_IP)"
+
+  # 4b. If proxy.http or proxy.https is set and proxy.noProxy is set (multiple strings),
+  #    NO_PROXY should include "<proxy.noProxy>, static entries and $(POD_IP)"
+  - it: should append POD_IP when both proxies and proxy.noProxy list are set
+    set:
+      collectorName: sawmills-collector
+      proxy:
+        http: URL
+        noProxy: " xxx ,  yyy,  "
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          value: "$(KUBERNETES_SERVICE_HOST),.cluster.local,.svc,.svc.cluster.local,127.0.0.1,::1,kubernetes,kubernetes.default.svc,localhost,xxx,yyy,$(POD_IP)"
+
+  # 4c. If proxy.http or proxy.https is set and proxy.noProxy is set (multiple strings),
+  #    NO_PROXY should include "<proxy.noProxy>, static entries and $(POD_IP)"
+  - it: should append POD_IP when both proxies and proxy.noProxy list entries are set
+    set:
+      collectorName: sawmills-collector
+      proxy:
+        http: URL
+        https: URL
+        noProxy:
+          - xxx
+          - " yyy "
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="NO_PROXY")].value
+          value: "$(KUBERNETES_SERVICE_HOST),.cluster.local,.svc,.svc.cluster.local,127.0.0.1,::1,kubernetes,kubernetes.default.svc,localhost,xxx,yyy,$(POD_IP)"

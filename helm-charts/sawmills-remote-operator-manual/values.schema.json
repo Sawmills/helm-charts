@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "autoscaler": {
+      "type": "object",
+      "description": "Unsupported in manual mode. Any non-default autoscaler setting will cause template rendering to fail.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "dryRun": { "type": ["boolean", "null"] },
+        "metricsEndpoint": { "type": ["string", "null"], "minLength": 1 },
+        "otlpMetricsEndpoint": { "type": ["string", "null"], "minLength": 1 },
+        "targetHPAName": { "type": ["string", "null"], "minLength": 1 },
+        "leaseName": { "type": ["string", "null"], "minLength": 1 },
+        "labelSelectors": {
+          "type": ["object", "null"],
+          "additionalProperties": { "type": "string" }
+        },
+        "memoryLimitBytes": { "type": ["integer", "null"], "minimum": 1 },
+        "globalMinReplicas": { "type": ["integer", "null"], "minimum": 1 },
+        "globalMaxReplicas": { "type": ["integer", "null"], "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "proxy": {
+      "type": "object",
+      "properties": {
+        "http": { "type": "string" },
+        "https": { "type": "string" },
+        "existingSecret": { "type": "string" },
+        "existingSecretHttpKey": { "type": "string", "minLength": 1 },
+        "existingSecretHttpsKey": { "type": "string", "minLength": 1 },
+        "noProxy": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "securityContext": {
+      "type": "object",
+      "properties": {
+        "runAsNonRoot": { "type": "boolean" },
+        "runAsUser": { "type": "integer" },
+        "runAsGroup": { "type": "integer" },
+        "readOnlyRootFilesystem": { "type": "boolean" },
+        "allowPrivilegeEscalation": { "type": "boolean" },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "drop": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

@@ -10,8 +10,9 @@ on:
     branches:
       - main
     paths-ignore:
-      - "helm-charts/sawmills-collector/**"
-      - "helm-charts/sawmills-remote-operator/**"
+      - helm-charts/sawmills-collector/**
+      - helm-charts/sawmills-remote-operator/**
+      - helm-charts/sawmills-remote-operator-manual/**
 
 jobs:
   general-actions:

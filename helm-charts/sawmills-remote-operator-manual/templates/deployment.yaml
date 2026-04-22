@@ -1,0 +1,164 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  {{- include "sawmills-remote-operator.failIfManualAutoscalerConfigured" . }}
+  name: {{ include "sawmills-remote-operator.fullname" . }}
+  labels:
+    {{- include "sawmills-remote-operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "sawmills-remote-operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        rollme: {{ .Values | toYaml | sha256sum }}
+      labels:
+        {{- include "sawmills-remote-operator.labels" . | nindent 8 }}
+      name: remote-operator
+    spec:
+      serviceAccountName: {{ include "sawmills-remote-operator.serviceAccountName" . }}
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: remote-operator
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        command: [/remote-operator]
+        args: [operator]
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports: []
+        volumeMounts:
+        - mountPath: /cache
+          name: cache-volume
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: OPERATOR_ADDRESS
+          value: {{ .Values.operatorAddress }}
+        {{ if .Values.grpcTrace }}
+        - name: GRPC_TRACE
+          value: {{ .Values.grpcTrace }}
+        {{ end }}
+        {{- $collectorName := tpl .Values.collectorName . | trim }}
+        {{- if not $collectorName }}
+        {{- fail "collectorName must be set" }}
+        {{- end }}
+        - name: OPERATOR_NAME
+          value: {{ printf "%s/$(POD_NAME)" $collectorName | quote }}
+        - name: LEVEL
+          value: {{ .Values.logLevel }}
+        {{- if .Values.apiKeyExistingSecret }}
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.apiKeyExistingSecret | quote }}
+              key: {{ .Values.apiKeyExistingSecretKey | quote }}
+        {{- else }}
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: remote-operator
+              key: api-key
+        {{- end }}
+        - name: REMOTE_WRITE_URL
+          value: {{ .Values.remoteWriteUrl }}
+        - name: SELF_MANAGED
+          value: {{ printf "%t" .Values.selfManaged | quote }}
+        {{- $proxy := default dict .Values.proxy }}
+        {{- $renderedHttpProxy := "" }}
+        {{- if $proxy.http }}
+        {{- $renderedHttpProxy = tpl $proxy.http . }}
+        {{- end }}
+        {{- $renderedHttpsProxy := "" }}
+        {{- if $proxy.https }}
+        {{- $renderedHttpsProxy = tpl $proxy.https . }}
+        {{- end }}
+        {{- if and $renderedHttpProxy (regexMatch "^[A-Za-z][A-Za-z0-9+.-]*://[^/@]+(:[^/@]*)?@" $renderedHttpProxy) }}
+        {{- fail "proxy.http must not include inline credentials; use proxy.existingSecret instead" }}
+        {{- end }}
+        {{- if and $renderedHttpsProxy (regexMatch "^[A-Za-z][A-Za-z0-9+.-]*://[^/@]+(:[^/@]*)?@" $renderedHttpsProxy) }}
+        {{- fail "proxy.https must not include inline credentials; use proxy.existingSecret instead" }}
+        {{- end }}
+        {{- if $proxy.existingSecret }}
+        - name: HTTP_PROXY
+          valueFrom:
+            secretKeyRef:
+              name: {{ $proxy.existingSecret | quote }}
+              key: {{ default "proxy-http" $proxy.existingSecretHttpKey | quote }}
+        - name: HTTPS_PROXY
+          valueFrom:
+            secretKeyRef:
+              name: {{ $proxy.existingSecret | quote }}
+              key: {{ default "proxy-ssl" $proxy.existingSecretHttpsKey | quote }}
+        {{- else }}
+        {{- with $renderedHttpProxy }}
+        - name: HTTP_PROXY
+          value: {{ . | quote }}
+        {{- end }}
+        {{- with $renderedHttpsProxy }}
+        - name: HTTPS_PROXY
+          value: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- $noProxy := include "sawmills-remote-operator.noProxyValue" . }}
+        {{- if or $renderedHttpProxy $renderedHttpsProxy $proxy.existingSecret $noProxy }}
+        - name: NO_PROXY
+          {{- if or $renderedHttpProxy $renderedHttpsProxy $proxy.existingSecret }}
+            {{- if $noProxy }}
+          value: {{ printf "%s,$(POD_IP)" $noProxy | quote }}
+            {{- else }}
+          value: "$(POD_IP)"
+            {{- end }}
+          {{- else }}
+          value: {{ $noProxy | quote }}
+          {{- end }}
+        {{- end }}
+        - name: OPERATOR_KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        {{- $managedChartsValues := default .Values.managedCharts .Values.managedChartsValues }}
+        - name: MANAGED_CHARTS_VALUES
+          value: {{ tpl ($managedChartsValues | toJson | quote) . }}
+        {{- $managedCharts := default (dict) .Values.managedChartsOverrides }}
+        - name: MANAGED_CHARTS
+          value: {{ tpl ($managedCharts | toJson | quote) . }}
+        resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 8086
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /ready # separate to a readiness check with /ready
+            port: 8086
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        {{- $defaultSecurityContext := dict "runAsNonRoot" true "runAsUser" 10001 "runAsGroup" 10001 "seccompProfile" (dict "type" "RuntimeDefault") "readOnlyRootFilesystem" false "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL")) }}
+        {{- $securityContext := mergeOverwrite (deepCopy $defaultSecurityContext) (default dict .Values.securityContext) }}
+        securityContext:
+          {{- toYaml $securityContext | nindent 10 }}
+      volumes:
+      - name: cache-volume
+        emptyDir:
+          sizeLimit: {{ .Values.cacheVolume.sizeLimit }}

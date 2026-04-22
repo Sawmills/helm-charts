@@ -19,6 +19,20 @@ This repository contains official Helm charts for Sawmills platform services. Th
 
 **Chart Location:** [`helm-charts/sawmills-collector/`](./helm-charts/sawmills-collector/)
 
+### `sawmills-remote-operator-manual`
+
+**Sawmills Remote Operator (Manual Deployments)** - A restricted-permission variant of the remote operator chart for environments where collector changes are applied manually with Helm.
+
+**Key Features:**
+
+* Same operator runtime wiring as the standard remote operator
+* Defaults the operator to `selfManaged=true`
+* RBAC limited to non-Helm runtime paths: deployment status, configmap bookkeeping, and optional autoscaler coordination
+* Preserves processor hot-reload and Live Tail compatibility
+* Compatible with the existing remote-operator values surface
+
+**Chart Location:** [`helm-charts/sawmills-remote-operator-manual/`](./helm-charts/sawmills-remote-operator-manual/)
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -51,6 +65,7 @@ Each chart includes comprehensive configuration options. Refer to the individual
 
 * [Sawmills Collector Configuration](./helm-charts/sawmills-collector/README.md)
 * [Sawmills Collector Examples](./helm-charts/sawmills-collector/examples/)
+* [Sawmills Remote Operator Manual Configuration](./helm-charts/sawmills-remote-operator-manual/README.md)
 
 ## 🤝 Contributing
 
@@ -190,6 +205,7 @@ Any additional context or information.
 ### Chart Documentation
 
 * [Sawmills Collector](./helm-charts/sawmills-collector/README.md)
+* [Sawmills Remote Operator Manual](./helm-charts/sawmills-remote-operator-manual/README.md)
 * [Configuration Examples](./helm-charts/sawmills-collector/examples/)
 
 ### Useful Resources

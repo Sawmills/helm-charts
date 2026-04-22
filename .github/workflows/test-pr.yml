@@ -1,8 +1,7 @@
 name: Lint and test
 
 permissions:
-  id-token: write
-  contents: write
+  contents: read
 
 on:
   pull_request:
@@ -14,6 +13,48 @@ jobs:
   check-codeowners:
     uses: ./.github/workflows/check-codeowners.yml
 
-  helm-test:
+  helm-test-collector:
     name: Helm Chart Tests
     uses: ./.github/workflows/helm-test.yml
+
+  helm-test-remote-operator:
+    name: Helm Chart Tests / Remote Operator
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 3.18.0
+
+      - name: Run Helm lint
+        run: helm lint helm-charts/sawmills-remote-operator
+
+      - name: Run Helm template validation
+        run: helm template test-release helm-charts/sawmills-remote-operator --values helm-charts/sawmills-remote-operator/values.yaml > /dev/null
+
+      - name: Run Helm unit tests
+        run: cd helm-charts/sawmills-remote-operator && ./tests/run-tests.sh
+
+  helm-test-remote-operator-manual:
+    name: Helm Chart Tests / Remote Operator Manual
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 3.18.0
+
+      - name: Run Helm lint
+        run: helm lint helm-charts/sawmills-remote-operator-manual --set apiKey=aaaa
+
+      - name: Run Helm template validation
+        run: helm template test-release helm-charts/sawmills-remote-operator-manual --values helm-charts/sawmills-remote-operator-manual/values.yaml --set apiKey=aaaa --set collectorName=sawmills-collector > /dev/null
+
+      - name: Run Helm unit tests
+        run: cd helm-charts/sawmills-remote-operator-manual && ./tests/run-tests.sh
