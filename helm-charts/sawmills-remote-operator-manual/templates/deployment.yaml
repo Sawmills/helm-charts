@@ -56,7 +56,7 @@ spec:
           value: {{ .Values.grpcTrace }}
         {{ end }}
         - name: OPERATOR_NAME
-          value: {{ tpl .Values.collectorName $ }}/$(POD_NAME)
+          value: {{ tpl .Values.collectorName . }}/$(POD_NAME)
         - name: LEVEL
           value: {{ .Values.logLevel }}
         {{- if .Values.apiKeyExistingSecret }}
@@ -79,11 +79,11 @@ spec:
         {{- $proxy := default dict .Values.proxy }}
         {{- $renderedHttpProxy := "" }}
         {{- if $proxy.http }}
-        {{- $renderedHttpProxy = tpl $proxy.http $ }}
+        {{- $renderedHttpProxy = tpl $proxy.http . }}
         {{- end }}
         {{- $renderedHttpsProxy := "" }}
         {{- if $proxy.https }}
-        {{- $renderedHttpsProxy = tpl $proxy.https $ }}
+        {{- $renderedHttpsProxy = tpl $proxy.https . }}
         {{- end }}
         {{- if and $renderedHttpProxy (regexMatch "^[A-Za-z][A-Za-z0-9+.-]*://[^/@]+(:[^/@]*)?@" $renderedHttpProxy) }}
         {{- fail "proxy.http must not include inline credentials; use proxy.existingSecret instead" }}
@@ -131,10 +131,10 @@ spec:
               fieldPath: metadata.namespace
         {{- $managedChartsValues := default .Values.managedCharts .Values.managedChartsValues }}
         - name: MANAGED_CHARTS_VALUES
-          value: {{ tpl ($managedChartsValues | toJson | quote) $ }}
+          value: {{ tpl ($managedChartsValues | toJson | quote) . }}
         {{- $managedCharts := default (dict) .Values.managedChartsOverrides }}
         - name: MANAGED_CHARTS
-          value: {{ tpl ($managedCharts | toJson | quote) $ }}
+          value: {{ tpl ($managedCharts | toJson | quote) . }}
         {{- $autoscaler := default dict .Values.autoscaler }}
         {{- if and $autoscaler.enabled (ne $autoscaler.globalMinReplicas nil) (ne $autoscaler.globalMaxReplicas nil) (gt (int $autoscaler.globalMinReplicas) (int $autoscaler.globalMaxReplicas)) }}
         {{- fail "autoscaler.globalMinReplicas cannot be greater than autoscaler.globalMaxReplicas when autoscaler.enabled=true" }}
