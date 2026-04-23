@@ -157,16 +157,13 @@ frontend logs_http_frontend_{{ $config.from }}
   {{- end }}
   {{- end }}
   {{- if and $to.metrics_proxy_endpoint (ne $mode "tcp") }}
-  {{- if not $to.metrics_proxy_api_key }}
-  {{- fail (printf "metrics_proxy_api_key is required when metrics_proxy_endpoint is set (port mapping %s)" $name) }}
-  {{- end }}
-  # Metrics proxy: forward unsupported DD metrics endpoints directly to Datadog
+  # Metrics proxy: forward unsupported DD metrics endpoints directly to Datadog.
+  # The DD agent's own DD-API-KEY header passes through transparently (same as fallback).
   # Placed before sibling-hop check so distribution_points/sketches are always proxied,
   # even on sibling-retried requests that would otherwise 405 on the direct backend.
   acl is_distribution_points path_beg /api/v1/distribution_points
   acl is_sketches path_beg /api/v1/sketches
   acl is_beta_sketches path_beg /api/beta/sketches
-  http-request set-header DD-API-KEY {{ $to.metrics_proxy_api_key }} if is_distribution_points or is_sketches or is_beta_sketches
   use_backend datadog_metrics_direct_{{ $config.from }} if is_distribution_points or is_sketches or is_beta_sketches
   {{- end }}
   {{- if $siblingEnabled }}
