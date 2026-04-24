@@ -47,6 +47,10 @@ tests:
       - matchRegex:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[2]
           pattern: "wget.*13137.*/drain.*sleep"
+      - isNotSubset:
+          path: spec.template.spec.containers[1].lifecycle
+          content:
+            "$patch": replace
 
 
   - it: should add backend drain overlay config for load balancer topology
@@ -65,6 +69,21 @@ tests:
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroupruntime\n\s+- backend_drain\n'
+
+  - it: should keep lifecycle patch marker on upgrades for old release compatibility
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    release:
+      upgrade: true
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+    asserts:
+      - isSubset:
+          path: spec.template.spec.containers[1].lifecycle
+          content:
+            "$patch": replace
 
   - it: should keep existing main collector health wiring when load balancer topology is disabled
     template: deployment.yaml
@@ -85,6 +104,10 @@ tests:
       - equal:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
           value: "15"
+      - isNotSubset:
+          path: spec.template.spec.containers[1].lifecycle
+          content:
+            "$patch": replace
 
   - it: should fall back to sleep-based prestop when drain is disabled in load balancer topology
     template: deployment.yaml
@@ -106,6 +129,10 @@ tests:
       - equal:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
           value: "15"
+      - isNotSubset:
+          path: spec.template.spec.containers[1].lifecycle
+          content:
+            "$patch": replace
 
   - it: should still add the backend drain overlay when main collector config comes from s3
     template: deployment.yaml
