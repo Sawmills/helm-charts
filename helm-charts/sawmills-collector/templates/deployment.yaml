@@ -322,15 +322,14 @@ spec:
           {{- end }}
           {{- if $mainCollectorDrainEnabled }}
           lifecycle:
-            $patch: replace
             preStop:
-              httpGet:
-                path: {{ .Values.rollout.main.drain.drainPath }}
-                port: {{ .Values.rollout.main.drain.port }}
-                scheme: HTTP
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - "wget -q -O /dev/null http://${MY_POD_IP}:{{ .Values.rollout.main.drain.port }}{{ .Values.rollout.main.drain.drainPath }} 2>/dev/null || true; /bin/sleep {{ .Values.rollout.main.preStopSleepSeconds }}"
           {{- else if .Values.rollout.main.preStopSleepSeconds }}
           lifecycle:
-            $patch: replace
             preStop:
               exec:
                 command:

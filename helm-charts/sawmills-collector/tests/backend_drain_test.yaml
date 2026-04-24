@@ -39,14 +39,15 @@ tests:
           path: spec.template.spec.containers[1].startupProbe.httpGet.path
           value: /healthcheck
       - equal:
-          path: spec.template.spec.containers[1].lifecycle.preStop.httpGet.port
-          value: 13137
+          path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[0]
+          value: /bin/sh
       - equal:
-          path: spec.template.spec.containers[1].lifecycle.preStop.httpGet.path
-          value: /drain
-      - equal:
-          path: spec.template.spec.containers[1].lifecycle.preStop.httpGet.scheme
-          value: HTTP
+          path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
+          value: -c
+      - matchRegex:
+          path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[2]
+          pattern: "wget.*13137.*/drain.*sleep"
+
 
   - it: should add backend drain overlay config for load balancer topology
     template: backend-drain-configmap.yaml
