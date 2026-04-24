@@ -25,6 +25,8 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
           value: /healthcheck
+      - notExists:
+          path: spec.template.spec.containers[0].lifecycle.$patch
 
   - it: should pin haproxy to numeric non-root user in deployment mode
     template: deployment.yaml
@@ -156,6 +158,10 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
           value: /healthcheck
+      - notExists:
+          path: spec.template.spec.containers[0].lifecycle.$patch
+      - notExists:
+          path: spec.template.spec.containers[1].lifecycle.$patch
 
   - it: should pin haproxy to numeric non-root user in load balancer mode
     template: load-balancer.yaml
@@ -205,6 +211,8 @@ tests:
       - equal:
           path: spec.template.spec.initContainers[0].securityContext.runAsGroup
           value: 99
+      - notExists:
+          path: spec.template.spec.initContainers[0].lifecycle.$patch
 
   - it: should fail template rendering on invalid haproxy probe type
     template: deployment.yaml

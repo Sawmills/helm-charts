@@ -47,6 +47,8 @@ tests:
       - matchRegex:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[2]
           pattern: "wget.*13137.*/drain.*sleep"
+      - notExists:
+          path: spec.template.spec.containers[1].lifecycle.$patch
 
 
   - it: should add backend drain overlay config for load balancer topology
@@ -85,6 +87,8 @@ tests:
       - equal:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
           value: "15"
+      - notExists:
+          path: spec.template.spec.containers[1].lifecycle.$patch
 
   - it: should fall back to sleep-based prestop when drain is disabled in load balancer topology
     template: deployment.yaml
@@ -106,6 +110,8 @@ tests:
       - equal:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
           value: "15"
+      - notExists:
+          path: spec.template.spec.containers[1].lifecycle.$patch
 
   - it: should still add the backend drain overlay when main collector config comes from s3
     template: deployment.yaml
