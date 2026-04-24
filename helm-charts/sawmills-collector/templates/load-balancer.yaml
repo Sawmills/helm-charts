@@ -192,6 +192,7 @@ spec:
           {{- end }}
           {{- if .Values.rollout.loadBalancer.preStopSleepSeconds }}
           lifecycle:
+            $patch: replace
             preStop:
               exec:
                 command:
