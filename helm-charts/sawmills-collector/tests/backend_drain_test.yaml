@@ -46,7 +46,7 @@ tests:
           value: -c
       - matchRegex:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[2]
-          pattern: "curl.*13137.*/drain.*sleep"
+          pattern: "wget.*13137.*/drain.*sleep"
 
 
   - it: should add backend drain overlay config for load balancer topology
