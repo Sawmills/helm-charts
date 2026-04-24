@@ -322,6 +322,7 @@ spec:
           {{- end }}
           {{- if $mainCollectorDrainEnabled }}
           lifecycle:
+            $patch: replace
             preStop:
               httpGet:
                 path: {{ .Values.rollout.main.drain.drainPath }}
@@ -329,6 +330,7 @@ spec:
                 scheme: HTTP
           {{- else if .Values.rollout.main.preStopSleepSeconds }}
           lifecycle:
+            $patch: replace
             preStop:
               exec:
                 command:
