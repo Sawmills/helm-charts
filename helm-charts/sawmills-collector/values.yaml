@@ -602,6 +602,10 @@ otelCollectorConfig: {}
 haproxy:
   enabled: false
   image: public.ecr.aws/docker/library/haproxy:3.1.15
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 99
+    runAsGroup: 99
   max_connections: 60000
   # Probe configuration for HAProxy sidecar container.
   # type: "http" (default) or "tcp"

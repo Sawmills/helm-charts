@@ -26,6 +26,62 @@ tests:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
           value: /healthcheck
 
+  - it: should pin haproxy to numeric non-root user in deployment mode
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.mapping.http_4318.from: 4318
+      haproxy.mapping.http_4318.to.port: 4318
+      haproxy.mapping.http_4318.to.protocol: "TCP"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: haproxy
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 99
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsGroup
+          value: 99
+
+  - it: should allow overriding haproxy security context for custom images
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.mapping.http_4318.from: 4318
+      haproxy.mapping.http_4318.to.port: 4318
+      haproxy.mapping.http_4318.to.protocol: "TCP"
+      haproxy.securityContext.runAsUser: 1234
+      haproxy.securityContext.runAsGroup: 1234
+      haproxy.securityContext.allowPrivilegeEscalation: false
+      haproxy.securityContext.readOnlyRootFilesystem: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: haproxy
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 1234
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsGroup
+          value: 1234
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
   - it: should render tcp probes for haproxy in deployment mode when configured
     template: deployment.yaml
     values:
@@ -100,6 +156,55 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
           value: /healthcheck
+
+  - it: should pin haproxy to numeric non-root user in load balancer mode
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: haproxy
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 99
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsGroup
+          value: 99
+
+  - it: should pin native sidecar haproxy to numeric non-root user in load balancer mode
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.nativeSidecar: "true"
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: haproxy
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsUser
+          value: 99
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsGroup
+          value: 99
 
   - it: should fail template rendering on invalid haproxy probe type
     template: deployment.yaml
