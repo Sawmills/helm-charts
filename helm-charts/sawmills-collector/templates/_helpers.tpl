@@ -512,6 +512,10 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
 {{- end -}}
 - name: haproxy
   image: {{ $root.Values.haproxy.image }}
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 99
+    runAsGroup: 99
   {{- if $nativeSidecar }}
   restartPolicy: Always
   {{- end }}

@@ -232,6 +232,8 @@ haproxy:
     auth: "admin:admin"
 ```
 
+The HAProxy container is pinned to numeric UID/GID `99` with `runAsNonRoot` so clusters enforcing non-root pod security can verify the official HAProxy image user.
+
 #### Per-Port TLS Termination
 
 Enable TLS termination for specific HAProxy port mappings. When TLS is enabled on any port, the service switches to LoadBalancer type with AWS internal annotations.
