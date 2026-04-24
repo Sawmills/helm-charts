@@ -555,6 +555,7 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
     periodSeconds: {{ $root.Values.rollout.haproxy.probes.readiness.periodSeconds }}
   {{- if $nativeSidecar }}
   lifecycle:
+    $patch: replace
     preStop:
       exec:
         command:
@@ -563,6 +564,7 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
           - "kill -USR1 1 2>/dev/null || true"
   {{- else }}
   lifecycle:
+    $patch: replace
     preStop:
       exec:
         command:
