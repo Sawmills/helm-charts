@@ -203,6 +203,10 @@ Enable HAProxy for advanced load balancing:
 haproxy:
   enabled: true
   image: public.ecr.aws/docker/library/haproxy:3.1
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 99
+    runAsGroup: 99
   max_connections: 60000
   error_limit: 3
   probes:
@@ -232,7 +236,7 @@ haproxy:
     auth: "admin:admin"
 ```
 
-The HAProxy container is pinned to numeric UID/GID `99` with `runAsNonRoot` so clusters enforcing non-root pod security can verify the official HAProxy image user.
+The HAProxy container defaults to numeric UID/GID `99` with `runAsNonRoot` so clusters enforcing non-root pod security can verify the official HAProxy image user. Override `haproxy.securityContext` when using a custom HAProxy image that requires a different numeric user or additional container hardening fields.
 
 #### Per-Port TLS Termination
 

@@ -504,6 +504,8 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
 {{- $readinessType := (dig "probes" "readiness" "type" "http" $root.Values.haproxy) | toString | lower -}}
 {{- $readinessPort := dig "probes" "readiness" "port" 13135 $root.Values.haproxy -}}
 {{- $readinessPath := dig "probes" "readiness" "path" "/healthcheck" $root.Values.haproxy -}}
+{{- $defaultSecurityContext := dict "runAsNonRoot" true "runAsUser" 99 "runAsGroup" 99 -}}
+{{- $securityContext := mergeOverwrite (deepCopy $defaultSecurityContext) (default dict $root.Values.haproxy.securityContext) -}}
 {{- if not (or (eq $livenessType "http") (eq $livenessType "tcp")) -}}
 {{- fail (printf "haproxy.probes.liveness.type must be one of [http, tcp], got %q" $livenessType) -}}
 {{- end -}}
@@ -513,9 +515,7 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
 - name: haproxy
   image: {{ $root.Values.haproxy.image }}
   securityContext:
-    runAsNonRoot: true
-    runAsUser: 99
-    runAsGroup: 99
+    {{- toYaml $securityContext | nindent 4 }}
   {{- if $nativeSidecar }}
   restartPolicy: Always
   {{- end }}
