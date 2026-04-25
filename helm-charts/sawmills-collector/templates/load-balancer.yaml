@@ -3,6 +3,7 @@
 {{- $lbTelemetryOtelConfig := default (dict) .Values.loadBalancer.telemetryOtelConfig }}
 {{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
 {{- $lbTelemetryOtelEncryptionKey := default "" $lbTelemetryOtelConfig.encryptionKey }}
+{{- $lbStartupProbe := .Values.rollout.loadBalancer.probes.startup | default dict }}
 apiVersion: apps/v1
 {{- if .Values.loadBalancer.storage.enabled }}
 kind: StatefulSet
@@ -184,14 +185,14 @@ spec:
               {{- end }}
             initialDelaySeconds: {{ .Values.rollout.loadBalancer.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.loadBalancer.probes.readiness.periodSeconds }}
-          {{- if .Values.rollout.loadBalancer.probes.startup.enabled }}
+          {{- if ($lbStartupProbe.enabled | default false) }}
           startupProbe:
             httpGet:
               path: /healthcheck
               port: 13133
-            initialDelaySeconds: {{ default 0 .Values.rollout.loadBalancer.probes.startup.initialDelaySeconds }}
-            periodSeconds: {{ .Values.rollout.loadBalancer.probes.startup.periodSeconds }}
-            failureThreshold: {{ .Values.rollout.loadBalancer.probes.startup.failureThreshold }}
+            initialDelaySeconds: {{ default 0 $lbStartupProbe.initialDelaySeconds }}
+            periodSeconds: {{ default 5 $lbStartupProbe.periodSeconds }}
+            failureThreshold: {{ default 12 $lbStartupProbe.failureThreshold }}
           {{- end }}
           {{- if .Values.rollout.loadBalancer.preStopSleepSeconds }}
           lifecycle:

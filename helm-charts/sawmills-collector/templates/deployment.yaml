@@ -1,13 +1,17 @@
-{{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled .Values.rollout.main.drain.enabled }}
+{{- $mainDrain := .Values.rollout.main.drain | default dict }}
+{{- $mainStartupProbe := .Values.rollout.main.probes.startup | default dict }}
+{{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) }}
 {{- $telemetryOtelConfig := default (dict) .Values.telemetryOtelConfig }}
 {{- $telemetryOtelS3Path := default "" $telemetryOtelConfig.s3path }}
 {{- $telemetryOtelEncryptionKey := default "" $telemetryOtelConfig.encryptionKey }}
 {{- if $mainCollectorDrainEnabled }}
-{{- $drainDurationMs := include "sawmills-collector.durationToMilliseconds" .Values.rollout.main.drain.duration | atoi }}
-{{- $shutdownReserveMs := include "sawmills-collector.durationToMilliseconds" .Values.rollout.main.drain.shutdownReserve | atoi }}
+{{- $drainDuration := default "15s" $mainDrain.duration }}
+{{- $shutdownReserve := default "10s" $mainDrain.shutdownReserve }}
+{{- $drainDurationMs := include "sawmills-collector.durationToMilliseconds" $drainDuration | atoi }}
+{{- $shutdownReserveMs := include "sawmills-collector.durationToMilliseconds" $shutdownReserve | atoi }}
 {{- $terminationGracePeriodMs := mul (int .Values.rollout.terminationGracePeriodSeconds) 1000 }}
 {{- if ge (add $drainDurationMs $shutdownReserveMs) $terminationGracePeriodMs }}
-{{- fail (printf "rollout.main.drain.duration (%s) plus rollout.main.drain.shutdownReserve (%s) must be less than rollout.terminationGracePeriodSeconds (%ds)" .Values.rollout.main.drain.duration .Values.rollout.main.drain.shutdownReserve (int .Values.rollout.terminationGracePeriodSeconds)) }}
+{{- fail (printf "rollout.main.drain.duration (%s) plus rollout.main.drain.shutdownReserve (%s) must be less than rollout.terminationGracePeriodSeconds (%ds)" $drainDuration $shutdownReserve (int .Values.rollout.terminationGracePeriodSeconds)) }}
 {{- end }}
 {{- end }}
 {{- if eq .Values.mode "daemonSet" }}
@@ -314,14 +318,14 @@ spec:
               {{- end }}
             initialDelaySeconds: {{ .Values.rollout.main.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.main.probes.readiness.periodSeconds }}
-          {{- if .Values.rollout.main.probes.startup.enabled }}
+          {{- if ($mainStartupProbe.enabled | default false) }}
           startupProbe:
             httpGet:
               path: /healthcheck
               port: 13133
-            initialDelaySeconds: {{ default 0 .Values.rollout.main.probes.startup.initialDelaySeconds }}
-            periodSeconds: {{ .Values.rollout.main.probes.startup.periodSeconds }}
-            failureThreshold: {{ .Values.rollout.main.probes.startup.failureThreshold }}
+            initialDelaySeconds: {{ default 0 $mainStartupProbe.initialDelaySeconds }}
+            periodSeconds: {{ default 5 $mainStartupProbe.periodSeconds }}
+            failureThreshold: {{ default 12 $mainStartupProbe.failureThreshold }}
           {{- end }}
           {{- if $mainCollectorDrainEnabled }}
           lifecycle:

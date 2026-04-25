@@ -1,0 +1,76 @@
+suite: Legacy Reuse Values Compatibility
+templates:
+  - templates/backend-drain-configmap.yaml
+  - templates/deployment.yaml
+  - templates/load-balancer.yaml
+  - templates/poddisruptionbudget.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: renders when reused release values omit top-level podDisruptionBudget
+    template: templates/poddisruptionbudget.yaml
+    set:
+      mode: deployment
+      podDisruptionBudget: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders when reused release values omit loadBalancer podDisruptionBudget
+    template: templates/poddisruptionbudget.yaml
+    set:
+      mode: deployment
+      podDisruptionBudget:
+        enabled: false
+      loadBalancer:
+        enabled: true
+        podDisruptionBudget: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders main collector when reused release values omit main startup probe and drain blocks
+    template: templates/deployment.yaml
+    set:
+      loadBalancer:
+        enabled: false
+      rollout:
+        main:
+          probes:
+            startup: null
+          drain: null
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+
+  - it: renders load balancer when reused release values omit load balancer startup probe and main drain blocks
+    template: templates/load-balancer.yaml
+    set:
+      loadBalancer:
+        enabled: true
+        telemetryOtelConfig: null
+      rollout:
+        main:
+          drain: null
+        loadBalancer:
+          probes:
+            startup: null
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+
+  - it: skips backend drain config when reused release values omit main drain block
+    template: templates/backend-drain-configmap.yaml
+    set:
+      loadBalancer:
+        enabled: true
+      rollout:
+        main:
+          drain: null
+    asserts:
+      - hasDocuments:
+          count: 0

@@ -1,4 +1,5 @@
-{{- if and .Values.podDisruptionBudget.enabled (eq .Values.mode "deployment") }}
+{{- $pdb := .Values.podDisruptionBudget | default dict }}
+{{- if and ($pdb.enabled | default false) (eq .Values.mode "deployment") }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -10,7 +11,6 @@ spec:
   selector:
     matchLabels:
       {{- include "sawmills-collector.selectorLabels" . | nindent 6 }}
-  {{- $pdb := .Values.podDisruptionBudget }}
   {{- if and $pdb (hasKey $pdb "minAvailable") (not (kindIs "invalid" $pdb.minAvailable)) }}
   minAvailable: {{ $pdb.minAvailable }}
   {{- else if and $pdb (hasKey $pdb "maxUnavailable") (not (kindIs "invalid" $pdb.maxUnavailable)) }}
@@ -20,7 +20,8 @@ spec:
   {{- end }}
 {{- end }}
 ---
-{{- if and .Values.loadBalancer.enabled .Values.loadBalancer.podDisruptionBudget.enabled }}
+{{- $lbPdb := .Values.loadBalancer.podDisruptionBudget | default dict }}
+{{- if and .Values.loadBalancer.enabled ($lbPdb.enabled | default false) }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -32,7 +33,6 @@ spec:
   selector:
     matchLabels:
       {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 6 }}
-  {{- $lbPdb := .Values.loadBalancer.podDisruptionBudget }}
   {{- if and $lbPdb (hasKey $lbPdb "minAvailable") (not (kindIs "invalid" $lbPdb.minAvailable)) }}
   minAvailable: {{ $lbPdb.minAvailable }}
   {{- else if and $lbPdb (hasKey $lbPdb "maxUnavailable") (not (kindIs "invalid" $lbPdb.maxUnavailable)) }}
