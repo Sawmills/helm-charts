@@ -179,6 +179,17 @@ keda:
   maxReplicas: 100
   pollingInterval: 30
   cooldownPeriod: 0
+  annotations: {}
+  # For non-Helm-owned HPA ownership transfer:
+  # annotations:
+  #   scaledobject.keda.sh/transfer-hpa-ownership: "true"
+  # advanced:
+  #   horizontalPodAutoscalerConfig:
+  #     name: <existing-hpa-name>
+  #
+  # For Helm-managed HPAs from this chart, use a two-step migration:
+  # 1. Upgrade with autoscaling.enabled=false and keda.enabled=false to prune the standard HPA.
+  # 2. Upgrade with keda.enabled=true after the standard HPA has been removed.
   scaling:
     cpu:
       enabled: true
@@ -193,6 +204,22 @@ keda:
         serverAddress: http://prometheus:9090
         query: sum(rate(http_requests_total[2m]))
         threshold: "100.50"
+    external:
+      enabled: false
+      metricType: Value
+      loadBalancerMetricType: AverageValue
+      metadata:
+        scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
+        query: >-
+          quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_request_duration_bucket[10m])) by (le, method, instance)))) * 1000 > 6000
+          or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_request_duration_bucket[10m])) by (le, method, instance)))) * 1000 < 3500
+          or vector(5000)
+        targetValue: "5000"
+      loadBalancerMetadata:
+        scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
+        # targetValue is queued LB batches per desired collector pod.
+        query: sum(otelcol_exporter_queue_size{exporter=~"loadbalancing/collector-loadbalancer.*"})
+        targetValue: "300"
 ```
 
 ### HAProxy Load Balancing

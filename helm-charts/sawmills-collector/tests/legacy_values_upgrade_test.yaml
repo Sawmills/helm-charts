@@ -1,0 +1,21 @@
+suite: Legacy Values Upgrade Compatibility
+templates:
+  - templates/deployment.yaml
+  - templates/load-balancer.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: renders when reused release values omit telemetryOtelConfig blocks
+    set:
+      telemetryOtelConfig: null
+      loadBalancer:
+        enabled: true
+        telemetryOtelConfig: null
+        otelConfig:
+          s3path: s3://example/config
+          encryptionKey: test-key
+      kedaScaler:
+        enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
