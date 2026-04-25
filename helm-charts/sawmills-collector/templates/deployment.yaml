@@ -1,4 +1,7 @@
 {{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled .Values.rollout.main.drain.enabled }}
+{{- $telemetryOtelConfig := default (dict) .Values.telemetryOtelConfig }}
+{{- $telemetryOtelS3Path := default "" $telemetryOtelConfig.s3path }}
+{{- $telemetryOtelEncryptionKey := default "" $telemetryOtelConfig.encryptionKey }}
 {{- if $mainCollectorDrainEnabled }}
 {{- $drainDurationMs := include "sawmills-collector.durationToMilliseconds" .Values.rollout.main.drain.duration | atoi }}
 {{- $shutdownReserveMs := include "sawmills-collector.durationToMilliseconds" .Values.rollout.main.drain.shutdownReserve | atoi }}
@@ -147,10 +150,10 @@ spec:
                 - ALL
           image: {{ .Values.image.repository }}:{{ default "dev" .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if or .Values.telemetryOtelConfig.s3path .Values.kedaScaler.enabled }}
+          {{- if or $telemetryOtelS3Path .Values.kedaScaler.enabled }}
           args:
-            {{- if .Values.telemetryOtelConfig.s3path }}
-            - "--config={{ .Values.telemetryOtelConfig.s3path }}{{- if .Values.telemetryOtelConfig.encryptionKey }}@{{ .Values.telemetryOtelConfig.encryptionKey }}{{- end }}"
+            {{- if $telemetryOtelS3Path }}
+            - "--config={{ $telemetryOtelS3Path }}{{- if $telemetryOtelEncryptionKey }}@{{ $telemetryOtelEncryptionKey }}{{- end }}"
             {{- else }}
             - "--config=file:/etc/otel/config.yaml"
             {{- end }}

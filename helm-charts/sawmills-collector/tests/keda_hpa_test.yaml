@@ -82,6 +82,33 @@ tests:
           path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown.policies[1].periodSeconds
           value: 60
 
+  - it: renders KEDA HPA ownership transfer settings
+    set:
+      loadBalancer:
+        enabled: true
+      keda:
+        enabled: true
+        annotations:
+          scaledobject.keda.sh/transfer-hpa-ownership: "true"
+        advanced:
+          horizontalPodAutoscalerConfig:
+            name: sawmills-collector
+        scaling:
+          external:
+            enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.annotations["scaledobject.keda.sh/transfer-hpa-ownership"]
+          value: "true"
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.name
+          value: sawmills-collector
+      - equal:
+          path: spec.triggers[0].metricType
+          value: AverageValue
+
   - it: keeps non-LB external latency scaler on Value
     set:
       loadBalancer:

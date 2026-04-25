@@ -7,6 +7,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     helm.sh/revision: {{ .Release.Revision | quote }}
+    {{- with .Values.keda.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   labels:
     {{- include "sawmills-collector.labels" . | nindent 4 }}
 spec:
@@ -22,9 +25,12 @@ spec:
   advanced:
     {{- with .horizontalPodAutoscalerConfig }}
     horizontalPodAutoscalerConfig:
+      {{- with .name }}
+      name: {{ . | quote }}
+      {{- end }}
       {{- with .behavior }}
       behavior:
-        {{ toYaml . | nindent 12 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
     {{- end }}
   {{- end }}

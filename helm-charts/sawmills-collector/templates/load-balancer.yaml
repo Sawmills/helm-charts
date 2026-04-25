@@ -1,5 +1,8 @@
 {{- if .Values.loadBalancer.enabled }}
 {{- include "sawmills-collector.validateLoadBalancerQueueCompression" . }}
+{{- $lbTelemetryOtelConfig := default (dict) .Values.loadBalancer.telemetryOtelConfig }}
+{{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
+{{- $lbTelemetryOtelEncryptionKey := default "" $lbTelemetryOtelConfig.encryptionKey }}
 apiVersion: apps/v1
 {{- if .Values.loadBalancer.storage.enabled }}
 kind: StatefulSet
@@ -233,10 +236,10 @@ spec:
                 - ALL
           image: {{ .Values.image.repository }}:{{ default "dev" .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if or .Values.loadBalancer.telemetryOtelConfig.s3path .Values.kedaScaler.enabled }}
+          {{- if or $lbTelemetryOtelS3Path .Values.kedaScaler.enabled }}
           args:
-            {{- if .Values.loadBalancer.telemetryOtelConfig.s3path }}
-            - "--config={{ .Values.loadBalancer.telemetryOtelConfig.s3path }}{{- if .Values.loadBalancer.telemetryOtelConfig.encryptionKey }}@{{ .Values.loadBalancer.telemetryOtelConfig.encryptionKey }}{{- end }}"
+            {{- if $lbTelemetryOtelS3Path }}
+            - "--config={{ $lbTelemetryOtelS3Path }}{{- if $lbTelemetryOtelEncryptionKey }}@{{ $lbTelemetryOtelEncryptionKey }}{{- end }}"
             {{- else }}
             - "--config=file:/etc/otel/config.yaml"
             {{- end }}

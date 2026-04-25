@@ -179,6 +179,13 @@ keda:
   maxReplicas: 100
   pollingInterval: 30
   cooldownPeriod: 0
+  annotations: {}
+  # For migrating an existing HPA to KEDA without admission conflicts:
+  # annotations:
+  #   scaledobject.keda.sh/transfer-hpa-ownership: "true"
+  # advanced:
+  #   horizontalPodAutoscalerConfig:
+  #     name: sawmills-collector
   scaling:
     cpu:
       enabled: true

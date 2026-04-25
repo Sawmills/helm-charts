@@ -1,0 +1,30 @@
+suite: Main HPA Tests
+templates:
+  - templates/hpa.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: renders the standard HPA when autoscaling is enabled and KEDA is disabled
+    set:
+      autoscaling:
+        enabled: true
+      keda:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: RELEASE-NAME
+
+  - it: does not render the standard HPA when KEDA is enabled
+    set:
+      autoscaling:
+        enabled: true
+      keda:
+        enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0

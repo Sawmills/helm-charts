@@ -338,6 +338,10 @@ keda:
   maxReplicas: 100
   pollingInterval: 30
   cooldownPeriod: 0
+  # Optional annotations for the KEDA ScaledObject.
+  # For HPA -> KEDA migrations, set:
+  #   scaledobject.keda.sh/transfer-hpa-ownership: "true"
+  annotations: {}
   # Advanced HPA configuration for KEDA (optional)
   # This block allows you to specify advanced HorizontalPodAutoscaler behavior,
   # such as custom scaleUp/scaleDown policies and stabilization windows.
@@ -345,6 +349,9 @@ keda:
   # Example:
   advanced:
     horizontalPodAutoscalerConfig:
+      # Set this to an existing HPA name when using
+      # scaledobject.keda.sh/transfer-hpa-ownership.
+      name: ""
       behavior:
         scaleDown:
           stabilizationWindowSeconds: 300
