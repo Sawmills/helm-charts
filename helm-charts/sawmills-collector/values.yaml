@@ -339,7 +339,7 @@ keda:
   pollingInterval: 30
   cooldownPeriod: 0
   # Optional annotations for the KEDA ScaledObject.
-  # For HPA -> KEDA migrations, set:
+  # For non-Helm-owned HPA -> KEDA ownership transfers, set:
   #   scaledobject.keda.sh/transfer-hpa-ownership: "true"
   annotations: {}
   # Advanced HPA configuration for KEDA (optional)
@@ -349,7 +349,7 @@ keda:
   # Example:
   advanced:
     horizontalPodAutoscalerConfig:
-      # Set this to an existing HPA name when using
+      # Set this to an existing non-Helm-owned HPA name when using
       # scaledobject.keda.sh/transfer-hpa-ownership.
       name: ""
       behavior:

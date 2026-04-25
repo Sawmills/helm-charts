@@ -180,12 +180,16 @@ keda:
   pollingInterval: 30
   cooldownPeriod: 0
   annotations: {}
-  # For migrating an existing HPA to KEDA without admission conflicts:
+  # For non-Helm-owned HPA ownership transfer:
   # annotations:
   #   scaledobject.keda.sh/transfer-hpa-ownership: "true"
   # advanced:
   #   horizontalPodAutoscalerConfig:
   #     name: <existing-hpa-name>
+  #
+  # For Helm-managed HPAs from this chart, use a two-step migration:
+  # 1. Upgrade with autoscaling.enabled=false and keda.enabled=false to prune the standard HPA.
+  # 2. Upgrade with keda.enabled=true after the standard HPA has been removed.
   scaling:
     cpu:
       enabled: true
