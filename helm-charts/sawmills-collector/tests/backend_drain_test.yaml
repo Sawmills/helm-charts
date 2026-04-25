@@ -113,6 +113,8 @@ tests:
     template: deployment.yaml
     values:
       - ../values.yaml
+    release:
+      upgrade: true
     set:
       loadBalancer.enabled: true
       rollout.main.drain.enabled: false
