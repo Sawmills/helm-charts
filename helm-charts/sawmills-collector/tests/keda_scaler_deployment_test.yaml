@@ -4,7 +4,7 @@ templates:
 values:
   - ../values.yaml
 tests:
-  - it: defaults to 2 replicas with maxUnavailable=0 to keep the service endpointed during chart rollouts
+  - it: defaults to 1 replica and uses maxUnavailable=0 during rolling updates
     set:
       kedaScaler:
         enabled: true
@@ -15,7 +15,7 @@ tests:
           of: Deployment
       - equal:
           path: spec.replicas
-          value: 2
+          value: 1
       - equal:
           path: spec.strategy.type
           value: RollingUpdate
@@ -25,6 +25,10 @@ tests:
       - equal:
           path: spec.strategy.rollingUpdate.maxSurge
           value: 1
+      - exists:
+          path: spec.template.metadata.annotations["checksum/keda-scaler-config"]
+      - notExists:
+          path: spec.template.metadata.labels["helm.sh/chart"]
 
   - it: honors an explicit kedaScaler.replicas override
     set:

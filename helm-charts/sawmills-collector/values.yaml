@@ -1042,11 +1042,8 @@ kedaScaler:
   enabled: false
   imagePullPolicy: Always
   podSecurityContext: {}
-  # Number of keda-scaler replicas. Two replicas with maxUnavailable=0 keeps
-  # at least one endpoint behind the keda-otel-scaler Service during rolling
-  # chart upgrades, so collector telemetry pods never see a transient empty
-  # endpoint set during an upgrade.
-  replicas: 2
+  # Number of keda-scaler replicas.
+  replicas: 1
   probes:
     liveness:
       initialDelaySeconds: 5

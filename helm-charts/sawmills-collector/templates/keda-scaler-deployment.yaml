@@ -8,7 +8,7 @@ metadata:
   labels:
     {{- include "sawmills-collector.labels" . | nindent 4 }}
 spec:
-  replicas: {{ default 2 .Values.kedaScaler.replicas }}
+  replicas: {{ default 1 .Values.kedaScaler.replicas }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -21,13 +21,18 @@ spec:
       {{- toYaml $selectorLabels | nindent 6 }}
   template:
     metadata:
-    {{- with .Values.podAnnotations }}
       annotations:
-      {{- toYaml . | nindent 8 }}
-    {{- end }}
+        checksum/keda-scaler-config: {{ toYaml .Values.kedaScaler.config | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
-        {{- $podLabels := include "sawmills-collector.labels" . | fromYaml }}
+        {{- $podLabels := include "sawmills-collector.selectorLabels" . | fromYaml }}
         {{- $podResult := set $podLabels "app.kubernetes.io/name" $deploymentName }}
+        {{- if .Values.image.tag }}
+        {{- $versionResult := set $podLabels "app.kubernetes.io/version" .Values.image.tag }}
+        {{- end }}
+        {{- $managedByResult := set $podLabels "app.kubernetes.io/managed-by" .Release.Service }}
         {{- toYaml $podLabels | nindent 8 }}
     spec:
       serviceAccountName: {{ include "sawmills-collector.serviceAccountName" . }}
