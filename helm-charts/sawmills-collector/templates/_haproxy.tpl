@@ -1,4 +1,5 @@
 {{- define "sawmills-collector.haproxy.config" -}}
+{{- $refusalFastFail := .Values.haproxy.refusal_fast_fail | default dict -}}
 
 global
 {{- with .Values.haproxy.global }}
@@ -175,7 +176,7 @@ frontend logs_http_frontend_{{ $config.from }}
 
 backend logs_http_{{ $config.from }}
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
-  {{- if and $.Values.haproxy.refusal_fast_fail.enabled $siblingEnabled (ne $mode "tcp") }}
+  {{- if and ($refusalFastFail.enabled | default false) $siblingEnabled (ne $mode "tcp") }}
   retry-on 503
   {{- end }}
   {{- range $option := $config.backend_options }}
@@ -200,9 +201,9 @@ backend logs_http_{{ $config.from }}
   {{- $errorLimit := $.Values.haproxy.error_limit }}
   {{- $slowstart := "" }}
   {{- $externalFallbackEnabled := eq (include "sawmills-collector.externalFallbackEnabled" $) "true" }}
-  {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
-  {{- $errorLimit = ($.Values.haproxy.refusal_fast_fail.error_limit | default 20) }}
-  {{- $slowstart = ($.Values.haproxy.refusal_fast_fail.slowstart | default "") }}
+  {{- if and ($refusalFastFail.enabled | default false) (ne $mode "tcp") }}
+  {{- $errorLimit = ($refusalFastFail.error_limit | default 20) }}
+  {{- $slowstart = ($refusalFastFail.slowstart | default "") }}
   {{- end }}
   {{- if $siblingEnabled }}
   # Tag request as sibling-forwarded before sending to sibling tier
@@ -263,9 +264,9 @@ backend logs_http_{{ $config.from }}_direct
   {{- $directErrorLimit := $.Values.haproxy.error_limit }}
   {{- $directSlowstart := "" }}
   {{- $externalFallbackEnabled := eq (include "sawmills-collector.externalFallbackEnabled" $) "true" }}
-  {{- if and $.Values.haproxy.refusal_fast_fail.enabled (ne $mode "tcp") }}
-  {{- $directErrorLimit = ($.Values.haproxy.refusal_fast_fail.error_limit | default 20) }}
-  {{- $directSlowstart = ($.Values.haproxy.refusal_fast_fail.slowstart | default "") }}
+  {{- if and ($refusalFastFail.enabled | default false) (ne $mode "tcp") }}
+  {{- $directErrorLimit = ($refusalFastFail.error_limit | default 20) }}
+  {{- $directSlowstart = ($refusalFastFail.slowstart | default "") }}
   {{- end }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $directErrorLimit }} on-error mark-down{{ if ne $directSlowstart "" }} slowstart {{ $directSlowstart }}{{ end }}
   {{- if $externalFallbackEnabled }}

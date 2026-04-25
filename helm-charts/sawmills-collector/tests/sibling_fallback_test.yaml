@@ -567,6 +567,22 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "retry-on 503"
 
+  - it: should render when reused release values omit refusal_fast_fail
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.refusal_fast_fail: null
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318"
+
   - it: should NOT include slowstart by default
     template: haproxy-configmap.yaml
     set:
