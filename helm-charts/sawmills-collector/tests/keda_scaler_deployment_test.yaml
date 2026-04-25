@@ -1,0 +1,45 @@
+suite: KEDA Scaler Deployment Tests
+templates:
+  - templates/keda-scaler-deployment.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: defaults to 2 replicas with maxUnavailable=0 to keep the service endpointed during chart rollouts
+    set:
+      kedaScaler:
+        enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 1
+
+  - it: honors an explicit kedaScaler.replicas override
+    set:
+      kedaScaler:
+        enabled: true
+        replicas: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: does not render when kedaScaler is disabled
+    set:
+      kedaScaler:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
