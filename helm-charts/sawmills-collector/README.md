@@ -185,7 +185,7 @@ keda:
   #   scaledobject.keda.sh/transfer-hpa-ownership: "true"
   # advanced:
   #   horizontalPodAutoscalerConfig:
-  #     name: sawmills-collector
+  #     name: <existing-hpa-name>
   scaling:
     cpu:
       enabled: true
