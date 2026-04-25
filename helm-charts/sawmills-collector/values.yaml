@@ -1044,6 +1044,10 @@ kedaScaler:
   podSecurityContext: {}
   # Number of keda-scaler replicas.
   replicas: 1
+  # Optional keda-scaler-specific affinity override. When replicas > 1 and
+  # this is not set, the chart adds required hostname anti-affinity matching
+  # the rendered keda-scaler pod labels.
+  # affinity: {}
   probes:
     liveness:
       initialDelaySeconds: 5

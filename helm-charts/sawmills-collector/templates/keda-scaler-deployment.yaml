@@ -1,5 +1,6 @@
 {{- if .Values.kedaScaler.enabled }}
 {{- $deploymentName := printf "%s-keda-otel-scaler" (include "sawmills-collector.fullname" .) }}
+{{- $kedaReplicas := int (default 1 .Values.kedaScaler.replicas) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,7 +9,7 @@ metadata:
   labels:
     {{- include "sawmills-collector.labels" . | nindent 4 }}
 spec:
-  replicas: {{ default 1 .Values.kedaScaler.replicas }}
+  replicas: {{ $kedaReplicas }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -104,9 +105,26 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- if hasKey .Values.kedaScaler "affinity" }}
+      {{- with .Values.kedaScaler.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- else }}
+      {{- $affinity := deepCopy (default (dict) .Values.affinity) }}
+      {{- $matchLabels := dict "app.kubernetes.io/instance" .Release.Name "app.kubernetes.io/name" $deploymentName }}
+      {{- if gt $kedaReplicas 1 }}
+      {{- $term := dict "labelSelector" (dict "matchLabels" $matchLabels) "topologyKey" "kubernetes.io/hostname" }}
+      {{- $_ := set $affinity "podAntiAffinity" (dict "requiredDuringSchedulingIgnoredDuringExecution" (list $term)) }}
+      {{- else }}
+      {{- $podAffinityTerm := dict "labelSelector" (dict "matchLabels" $matchLabels) "topologyKey" "kubernetes.io/hostname" }}
+      {{- $preferredTerm := dict "weight" 100 "podAffinityTerm" $podAffinityTerm }}
+      {{- $_ := set $affinity "podAntiAffinity" (dict "preferredDuringSchedulingIgnoredDuringExecution" (list $preferredTerm)) }}
+      {{- end }}
+      {{- with $affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
