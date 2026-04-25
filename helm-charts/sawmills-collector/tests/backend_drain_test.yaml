@@ -70,7 +70,7 @@ tests:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroupruntime\n\s+- backend_drain\n'
 
-  - it: should keep lifecycle patch marker on upgrades for old release compatibility
+  - it: should not render lifecycle patch marker on upgrades
     template: deployment.yaml
     values:
       - ../values.yaml
@@ -80,7 +80,7 @@ tests:
       loadBalancer.enabled: true
       rollout.main.drain.enabled: true
     asserts:
-      - isSubset:
+      - isNotSubset:
           path: spec.template.spec.containers[1].lifecycle
           content:
             "$patch": replace

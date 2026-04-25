@@ -322,9 +322,6 @@ spec:
           {{- end }}
           {{- if $mainCollectorDrainEnabled }}
           lifecycle:
-            {{- if .Release.IsUpgrade }}
-            $patch: replace
-            {{- end }}
             preStop:
               exec:
                 command:
@@ -333,9 +330,6 @@ spec:
                   - "wget -q -O /dev/null http://${MY_POD_IP}:{{ .Values.rollout.main.drain.port }}{{ .Values.rollout.main.drain.drainPath }} 2>/dev/null || true; /bin/sleep {{ .Values.rollout.main.preStopSleepSeconds }}"
           {{- else if .Values.rollout.main.preStopSleepSeconds }}
           lifecycle:
-            {{- if .Release.IsUpgrade }}
-            $patch: replace
-            {{- end }}
             preStop:
               exec:
                 command:

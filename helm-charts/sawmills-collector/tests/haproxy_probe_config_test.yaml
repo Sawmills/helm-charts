@@ -53,7 +53,7 @@ tests:
           path: spec.template.spec.containers[0].securityContext.runAsGroup
           value: 99
 
-  - it: should keep lifecycle patch marker in deployment upgrade mode
+  - it: should not render lifecycle patch marker in deployment upgrade mode
     template: deployment.yaml
     values:
       - ../values.yaml
@@ -65,7 +65,7 @@ tests:
       haproxy.mapping.http_4318.to.port: 4318
       haproxy.mapping.http_4318.to.protocol: "TCP"
     asserts:
-      - isSubset:
+      - isNotSubset:
           path: spec.template.spec.containers[0].lifecycle
           content:
             "$patch": replace
@@ -210,7 +210,7 @@ tests:
           path: spec.template.spec.containers[0].securityContext.runAsGroup
           value: 99
 
-  - it: should keep lifecycle patch markers in load balancer upgrade mode
+  - it: should not render lifecycle patch markers in load balancer upgrade mode
     template: load-balancer.yaml
     values:
       - ../values.yaml
@@ -223,11 +223,11 @@ tests:
       haproxy.mapping.logs_http_10000.to.port: 10518
       haproxy.mapping.logs_http_10000.to.protocol: "TCP"
     asserts:
-      - isSubset:
+      - isNotSubset:
           path: spec.template.spec.containers[0].lifecycle
           content:
             "$patch": replace
-      - isSubset:
+      - isNotSubset:
           path: spec.template.spec.containers[1].lifecycle
           content:
             "$patch": replace
@@ -261,7 +261,7 @@ tests:
           content:
             "$patch": replace
 
-  - it: should keep lifecycle patch marker in native sidecar upgrade mode
+  - it: should not render lifecycle patch marker in native sidecar upgrade mode
     template: load-balancer.yaml
     values:
       - ../values.yaml
@@ -275,7 +275,7 @@ tests:
       haproxy.mapping.logs_http_10000.to.port: 10518
       haproxy.mapping.logs_http_10000.to.protocol: "TCP"
     asserts:
-      - isSubset:
+      - isNotSubset:
           path: spec.template.spec.initContainers[0].lifecycle
           content:
             "$patch": replace
