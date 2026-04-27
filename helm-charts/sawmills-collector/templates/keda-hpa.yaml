@@ -53,11 +53,19 @@ spec:
       metadata:
         {{- if .Values.loadBalancer.enabled }}
         {{- range $key, $value := .Values.keda.scaling.external.loadBalancerMetadata }}
+        {{- if eq $key "scalerAddress" }}
+        {{ $key }}: {{ tpl (toString $value) $ | quote }}
+        {{- else }}
         {{ $key }}: {{ $value | quote }}
+        {{- end }}
         {{- end }}
         {{- else}}
         {{- range $key, $value := .Values.keda.scaling.external.metadata }}
+        {{- if eq $key "scalerAddress" }}
+        {{ $key }}: {{ tpl (toString $value) $ | quote }}
+        {{- else }}
         {{ $key }}: {{ $value | quote }}
+        {{- end }}
         {{- end }}
         {{- end }}
     {{- end }}

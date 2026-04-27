@@ -387,7 +387,7 @@ keda:
       metricType: Value
       loadBalancerMetricType: AverageValue
       metadata:
-        scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
+        scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
         # Query by 99p latency of the 90p slowest pod
         query: >-
           quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_request_duration_bucket[10m])) by (le, method, instance)))) * 1000 > 6000
@@ -395,7 +395,7 @@ keda:
           or vector(5000)
         targetValue: "5000"
       loadBalancerMetadata:
-        scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
+        scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
         # Total queued LB batches. With loadBalancerMetricType AverageValue,
         # targetValue is queued batches per desired collector pod.
         # Tune as: per-pod LB batch drain rate * acceptable queue wait seconds.
@@ -1075,7 +1075,7 @@ kedaScaler:
             - name != "haproxy_server_http_responses_total" and name != "http.server.duration" and name != "otelcol_exporter_queue_size" and name != "otelcol_exporter_queue_capacity" and name != "http.server.request.duration"
     exporters:
       otlp/keda:
-        endpoint: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}
+        endpoint: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}'
         compression: "none"
         tls:
           insecure: true

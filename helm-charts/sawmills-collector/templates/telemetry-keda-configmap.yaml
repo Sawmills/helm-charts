@@ -9,6 +9,14 @@ metadata:
 data:
   keda.yaml: |
     {{- with .Values.kedaScaler.telemetryConfig }}
-      {{- toYaml . | nindent 4 }}
+      {{- $config := deepCopy . }}
+      {{- with $config.exporters }}
+        {{- with (index . "otlp/keda") }}
+          {{- with .endpoint }}
+            {{- $_ := set (index $config.exporters "otlp/keda") "endpoint" (tpl (toString .) $) }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- toYaml $config | nindent 4 }}
     {{- end }}
 {{- end }}

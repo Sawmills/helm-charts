@@ -1,5 +1,5 @@
 {{- if .Values.kedaScaler.enabled }}
-{{- $deploymentName := printf "%s-keda-otel-scaler" (include "sawmills-collector.fullname" .) }}
+{{- $deploymentName := include "sawmills-collector.kedaScalerName" . }}
 apiVersion: v1
 kind: Service
 metadata:

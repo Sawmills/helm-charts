@@ -209,14 +209,14 @@ keda:
       metricType: Value
       loadBalancerMetricType: AverageValue
       metadata:
-        scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
+        scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
         query: >-
           quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_request_duration_bucket[10m])) by (le, method, instance)))) * 1000 > 6000
           or quantile(0.9, (histogram_quantile(0.99, sum(rate(http_server_request_duration_bucket[10m])) by (le, method, instance)))) * 1000 < 3500
           or vector(5000)
         targetValue: "5000"
       loadBalancerMetadata:
-        scalerAddress: sawmills-collector-keda-otel-scaler.sawmills.svc.cluster.local:4418
+        scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
         # targetValue is queued LB batches per desired collector pod.
         query: sum(otelcol_exporter_queue_size{exporter=~"loadbalancing/collector-loadbalancer.*"})
         targetValue: "300"
