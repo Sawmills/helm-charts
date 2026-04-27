@@ -1,0 +1,45 @@
+suite: keda scaler address namespace templating
+templates:
+  - templates/keda-hpa.yaml
+tests:
+  - it: resolves non-LB external scalerAddress from release namespace and configured port
+    release:
+      name: my-release
+      namespace: any-ns
+    set:
+      keda.enabled: true
+      keda.scaling.external.enabled: true
+      loadBalancer.enabled: false
+      kedaScaler.service.kedaExternalScalerPort: 9444
+    asserts:
+      - equal:
+          path: spec.triggers[0].metadata.scalerAddress
+          value: my-release-keda-otel-scaler.any-ns.svc.cluster.local:9444
+      - notMatchRegex:
+          path: spec.triggers[0].metadata.scalerAddress
+          pattern: '\.sawmills\.svc\.cluster\.local'
+
+  - it: resolves LB external scalerAddress without changing LB queue scaling contract
+    release:
+      name: sawmills-collector
+      namespace: sawmills-o11y
+    set:
+      keda.enabled: true
+      keda.scaling.external.enabled: true
+      loadBalancer.enabled: true
+    asserts:
+      - equal:
+          path: spec.triggers[0].metadata.scalerAddress
+          value: sawmills-collector-keda-otel-scaler.sawmills-o11y.svc.cluster.local:4418
+      - equal:
+          path: spec.triggers[0].metricType
+          value: AverageValue
+      - equal:
+          path: spec.triggers[0].metadata.query
+          value: sum(otelcol_exporter_queue_size{exporter=~"loadbalancing/collector-loadbalancer.*"})
+      - equal:
+          path: spec.triggers[0].metadata.targetValue
+          value: "300"
+      - notMatchRegex:
+          path: spec.triggers[0].metadata.scalerAddress
+          pattern: '\.sawmills\.svc\.cluster\.local'

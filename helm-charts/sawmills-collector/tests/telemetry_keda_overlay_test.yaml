@@ -101,3 +101,29 @@ tests:
       - matchRegex:
           path: data["keda.yaml"]
           pattern: '(?m)^\s*metrics/keda:\s*$'
+
+  - it: resolves keda otlp exporter endpoint and preserves literal template-like config
+    template: telemetry-keda-configmap.yaml
+    release:
+      name: my-release
+      namespace: any-ns
+    set:
+      kedaScaler:
+        enabled: true
+        telemetryConfig:
+          processors:
+            transform/literal:
+              metric_statements:
+                - context: metric
+                  statements:
+                    - 'set(attributes["template"], "{{ must_stay_literal }}")'
+    asserts:
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: 'my-release-keda-otel-scaler\.any-ns\.svc\.cluster\.local'
+      - notMatchRegex:
+          path: data["keda.yaml"]
+          pattern: '\.sawmills\.svc\.cluster\.local'
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: '\{\{ must_stay_literal \}\}'

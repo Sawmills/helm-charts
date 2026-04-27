@@ -436,6 +436,14 @@ Note: assumes default cluster domain (cluster.local).
 {{- end -}}
 
 {{/*
+Get the fully qualified KEDA external scaler service name.
+Returns "<fullname>-keda-otel-scaler.<namespace>.svc.cluster.local".
+*/}}
+{{- define "sawmills-collector.kedaScalerSvcFQDN" -}}
+{{- printf "%s-keda-otel-scaler.%s.svc.cluster.local" (include "sawmills-collector.fullname" .) .Release.Namespace -}}
+{{- end -}}
+
+{{/*
 Resolve whether to use native sidecar mode for HAProxy.
 Accepts .Values.haproxy.nativeSidecar: "false" | "true" | "auto"
 Returns "true" or "false" as a string.
