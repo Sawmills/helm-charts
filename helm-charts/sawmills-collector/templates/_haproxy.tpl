@@ -1,5 +1,8 @@
 {{- define "sawmills-collector.haproxy.config" -}}
 {{- $refusalFastFail := .Values.haproxy.refusal_fast_fail | default dict -}}
+{{- $healthcheck := .Values.haproxy.healthcheck | default dict -}}
+{{- $forwardingHealth := $healthcheck.forwarding_health | default dict -}}
+{{- $forwardingHealthEnabled := $forwardingHealth.enabled | default false -}}
 
 global
 {{- with .Values.haproxy.global }}
@@ -118,11 +121,23 @@ frontend healthcheck
   http-request deny deny_status 503 unless backend_{{ $name }}_up
   {{- end }}
   {{- end }}
+  {{- if $forwardingHealthEnabled }}
+  # Direct traffic readiness also requires the local collector to have usable forwarding backends.
+  acl forwarding_health_up srv_is_up(forwarding_health_backend/forwarding_health)
+  http-request deny deny_status 503 unless forwarding_health_up
+  {{- end }}
   default_backend healthcheck_backend
 
 backend healthcheck_backend
   mode http
   server otel "$MY_POD_IP":13133
+
+{{- if $forwardingHealthEnabled }}
+backend forwarding_health_backend
+  mode http
+  option httpchk GET {{ $forwardingHealth.path | default "/forwarding-health" }}
+  server forwarding_health "$MY_POD_IP":{{ $forwardingHealth.port | default 13136 }} check inter {{ $forwardingHealth.interval | default 3000 }} rise {{ $forwardingHealth.rise | default 2 }} fall {{ $forwardingHealth.fall | default 2 }}
+{{- end }}
 {{- end }}
 
 {{- range $name, $config := .Values.haproxy.mapping }}
@@ -184,7 +199,7 @@ backend logs_http_{{ $config.from }}
   {{- end }}
   {{- if not $config.backend_options }}
   {{- if not (eq $mode "grpc") }}
-  option httpchk
+  option httpchk GET /healthcheck
   {{- end }}
   {{- end }}
   {{- with $fc }}
@@ -246,7 +261,7 @@ backend logs_http_{{ $config.from }}_direct
   {{- end }}
   {{- if not $config.backend_options }}
   {{- if not (eq $mode "grpc") }}
-  option httpchk
+  option httpchk GET /healthcheck
   {{- end }}
   {{- end }}
   {{- with $fc }}
