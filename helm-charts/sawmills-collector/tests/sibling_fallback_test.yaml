@@ -194,6 +194,24 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
 
+  - it: should use /healthcheck for local and sibling backend checks
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+option httpchk GET /healthcheck"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+option httpchk GET /healthcheck"
+
   - it: should use custom max_servers for server-template
     template: haproxy-configmap.yaml
     set:
@@ -224,6 +242,52 @@ tests:
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
+
+  - it: should gate direct LB readiness on forwarding health when enabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.healthcheck.forwarding_health.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "acl forwarding_health_up srv_is_up\\(forwarding_health_backend/forwarding_health\\)"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "acl readiness_check path /ready"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "http-request deny deny_status 503 if readiness_check !forwarding_health_up"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "http-request return status 200 if readiness_check"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend forwarding_health_backend\\r?\\n  mode http\\r?\\n  option httpchk GET /forwarding-health\\r?\\n  server forwarding_health \"\\$MY_POD_IP\":13136 check"
+
+  - it: should not gate direct LB readiness on forwarding health by default
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "forwarding_health_backend"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "forwarding_health_up"
 
   - it: should keep sibling fallback but disable external fallback when configured
     template: haproxy-configmap.yaml

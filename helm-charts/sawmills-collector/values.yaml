@@ -632,7 +632,7 @@ haproxy:
     readiness:
       type: http
       port: 13135
-      path: /healthcheck
+      path: /ready
   # Number of consecutive layer 7 errors before marking backend DOWN and routing to fallback.
   # Higher values reduce fallback sensitivity to transient errors.
   # With Fix #1 (503 instead of 500), HAProxy retries on 503. error-limit counts only
@@ -764,6 +764,16 @@ haproxy:
   healthcheck:
     enabled: true
     port: 13135
+    # Optional readiness gate for LB pods. When enabled, the HAProxy readiness
+    # frontend only returns healthy when the local collector's forwarding_health
+    # extension reports usable downstream collector backends.
+    forwarding_health:
+      enabled: false
+      port: 13136
+      path: /forwarding-health
+      interval: 3000
+      rise: 2
+      fall: 2
 
   # Sibling fallback configuration
   # When enabled, HAProxy routes to sibling LB pods (round-robin) before falling back

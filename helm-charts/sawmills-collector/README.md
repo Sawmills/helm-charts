@@ -244,7 +244,7 @@ haproxy:
     readiness:
       type: http # http|tcp
       port: 13135
-      path: /healthcheck
+      path: /ready
   resources:
     requests:
       memory: 128Mi
@@ -261,6 +261,16 @@ haproxy:
     uri: "/"
     refresh: "10s"
     auth: "admin:admin"
+  healthcheck:
+    enabled: true
+    port: 13135
+    forwarding_health:
+      enabled: false
+      port: 13136
+      path: /forwarding-health
+      interval: 3000
+      rise: 2
+      fall: 2
 ```
 
 The HAProxy container defaults to numeric UID/GID `99` with `runAsNonRoot` so clusters enforcing non-root pod security can verify the official HAProxy image user. Override `haproxy.securityContext` when using a custom HAProxy image that requires a different numeric user or additional container hardening fields.
