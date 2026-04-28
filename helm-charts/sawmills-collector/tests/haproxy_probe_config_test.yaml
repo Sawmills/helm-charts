@@ -3,7 +3,7 @@ templates:
   - deployment.yaml
   - load-balancer.yaml
 tests:
-  - it: should default to http healthcheck probes for haproxy in deployment mode
+  - it: should default to separate http liveness and readiness probes for haproxy in deployment mode
     template: deployment.yaml
     values:
       - ../values.yaml
@@ -24,7 +24,7 @@ tests:
           value: 13135
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
-          value: /healthcheck
+          value: /ready
       - isNotSubset:
           path: spec.template.spec.containers[0].lifecycle
           content:
@@ -154,7 +154,7 @@ tests:
       - notExists:
           path: spec.template.spec.containers[0].readinessProbe.httpGet
 
-  - it: should default to http healthcheck probes for haproxy in load balancer mode
+  - it: should default to separate http liveness and readiness probes for haproxy in load balancer mode
     template: load-balancer.yaml
     values:
       - ../values.yaml
@@ -176,7 +176,7 @@ tests:
           value: 13135
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
-          value: /healthcheck
+          value: /ready
       - isNotSubset:
           path: spec.template.spec.containers[0].lifecycle
           content:
@@ -185,6 +185,31 @@ tests:
           path: spec.template.spec.containers[1].lifecycle
           content:
             "$patch": replace
+
+  - it: should keep haproxy liveness on healthcheck when forwarding health gates readiness
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.healthcheck.forwarding_health.enabled: true
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /ready
 
   - it: should pin haproxy to numeric non-root user in load balancer mode
     template: load-balancer.yaml

@@ -260,7 +260,13 @@ tests:
           pattern: "acl forwarding_health_up srv_is_up\\(forwarding_health_backend/forwarding_health\\)"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "http-request deny deny_status 503 unless forwarding_health_up"
+          pattern: "acl readiness_check path /ready"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "http-request deny deny_status 503 if readiness_check !forwarding_health_up"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "http-request return status 200 if readiness_check"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend forwarding_health_backend\\r?\\n  mode http\\r?\\n  option httpchk GET /forwarding-health\\r?\\n  server forwarding_health \"\\$MY_POD_IP\":13136 check"

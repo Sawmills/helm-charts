@@ -632,7 +632,7 @@ haproxy:
     readiness:
       type: http
       port: 13135
-      path: /healthcheck
+      path: /ready
   # Number of consecutive layer 7 errors before marking backend DOWN and routing to fallback.
   # Higher values reduce fallback sensitivity to transient errors.
   # With Fix #1 (503 instead of 500), HAProxy retries on 503. error-limit counts only

@@ -244,7 +244,7 @@ haproxy:
     readiness:
       type: http # http|tcp
       port: 13135
-      path: /healthcheck
+      path: /ready
   resources:
     requests:
       memory: 128Mi

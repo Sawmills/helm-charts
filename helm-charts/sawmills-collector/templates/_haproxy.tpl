@@ -3,6 +3,7 @@
 {{- $healthcheck := .Values.haproxy.healthcheck | default dict -}}
 {{- $forwardingHealth := $healthcheck.forwarding_health | default dict -}}
 {{- $forwardingHealthEnabled := $forwardingHealth.enabled | default false -}}
+{{- $readinessPath := dig "probes" "readiness" "path" "/ready" .Values.haproxy -}}
 
 global
 {{- with .Values.haproxy.global }}
@@ -114,18 +115,20 @@ frontend healthcheck
   # endpoint before pod actually terminates, preventing fallback during scale-down
   acl is_stopping stopping
   http-request deny deny_status 503 if is_stopping
+  acl readiness_check path {{ $readinessPath }}
   {{- range $name, $config := .Values.haproxy.mapping }}
   {{- if $config.to.fallback_endpoint }}
   # Only return healthy if HAProxy's internal rise checks have marked otel server as UP
   acl backend_{{ $name }}_up srv_is_up(logs_http_{{ $config.from }}/otel)
-  http-request deny deny_status 503 unless backend_{{ $name }}_up
+  http-request deny deny_status 503 if readiness_check !backend_{{ $name }}_up
   {{- end }}
   {{- end }}
   {{- if $forwardingHealthEnabled }}
   # Direct traffic readiness also requires the local collector to have usable forwarding backends.
   acl forwarding_health_up srv_is_up(forwarding_health_backend/forwarding_health)
-  http-request deny deny_status 503 unless forwarding_health_up
+  http-request deny deny_status 503 if readiness_check !forwarding_health_up
   {{- end }}
+  http-request return status 200 if readiness_check
   default_backend healthcheck_backend
 
 backend healthcheck_backend
