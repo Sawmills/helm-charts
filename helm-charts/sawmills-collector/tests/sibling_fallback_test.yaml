@@ -455,16 +455,16 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "acl is_sibling_hop hdr\\(X-Sibling-Hop\\) -m found"
+          pattern: acl is_sibling_hop hdr\(X-Sibling-Hop\) -m found
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
+          pattern: server-template sibling 10 RELEASE-NAME-headless\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_direct"
+          pattern: backend logs_http_4318_direct
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server fallback"
+          pattern: server fallback
 
   - it: should keep sibling fallback when external fallback is disabled and no fallback_endpoint
     template: haproxy-configmap.yaml
@@ -479,16 +479,16 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "acl is_sibling_hop hdr\\(X-Sibling-Hop\\) -m found"
+          pattern: acl is_sibling_hop hdr\(X-Sibling-Hop\) -m found
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
+          pattern: server-template sibling 10 RELEASE-NAME-headless\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_direct"
+          pattern: backend logs_http_4318_direct
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server fallback"
+          pattern: server fallback
 
   - it: should not render fallback servers when sibling fallback is disabled and no fallback_endpoint
     template: haproxy-configmap.yaml
@@ -503,13 +503,13 @@ tests:
     asserts:
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "X-Sibling-Hop"
+          pattern: X-Sibling-Hop
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server-template sibling"
+          pattern: server-template sibling
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server fallback"
+          pattern: server fallback
 
   - it: should render neither fallback when both fallback modes are disabled and no fallback_endpoint
     template: haproxy-configmap.yaml
@@ -524,13 +524,13 @@ tests:
     asserts:
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "X-Sibling-Hop"
+          pattern: X-Sibling-Hop
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server-template sibling"
+          pattern: server-template sibling
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server fallback"
+          pattern: server fallback
 
   # ============================================================
   # 9. Headless service - HAProxy ports exposed when enabled
