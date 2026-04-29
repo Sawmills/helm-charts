@@ -153,6 +153,15 @@ tests:
           value: 10000
       - notExists:
           path: spec.template.spec.containers[0].readinessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: main-collector
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /ready
 
   - it: should default to separate http liveness and readiness probes for haproxy in load balancer mode
     template: load-balancer.yaml
@@ -176,6 +185,21 @@ tests:
           value: 13135
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /ready
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: main-collector
+      - equal:
+          path: spec.template.spec.containers[1].livenessProbe.httpGet.port
+          value: 13133
+      - equal:
+          path: spec.template.spec.containers[1].livenessProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
           value: /ready
       - isNotSubset:
           path: spec.template.spec.containers[0].lifecycle
@@ -210,6 +234,44 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
           value: /ready
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: main-collector
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /ready
+
+  - it: should route load balancer main collector readiness through custom haproxy readiness path
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.probes.readiness.path: /lb-ready
+      haproxy.probes.readiness.port: 13135
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /lb-ready
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: main-collector
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /lb-ready
 
   - it: should pin haproxy to numeric non-root user in load balancer mode
     template: load-balancer.yaml

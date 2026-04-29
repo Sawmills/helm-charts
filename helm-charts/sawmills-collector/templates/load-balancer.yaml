@@ -4,6 +4,12 @@
 {{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
 {{- $lbTelemetryOtelEncryptionKey := default "" $lbTelemetryOtelConfig.encryptionKey }}
 {{- $lbStartupProbe := .Values.rollout.loadBalancer.probes.startup | default dict }}
+{{- $haproxyReadinessType := (dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower }}
+{{- $haproxyReadinessPath := dig "probes" "readiness" "path" "/ready" .Values.haproxy }}
+{{- $haproxyReadinessPort := dig "probes" "readiness" "port" 13135 .Values.haproxy }}
+{{- if eq $haproxyReadinessType "tcp" }}
+{{- $haproxyReadinessPort = (.Values.haproxy.healthcheck.port | default 13135) }}
+{{- end }}
 apiVersion: apps/v1
 {{- if .Values.loadBalancer.storage.enabled }}
 kind: StatefulSet
@@ -177,10 +183,11 @@ spec:
             failureThreshold: {{ .Values.rollout.loadBalancer.probes.liveness.failureThreshold }}
           readinessProbe:
             httpGet:
-              path: /healthcheck
               {{- if .Values.haproxy.enabled }}
-              port: 13135  # Route through HAProxy to ensure backend is UP before receiving traffic
+              path: {{ $haproxyReadinessPath }}
+              port: {{ $haproxyReadinessPort }}  # Route through HAProxy to ensure backend is UP before receiving traffic
               {{- else }}
+              path: /healthcheck
               port: 13133
               {{- end }}
             initialDelaySeconds: {{ .Values.rollout.loadBalancer.probes.readiness.initialDelaySeconds }}
