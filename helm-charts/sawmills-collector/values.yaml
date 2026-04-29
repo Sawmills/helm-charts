@@ -19,7 +19,7 @@ collectorId: sawmills-collector-id
 # Rollout configuration
 rollout:
   # Global rollout settings
-  terminationGracePeriodSeconds: 60
+  terminationGracePeriodSeconds: 150
   minReadySeconds: 15
 
   # Deployment strategy configuration
@@ -108,7 +108,7 @@ rollout:
       # Keep drain.duration + shutdownReserve below
       # rollout.terminationGracePeriodSeconds so the collector still has time
       # to handle SIGTERM after the drain hook returns.
-      duration: 15s
+      duration: 120s
       # Reserve explicit post-drain shutdown time inside the pod termination
       # grace period for collector shutdown and kubelet bookkeeping.
       shutdownReserve: 10s
