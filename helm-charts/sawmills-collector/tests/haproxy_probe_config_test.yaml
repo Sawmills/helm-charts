@@ -137,7 +137,7 @@ tests:
       haproxy.enabled: true
       haproxy.mapping.logs_http_10000.from: 10000
       haproxy.mapping.logs_http_10000.to.port: 10518
-      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+      haproxy.mapping.logs_http_10000.to.protocol: TCP
       haproxy.probes.liveness.type: tcp
       haproxy.probes.liveness.port: 10000
       haproxy.probes.readiness.type: tcp
