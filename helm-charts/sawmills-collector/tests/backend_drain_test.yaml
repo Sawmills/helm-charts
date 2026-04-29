@@ -47,6 +47,9 @@ tests:
       - matchRegex:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[2]
           pattern: "wget.*13137.*/drain.*sleep"
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 150
       - isNotSubset:
           path: spec.template.spec.containers[1].lifecycle
           content:
@@ -65,7 +68,7 @@ tests:
           count: 1
       - matchRegex:
           path: data["config.yaml"]
-          pattern: '(?ms)^extensions:\n\s+backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 15s\n'
+          pattern: '(?ms)^extensions:\n\s+backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 120s\n'
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroupruntime\n\s+- backend_drain\n'
@@ -191,9 +194,9 @@ tests:
     set:
       loadBalancer.enabled: true
       rollout.main.drain.enabled: true
-      rollout.main.drain.duration: 50s
+      rollout.main.drain.duration: 140s
       rollout.main.drain.shutdownReserve: 10s
-      rollout.terminationGracePeriodSeconds: 60
+      rollout.terminationGracePeriodSeconds: 150
     asserts:
       - failedTemplate:
-          errorMessage: 'rollout.main.drain.duration (50s) plus rollout.main.drain.shutdownReserve (10s) must be less than rollout.terminationGracePeriodSeconds (60s)'
+          errorMessage: 'rollout.main.drain.duration (140s) plus rollout.main.drain.shutdownReserve (10s) must be less than rollout.terminationGracePeriodSeconds (150s)'

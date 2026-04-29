@@ -508,7 +508,7 @@ rollout:
     maxUnavailable: null   # defaults to 1 for ≤ 10 replicas, scales proportionally beyond that
     maxSurge: null         # defaults to 2 for ≤ 10 replicas, scales proportionally beyond that
   minReadySeconds: 15
-  terminationGracePeriodSeconds: 60
+  terminationGracePeriodSeconds: 150
   main:
     probes:
       liveness:
@@ -529,7 +529,7 @@ rollout:
       drainPath: /drain
       healthCheckEndpoint: http://${env:MY_POD_IP}:13133/healthcheck
       serviceExtensions: [health_check, cgroupruntime]
-      duration: 15s
+      duration: 120s
       shutdownReserve: 10s
     preStopSleepSeconds: 15
 ```
@@ -540,7 +540,7 @@ When `loadBalancer.enabled: true`, the chart can protect backend collector rollo
 
 ```yaml
 rollout:
-  terminationGracePeriodSeconds: 60
+  terminationGracePeriodSeconds: 150
   main:
     drain:
       enabled: true
@@ -549,7 +549,7 @@ rollout:
       drainPath: /drain
       healthCheckEndpoint: http://${env:MY_POD_IP}:13133/healthcheck
       serviceExtensions: [health_check, cgroupruntime]
-      duration: 15s
+      duration: 120s
       shutdownReserve: 10s
 ```
 
