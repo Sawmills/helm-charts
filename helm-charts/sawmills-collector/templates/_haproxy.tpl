@@ -117,11 +117,9 @@ frontend healthcheck
   http-request deny deny_status 503 if is_stopping
   acl readiness_check path {{ $readinessPath }}
   {{- range $name, $config := .Values.haproxy.mapping }}
-  {{- if $config.to.fallback_endpoint }}
   # Only return healthy if HAProxy's internal rise checks have marked otel server as UP
   acl backend_{{ $name }}_up srv_is_up(logs_http_{{ $config.from }}/otel)
   http-request deny deny_status 503 if readiness_check !backend_{{ $name }}_up
-  {{- end }}
   {{- end }}
   {{- if $forwardingHealthEnabled }}
   # Direct traffic readiness also requires the local collector to have usable forwarding backends.

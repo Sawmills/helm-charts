@@ -462,6 +462,18 @@ tests:
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: backend logs_http_4318_direct
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: acl readiness_check path /ready
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: acl backend_http_4318_up srv_is_up\(logs_http_4318/otel\)
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: http-request deny deny_status 503 if readiness_check !backend_http_4318_up
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: default_backend healthcheck_backend
       - notMatchRegex:
           path: data["haproxy.cfg"]
           pattern: server fallback
