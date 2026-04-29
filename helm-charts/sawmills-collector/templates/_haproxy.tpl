@@ -152,7 +152,7 @@ backend forwarding_health_backend
   {{ $proto = "proto h2" }}
 {{ end }}
 {{- $siblingEnabled := false }}
-{{- if and (eq (include "sawmills-collector.siblingFallbackEnabled" $) "true") $to.fallback_endpoint (ne $mode "tcp") }}
+{{- if and (eq (include "sawmills-collector.siblingFallbackEnabled" $) "true") (ne $mode "tcp") }}
   {{- $siblingEnabled = true }}
 {{- end }}
 frontend logs_http_frontend_{{ $config.from }}
@@ -211,7 +211,6 @@ backend logs_http_{{ $config.from }}
   {{ if .timeout.server }}timeout server {{ .timeout.server }}{{- end }}
   {{- end }}
   {{- end }}
-  {{- if $to.fallback_endpoint }}
   {{- $server := $fc.server | default dict -}}
   {{- $interval := default 2000 $server.interval -}}
   {{- $rise := default 10 $server.rise -}}
@@ -219,10 +218,12 @@ backend logs_http_{{ $config.from }}
   {{- $errorLimit := $.Values.haproxy.error_limit }}
   {{- $slowstart := "" }}
   {{- $externalFallbackEnabled := eq (include "sawmills-collector.externalFallbackEnabled" $) "true" }}
+  {{- $failoverEnabled := or $siblingEnabled $to.fallback_endpoint }}
   {{- if and ($refusalFastFail.enabled | default false) (ne $mode "tcp") }}
   {{- $errorLimit = ($refusalFastFail.error_limit | default 20) }}
   {{- $slowstart = ($refusalFastFail.slowstart | default "") }}
   {{- end }}
+  {{- if $failoverEnabled }}
   {{- if $siblingEnabled }}
   # Tag request as sibling-forwarded before sending to sibling tier
   http-request set-header X-Sibling-Hop 1
@@ -235,14 +236,12 @@ backend logs_http_{{ $config.from }}
   # Check port 13136 is served by the forwarding_health extension in
   # sawmills-collector (PR #811); chart + collector changes must ship together.
   server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ $config.from }} {{ $proto }} check port {{ $sf.check.port | default 13136 }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }} backup resolvers k8s init-addr none
-  {{- if $externalFallbackEnabled }}
+  {{- end }}
+  {{- if and $externalFallbackEnabled $to.fallback_endpoint }}
+  {{- if $siblingEnabled }}
   # External fallback: last resort (listed after siblings, so HAProxy tries siblings first)
-  server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
   {{- end }}
-  {{- else }}
-  {{- if $externalFallbackEnabled }}
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
-  {{- end }}
   {{- end }}
   {{- else }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
@@ -287,7 +286,7 @@ backend logs_http_{{ $config.from }}_direct
   {{- $directSlowstart = ($refusalFastFail.slowstart | default "") }}
   {{- end }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $directErrorLimit }} on-error mark-down{{ if ne $directSlowstart "" }} slowstart {{ $directSlowstart }}{{ end }}
-  {{- if $externalFallbackEnabled }}
+  {{- if and $externalFallbackEnabled $to.fallback_endpoint }}
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
   {{- end }}
 {{- end }}
