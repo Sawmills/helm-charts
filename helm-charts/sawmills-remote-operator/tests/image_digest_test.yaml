@@ -7,7 +7,7 @@ tests:
       apiKey: test-key
       collectorName: sawmills-collector
       image.tag: 9.9.9
-      image.digest: "sha256:deadbeef"
+      image.digest: sha256:deadbeef
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image

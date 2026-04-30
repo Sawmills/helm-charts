@@ -10,7 +10,7 @@ tests:
       - ../values.yaml
     set:
       image.tag: 9.9.9
-      image.digest: "sha256:deadbeef"
+      image.digest: sha256:deadbeef
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
@@ -27,7 +27,7 @@ tests:
       loadBalancer.enabled: true
       loadBalancer.storage.enabled: false
       image.tag: 9.9.9
-      image.digest: "sha256:deadbeef"
+      image.digest: sha256:deadbeef
     asserts:
       - equal:
           path: kind
@@ -47,7 +47,7 @@ tests:
       loadBalancer.enabled: true
       loadBalancer.storage.enabled: true
       image.tag: 9.9.9
-      image.digest: "sha256:deadbeef"
+      image.digest: sha256:deadbeef
     asserts:
       - equal:
           path: kind
@@ -66,7 +66,7 @@ tests:
     set:
       kedaScaler.enabled: true
       image.tag: 9.9.9
-      image.digest: "sha256:deadbeef"
+      image.digest: sha256:deadbeef
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
