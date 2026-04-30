@@ -1,0 +1,73 @@
+suite: image digest rendering
+templates:
+  - deployment.yaml
+  - load-balancer.yaml
+  - keda-scaler-deployment.yaml
+tests:
+  - it: should render digest instead of tag for deployment collectors
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      image.tag: 9.9.9
+      image.digest: "sha256:deadbeef"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:deadbeef
+      - equal:
+          path: spec.template.spec.containers[1].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:deadbeef
+
+  - it: should render digest instead of tag for load balancer deployment collectors
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: false
+      image.tag: 9.9.9
+      image.digest: "sha256:deadbeef"
+    asserts:
+      - equal:
+          path: kind
+          value: Deployment
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:deadbeef
+      - equal:
+          path: spec.template.spec.containers[1].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:deadbeef
+
+  - it: should render digest instead of tag for load balancer statefulset collectors
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+      image.tag: 9.9.9
+      image.digest: "sha256:deadbeef"
+    asserts:
+      - equal:
+          path: kind
+          value: StatefulSet
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:deadbeef
+      - equal:
+          path: spec.template.spec.containers[1].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:deadbeef
+
+  - it: should render digest instead of tag for keda scaler
+    template: keda-scaler-deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      kedaScaler.enabled: true
+      image.tag: 9.9.9
+      image.digest: "sha256:deadbeef"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:deadbeef

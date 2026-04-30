@@ -100,6 +100,16 @@ quotamgmtprocessor:
   folder_name: SAWMILLS_ORG
 ```
 
+### Pin Images By Digest
+
+Set `image.digest` to render the collector image as `repository@digest` instead of `repository:tag`:
+
+```yaml
+image:
+  repository: public.ecr.aws/s7a5m1b4/sawmills-collector
+  digest: sha256:...
+```
+
 ### Proxy Configuration
 
 Customers that require all internet-bound traffic to pass through an HTTP/HTTPS proxy can set the `proxy` block. The chart wires these values into the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables consumed by the collector so TLS sessions still terminate at Sawmills services.

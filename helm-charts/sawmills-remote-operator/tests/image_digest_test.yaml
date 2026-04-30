@@ -1,0 +1,14 @@
+suite: image digest rendering
+templates:
+  - deployment.yaml
+tests:
+  - it: should render digest instead of tag
+    set:
+      apiKey: test-key
+      collectorName: sawmills-collector
+      image.tag: 9.9.9
+      image.digest: "sha256:deadbeef"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-remote-operator@sha256:deadbeef

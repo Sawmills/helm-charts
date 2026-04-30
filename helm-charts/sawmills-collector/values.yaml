@@ -222,6 +222,8 @@ image:
   repository: public.ecr.aws/s7a5m1b4/sawmills-collector
   pullPolicy: IfNotPresent
   tag: 1.770.0
+  # Optional image digest. When set, the chart renders repository@digest and ignores tag.
+  digest: ""
 
 # The node selector for the Sawmills collector
 nodeSelector: {}
