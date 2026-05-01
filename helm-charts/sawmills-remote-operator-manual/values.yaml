@@ -39,6 +39,8 @@ image:
   repository: public.ecr.aws/s7a5m1b4/sawmills-remote-operator
   pullPolicy: Always
   tag: 0.247.0 # Sawmills Remote Operator image tag
+  # Optional image digest. When set, the chart renders repository@digest and ignores tag.
+  digest: ""
 
 # The address of the Sawmills operator
 operatorAddress: https://controller.sawmills.ai
@@ -169,6 +171,11 @@ tolerations: []
 #     replicaCount: 3
 #     image:
 #       tag: latest
+#       digest: sha256:...
+#     haproxy:
+#       image:
+#         tag: 3.1.15
+#         digest: sha256:...
 # Prefer managedChartsValues; managedCharts is kept as a backward-compatible alias.
 managedChartsValues: {}
 

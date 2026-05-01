@@ -2,6 +2,16 @@
 
 This chart deploys the Sawmills Remote Operator, which maintains a bidirectional gRPC session with `controller.sawmills.ai` and optionally forwards Prometheus remote-write metrics. Use the values below to configure outbound connectivity.
 
+## Pin Images By Digest
+
+Set `image.digest` to render the operator image as `repository@digest` instead of `repository:tag`:
+
+```yaml
+image:
+  repository: public.ecr.aws/s7a5m1b4/sawmills-remote-operator
+  digest: sha256:...
+```
+
 ## Outbound proxy support
 
 Customers that require all internet-bound traffic to pass through an HTTP/HTTPS proxy can set the new `proxy` block. The chart wires these values into the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables consumed by the operator so TLS sessions still terminate at `controller.sawmills.ai`.
@@ -78,6 +88,11 @@ Example:
 managedChartsValues:
   sawmills-collector:
     replicaCount: 2
+    image:
+      digest: sha256:...
+    haproxy:
+      image:
+        digest: sha256:...
 
 managedChartsOverrides:
   sawmills-collector:

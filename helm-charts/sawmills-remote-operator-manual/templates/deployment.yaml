@@ -33,7 +33,7 @@ spec:
       {{- end }}
       containers:
       - name: remote-operator
-        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        image: {{ include "sawmills-remote-operator.image" . }}
         command: [/remote-operator]
         args: [operator]
         imagePullPolicy: {{ .Values.image.pullPolicy }}

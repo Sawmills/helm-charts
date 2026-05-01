@@ -100,6 +100,25 @@ quotamgmtprocessor:
   folder_name: SAWMILLS_ORG
 ```
 
+### Pin Images By Digest
+
+Set `image.digest` to render the collector image as `repository@digest` instead of `repository:tag`:
+
+```yaml
+image:
+  repository: public.ecr.aws/s7a5m1b4/sawmills-collector
+  digest: sha256:...
+```
+
+Set `haproxy.image.digest` the same way for the optional HAProxy sidecar:
+
+```yaml
+haproxy:
+  image:
+    repository: public.ecr.aws/docker/library/haproxy
+    digest: sha256:...
+```
+
 ### Proxy Configuration
 
 Customers that require all internet-bound traffic to pass through an HTTP/HTTPS proxy can set the `proxy` block. The chart wires these values into the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables consumed by the collector so TLS sessions still terminate at Sawmills services.
@@ -229,7 +248,10 @@ Enable HAProxy for advanced load balancing:
 ```yaml
 haproxy:
   enabled: true
-  image: public.ecr.aws/docker/library/haproxy:3.1
+  image:
+    repository: public.ecr.aws/docker/library/haproxy
+    tag: "3.1"
+    digest: ""
   securityContext:
     runAsNonRoot: true
     runAsUser: 99
