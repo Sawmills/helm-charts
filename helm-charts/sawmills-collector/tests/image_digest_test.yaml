@@ -71,3 +71,40 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:deadbeef
+
+  - it: should render digest instead of tag for haproxy sidecar
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.mapping.http_4318.from: 4318
+      haproxy.mapping.http_4318.to.port: 4318
+      haproxy.mapping.http_4318.to.protocol: TCP
+      haproxy.image.tag: 9.9.9
+      haproxy.image.digest: sha256:cafebabe
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: haproxy
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/docker/library/haproxy@sha256:cafebabe
+
+  - it: should preserve legacy full haproxy image strings
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.mapping.http_4318.from: 4318
+      haproxy.mapping.http_4318.to.port: 4318
+      haproxy.mapping.http_4318.to.protocol: TCP
+      haproxy.image: public.ecr.aws/docker/library/haproxy:3.1.15
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: haproxy
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/docker/library/haproxy:3.1.15

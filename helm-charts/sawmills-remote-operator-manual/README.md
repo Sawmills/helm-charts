@@ -111,6 +111,11 @@ Example:
 managedChartsValues:
   sawmills-collector:
     replicaCount: 2
+    image:
+      digest: sha256:...
+    haproxy:
+      image:
+        digest: sha256:...
 
 managedChartsOverrides:
   sawmills-collector:

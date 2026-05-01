@@ -171,6 +171,11 @@ tolerations: []
 #     replicaCount: 3
 #     image:
 #       tag: latest
+#       digest: sha256:...
+#     haproxy:
+#       image:
+#         tag: 3.1.15
+#         digest: sha256:...
 # Prefer managedChartsValues; managedCharts is kept as a backward-compatible alias.
 managedChartsValues: {}
 

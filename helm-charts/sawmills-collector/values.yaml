@@ -618,7 +618,14 @@ otelCollectorConfig: {}
 # HAProxy configuration
 haproxy:
   enabled: false
-  image: public.ecr.aws/docker/library/haproxy:3.1.15
+  # HAProxy image used for the optional load-balancing sidecar.
+  # Legacy full image strings are still accepted, e.g.
+  # image: public.ecr.aws/docker/library/haproxy:3.1.15
+  image:
+    repository: public.ecr.aws/docker/library/haproxy
+    tag: 3.1.15
+    # Optional image digest. When set, the chart renders repository@digest and ignores tag.
+    digest: ""
   securityContext:
     runAsNonRoot: true
     runAsUser: 99
