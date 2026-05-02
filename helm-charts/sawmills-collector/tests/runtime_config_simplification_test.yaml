@@ -120,6 +120,20 @@ tests:
       - hasDocuments:
           count: 0
 
+  - it: does not mount main direct config when main collector uses S3 config
+    template: templates/deployment.yaml
+    set:
+      otelConfig.s3path: s3://example/main-config
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].volumeMounts
+          content:
+            name: sawmills-collector-config
+            mountPath: /etc/otel/config.yaml
+            subPath: config.yaml
+      - notExists:
+          path: spec.template.spec.volumes[?(@.name=="sawmills-collector-config")]
+
   - it: renders main direct configmap when main collector does not use S3 config
     template: templates/configmap.yaml
     set:
