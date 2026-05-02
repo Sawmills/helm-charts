@@ -94,9 +94,14 @@ prometheusremotewrite:
 collector_gateway:
   endpoint: https://ingress.sawmills.ai
 
-# Quota Management Processor
+# Runtime folder prefix used by generated remote collector configs
+collectorConfig:
+  folderName: SAWMILLS_ORG
+
+# Quota storage bucket plus legacy folder alias for generated values
 quotamgmtprocessor:
   s3_bucket: sawmills-plat-ue1-prod-quotas
+  # Legacy alias for collectorConfig.folderName
   folder_name: SAWMILLS_ORG
 ```
 
@@ -584,9 +589,11 @@ prometheusremotewrite:
 collector_gateway:
   endpoint: https://ingress.sawmills.ai
 
+collectorConfig:
+  folderName: MY_ORG
+
 quotamgmtprocessor:
   s3_bucket: my-bucket
-  folder_name: MY_ORG
 ```
 
 ### Production Configuration

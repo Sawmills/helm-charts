@@ -162,8 +162,15 @@ podDisruptionBudget:
 
 
 # Configuration for the Sawmills collector
+collectorConfig:
+  # Runtime folder prefix injected as FOLDER_NAME for remote collector configs.
+  # Defaults to quotamgmtprocessor.folder_name for backward compatibility.
+  folderName: ""
+
 quotamgmtprocessor:
   s3_bucket: sawmills-plat-ue1-prod-quotas
+  # Deprecated: use collectorConfig.folderName. Kept for collectors-service and
+  # remote-operator compatibility while generated values are migrated.
   folder_name: SAWMILLS_ORG
 
 # Configure the shared API secret used by the collector for authentication

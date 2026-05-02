@@ -97,6 +97,47 @@ key: api-key
 {{- end -}}
 
 {{/*
+Resolve the runtime folder name injected as FOLDER_NAME.
+collectorConfig.folderName is the clear public value; quotamgmtprocessor.folder_name
+is kept as a backward-compatible alias because collectors-service still emits it.
+*/}}
+{{- define "sawmills-collector.folderName" -}}
+{{- $collectorConfig := default dict .Values.collectorConfig -}}
+{{- $folderName := "" -}}
+{{- if and (kindIs "map" $collectorConfig) (hasKey $collectorConfig "folderName") -}}
+{{- $folderName = (default "" (get $collectorConfig "folderName") | toString) -}}
+{{- end -}}
+{{- if $folderName -}}
+{{- $folderName -}}
+{{- else -}}
+{{- $qmp := default dict .Values.quotamgmtprocessor -}}
+{{- default "" $qmp.folder_name -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Common runtime environment used by collector containers that load remote
+pipeline configs referencing ${env:FOLDER_NAME} and ${env:S3_BUCKET}.
+*/}}
+{{- define "sawmills-collector.runtimeConfigEnv" -}}
+{{- $qmp := default dict .Values.quotamgmtprocessor -}}
+- name: MY_POD_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.name
+- name: MY_POD_IP
+  valueFrom:
+    fieldRef:
+      fieldPath: status.podIP
+- name: FOLDER_NAME
+  value: {{ include "sawmills-collector.folderName" . | quote }}
+- name: S3_BUCKET
+  value: {{ default "" $qmp.s3_bucket | quote }}
+- name: COLLECTOR_NAME
+  value: {{ .Values.collectorName | quote }}
+{{- end -}}
+
+{{/*
 Generate external labels transform processor configuration
 */}}
 {{- define "sawmills-collector.externalLabelsProcessor" -}}
@@ -476,7 +517,8 @@ Validate load balancer queue compression settings for direct otelCollectorConfig
 Fail fast for known invalid combinations.
 */}}
 {{- define "sawmills-collector.validateLoadBalancerQueueCompression" -}}
-{{- if and .Values.loadBalancer.enabled (not .Values.loadBalancer.otelConfig.s3path) -}}
+{{- $lbOtelConfig := default dict .Values.loadBalancer.otelConfig -}}
+{{- if and .Values.loadBalancer.enabled (not (default "" $lbOtelConfig.s3path)) -}}
 {{- $cfg := default dict .Values.loadBalancer.otelCollectorConfig -}}
 {{- $exporters := default dict (get $cfg "exporters") -}}
 {{- range $name, $exporter := $exporters -}}
