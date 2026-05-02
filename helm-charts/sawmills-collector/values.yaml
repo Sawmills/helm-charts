@@ -167,8 +167,8 @@ collectorConfig:
   # Defaults to quotamgmtprocessor.folder_name for backward compatibility.
   folderName: ""
   # Runtime S3 bucket injected as S3_BUCKET for remote collector configs.
-  # Defaults to quotamgmtprocessor.s3_bucket for backward compatibility.
-  s3Bucket: ""
+  # Empty values fall back to quotamgmtprocessor.s3_bucket for backward compatibility.
+  s3Bucket: sawmills-plat-ue1-prod-quotas
 
 quotamgmtprocessor:
   # Deprecated: use collectorConfig.s3Bucket. Kept for collectors-service and

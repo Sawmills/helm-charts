@@ -22,6 +22,7 @@ tests:
   - it: renders S3_BUCKET directly from legacy quotamgmtprocessor bucket
     template: templates/deployment.yaml
     set:
+      collectorConfig.s3Bucket: ""
       quotamgmtprocessor.s3_bucket: legacy-bucket
     asserts:
       - contains:
@@ -29,6 +30,15 @@ tests:
           content:
             name: S3_BUCKET
             value: legacy-bucket
+
+  - it: defaults S3_BUCKET to the Sawmills quota bucket
+    template: templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: sawmills-plat-ue1-prod-quotas
 
   - it: prefers collectorConfig folderName over legacy quotamgmtprocessor folder name
     template: templates/deployment.yaml
