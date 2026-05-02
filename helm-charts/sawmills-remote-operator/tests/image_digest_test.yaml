@@ -1,0 +1,25 @@
+suite: image digest rendering
+templates:
+  - deployment.yaml
+tests:
+  - it: should render digest instead of tag
+    set:
+      apiKey: test-key
+      collectorName: sawmills-collector
+      image.tag: 9.9.9
+      image.digest: sha256:deadbeef
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-remote-operator@sha256:deadbeef
+
+  - it: should pass managed collector and haproxy image digests
+    set:
+      apiKey: test-key
+      collectorName: sawmills-collector
+      managedChartsValues.sawmills-collector.image.digest: sha256:collector
+      managedChartsValues.sawmills-collector.haproxy.image.digest: sha256:haproxy
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name=="MANAGED_CHARTS_VALUES")].value
+          value: '{"sawmills-collector":{"haproxy":{"image":{"digest":"sha256:haproxy"}},"image":{"digest":"sha256:collector"}}}'

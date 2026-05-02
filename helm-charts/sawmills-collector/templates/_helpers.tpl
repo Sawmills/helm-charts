@@ -22,6 +22,35 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
+Build the collector image reference. If image.digest is set, pin by digest and ignore image.tag.
+*/}}
+{{- define "sawmills-collector.image" -}}
+{{- if .Values.image.digest -}}
+{{- printf "%s@%s" .Values.image.repository .Values.image.digest -}}
+{{- else -}}
+{{- printf "%s:%s" .Values.image.repository (default "dev" .Values.image.tag) -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Build the HAProxy image reference. Supports the legacy haproxy.image string and
+the structured haproxy.image.repository/tag/digest format.
+*/}}
+{{- define "sawmills-collector.haproxyImage" -}}
+{{- $image := .Values.haproxy.image -}}
+{{- if kindIs "map" $image -}}
+{{- $repository := default "public.ecr.aws/docker/library/haproxy" $image.repository -}}
+{{- if $image.digest -}}
+{{- printf "%s@%s" $repository $image.digest -}}
+{{- else -}}
+{{- printf "%s:%s" $repository (default "3.1.15" $image.tag) -}}
+{{- end -}}
+{{- else -}}
+{{- $image -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "sawmills-collector.labels" -}}
@@ -571,7 +600,7 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
 {{- fail (printf "haproxy.probes.readiness.type must be one of [http, tcp], got %q" $readinessType) -}}
 {{- end -}}
 - name: haproxy
-  image: {{ $root.Values.haproxy.image }}
+  image: {{ include "sawmills-collector.haproxyImage" $root }}
   securityContext:
     {{- toYaml $securityContext | nindent 4 }}
   {{- if $nativeSidecar }}

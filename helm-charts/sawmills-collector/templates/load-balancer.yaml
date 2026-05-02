@@ -121,7 +121,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-          image: {{ .Values.image.repository }}:{{ default "dev" .Values.image.tag }}
+          image: {{ include "sawmills-collector.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- if $lbOtelS3Path }}
           args:
@@ -229,7 +229,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-          image: {{ .Values.image.repository }}:{{ default "dev" .Values.image.tag }}
+          image: {{ include "sawmills-collector.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- if or $lbTelemetryOtelS3Path .Values.kedaScaler.enabled }}
           args:
