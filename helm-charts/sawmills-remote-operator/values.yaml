@@ -34,7 +34,7 @@ collectorName: ""
 image:
   repository: public.ecr.aws/s7a5m1b4/sawmills-remote-operator
   pullPolicy: Always
-  tag: 0.247.0 # Sawmills Remote Operator image tag
+  tag: 0.255.0 # Sawmills Remote Operator image tag
   # Optional image digest. When set, the chart renders repository@digest and ignores tag.
   digest: ""
 
