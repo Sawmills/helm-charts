@@ -145,11 +145,29 @@ is kept as a backward-compatible alias because collectors-service still emits it
 {{- end -}}
 
 {{/*
+Resolve the runtime S3 bucket injected as S3_BUCKET.
+collectorConfig.s3Bucket is the clear public value; quotamgmtprocessor.s3_bucket
+is kept as a backward-compatible alias because collectors-service still emits it.
+*/}}
+{{- define "sawmills-collector.s3Bucket" -}}
+{{- $collectorConfig := default dict .Values.collectorConfig -}}
+{{- $s3Bucket := "" -}}
+{{- if and (kindIs "map" $collectorConfig) (hasKey $collectorConfig "s3Bucket") -}}
+{{- $s3Bucket = (default "" (get $collectorConfig "s3Bucket") | toString) -}}
+{{- end -}}
+{{- if $s3Bucket -}}
+{{- $s3Bucket -}}
+{{- else -}}
+{{- $qmp := default dict .Values.quotamgmtprocessor -}}
+{{- default "" $qmp.s3_bucket -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Common runtime environment used by collector containers that load remote
 pipeline configs referencing ${env:FOLDER_NAME} and ${env:S3_BUCKET}.
 */}}
 {{- define "sawmills-collector.runtimeConfigEnv" -}}
-{{- $qmp := default dict .Values.quotamgmtprocessor -}}
 - name: MY_POD_NAME
   valueFrom:
     fieldRef:
@@ -161,7 +179,7 @@ pipeline configs referencing ${env:FOLDER_NAME} and ${env:S3_BUCKET}.
 - name: FOLDER_NAME
   value: {{ include "sawmills-collector.folderName" . | quote }}
 - name: S3_BUCKET
-  value: {{ default "" $qmp.s3_bucket | quote }}
+  value: {{ include "sawmills-collector.s3Bucket" . | quote }}
 - name: COLLECTOR_NAME
   value: {{ .Values.collectorName | quote }}
 {{- end -}}

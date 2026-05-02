@@ -19,6 +19,17 @@ tests:
             name: FOLDER_NAME
             value: legacy-folder
 
+  - it: renders S3_BUCKET directly from legacy quotamgmtprocessor bucket
+    template: templates/deployment.yaml
+    set:
+      quotamgmtprocessor.s3_bucket: legacy-bucket
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: legacy-bucket
+
   - it: prefers collectorConfig folderName over legacy quotamgmtprocessor folder name
     template: templates/deployment.yaml
     set:
@@ -30,6 +41,18 @@ tests:
           content:
             name: FOLDER_NAME
             value: clear-folder
+
+  - it: prefers collectorConfig s3Bucket over legacy quotamgmtprocessor bucket
+    template: templates/deployment.yaml
+    set:
+      collectorConfig.s3Bucket: clear-bucket
+      quotamgmtprocessor.s3_bucket: legacy-bucket
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: clear-bucket
 
   - it: falls back to legacy folder name when collectorConfig folderName is empty
     template: templates/deployment.yaml
@@ -43,6 +66,18 @@ tests:
             name: FOLDER_NAME
             value: legacy-folder
 
+  - it: falls back to legacy bucket when collectorConfig s3Bucket is empty
+    template: templates/deployment.yaml
+    set:
+      collectorConfig.s3Bucket: ""
+      quotamgmtprocessor.s3_bucket: legacy-bucket
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: legacy-bucket
+
   - it: renders load balancer FOLDER_NAME directly from the same helper
     template: templates/load-balancer.yaml
     set:
@@ -54,6 +89,18 @@ tests:
           content:
             name: FOLDER_NAME
             value: lb-folder
+
+  - it: renders load balancer S3_BUCKET directly from the same helper
+    template: templates/load-balancer.yaml
+    set:
+      collectorConfig.s3Bucket: lb-bucket
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: lb-bucket
 
   - it: does not render main direct configmap when main collector uses S3 config
     template: templates/configmap.yaml
