@@ -12,8 +12,11 @@ jobs:
           fetch-depth: 0
       - name: install yq
         run: |
-          sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.53.2/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
+          YQ_VERSION=v4.53.2
+          YQ_SHA256=d56bf5c6819e8e696340c312bd70f849dc1678a7cda9c2ad63eebd906371d56b
+          curl -fsSL -o /tmp/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          echo "${YQ_SHA256}  /tmp/yq" | sha256sum --check -
+          sudo install -m 0755 /tmp/yq /usr/local/bin/yq
           yq --version
       - name: generate CODEOWNERS
         run: |
