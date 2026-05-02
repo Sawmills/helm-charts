@@ -1,3 +1,5 @@
+{{- $otelConfig := default dict .Values.otelConfig }}
+{{- if not (default "" $otelConfig.s3path) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -10,3 +12,4 @@ data:
     {{- if .Values.otelCollectorConfig }}
       {{- toYaml .Values.otelCollectorConfig | nindent 6 }}
     {{- end }}
+{{- end }}

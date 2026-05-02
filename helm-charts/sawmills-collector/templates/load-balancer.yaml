@@ -1,5 +1,8 @@
 {{- if .Values.loadBalancer.enabled }}
 {{- include "sawmills-collector.validateLoadBalancerQueueCompression" . }}
+{{- $lbOtelConfig := default dict .Values.loadBalancer.otelConfig }}
+{{- $lbOtelS3Path := default "" $lbOtelConfig.s3path }}
+{{- $lbOtelEncryptionKey := default "" $lbOtelConfig.encryptionKey }}
 {{- $lbTelemetryOtelConfig := default (dict) .Values.loadBalancer.telemetryOtelConfig }}
 {{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
 {{- $lbTelemetryOtelEncryptionKey := default "" $lbTelemetryOtelConfig.encryptionKey }}
@@ -120,28 +123,12 @@ spec:
                 - ALL
           image: {{ include "sawmills-collector.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if .Values.loadBalancer.otelConfig.s3path }}
+          {{- if $lbOtelS3Path }}
           args:
-            - "--config={{ .Values.loadBalancer.otelConfig.s3path }}{{- if .Values.loadBalancer.otelConfig.encryptionKey }}@{{ .Values.loadBalancer.otelConfig.encryptionKey }}{{- end }}"
+            - "--config={{ $lbOtelS3Path }}{{- if $lbOtelEncryptionKey }}@{{ $lbOtelEncryptionKey }}{{- end }}"
           {{- end }}
           env:
-            - name: MY_POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: MY_POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: FOLDER_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "sawmills-collector.fullname" . }}-secret
-                  key: folder-name
-            - name: S3_BUCKET
-              value: {{ .Values.quotamgmtprocessor.s3_bucket }}
-            - name: COLLECTOR_NAME
-              value: {{ .Values.collectorName }}
+            {{- include "sawmills-collector.runtimeConfigEnv" . | nindent 12 }}
             {{- if and (not .Values.loadBalancer.resources.disableLimits) .Values.loadBalancer.resources.limits .Values.loadBalancer.resources.limits.memory }}
             {{- $memLimit := .Values.loadBalancer.resources.limits.memory | toString }}
             - name: GOMEMLIMIT
@@ -219,7 +206,7 @@ spec:
               {{- toYaml .Values.loadBalancer.resources.limits | nindent 14 }}
             {{- end }}
           volumeMounts:
-          {{- if not .Values.loadBalancer.otelConfig.s3path }}
+          {{- if not $lbOtelS3Path }}
             - name: sawmills-collector-config-load-balancer
               mountPath: /etc/otel/config.yaml
               subPath: config.yaml
@@ -333,9 +320,11 @@ spec:
               {{- toYaml .Values.telemetry.resources.limits | nindent 14 }}
             {{- end }}
           volumeMounts:
+            {{- if not $lbTelemetryOtelS3Path }}
             - name: sawmills-load-balancer-telemetry-config
               mountPath: /etc/otel/config.yaml
               subPath: telemetry-config.yaml
+            {{- end }}
             {{- if .Values.kedaScaler.enabled }}
             - name: sawmills-telemetry-keda-config
               mountPath: /etc/otel/keda.yaml
@@ -354,7 +343,7 @@ spec:
           secret:
             secretName: {{ include "sawmills-collector.haproxyTlsSecretName" . }}
         {{- end }}
-        {{- if not .Values.loadBalancer.otelConfig.s3path }}
+        {{- if not $lbOtelS3Path }}
         - name: sawmills-collector-config-load-balancer
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-load-balancer-config
@@ -362,12 +351,14 @@ spec:
               - key: config.yaml
                 path: config.yaml
         {{- end }}
+        {{- if not $lbTelemetryOtelS3Path }}
         - name: sawmills-load-balancer-telemetry-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-load-balancer-telemetry-config
             items:
               - key: telemetry-config.yaml
                 path: telemetry-config.yaml
+        {{- end }}
         {{- if .Values.kedaScaler.enabled }}
         - name: sawmills-telemetry-keda-config
           configMap:

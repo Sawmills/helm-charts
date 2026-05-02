@@ -1,0 +1,193 @@
+suite: runtime config simplification
+templates:
+  - templates/configmap.yaml
+  - templates/deployment.yaml
+  - templates/load-balancer.yaml
+  - templates/load-balancer-telemetry-configmap.yaml
+  - templates/telemetry-configmap.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: renders FOLDER_NAME directly from legacy quotamgmtprocessor folder name
+    template: templates/deployment.yaml
+    set:
+      quotamgmtprocessor.folder_name: legacy-folder
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: FOLDER_NAME
+            value: legacy-folder
+
+  - it: renders S3_BUCKET directly from legacy quotamgmtprocessor bucket
+    template: templates/deployment.yaml
+    set:
+      collectorConfig.s3Bucket: ""
+      quotamgmtprocessor.s3_bucket: legacy-bucket
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: legacy-bucket
+
+  - it: defaults S3_BUCKET to the Sawmills quota bucket
+    template: templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: sawmills-plat-ue1-prod-quotas
+
+  - it: prefers collectorConfig folderName over legacy quotamgmtprocessor folder name
+    template: templates/deployment.yaml
+    set:
+      collectorConfig.folderName: clear-folder
+      quotamgmtprocessor.folder_name: legacy-folder
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: FOLDER_NAME
+            value: clear-folder
+
+  - it: prefers collectorConfig s3Bucket over legacy quotamgmtprocessor bucket
+    template: templates/deployment.yaml
+    set:
+      collectorConfig.s3Bucket: clear-bucket
+      quotamgmtprocessor.s3_bucket: legacy-bucket
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: clear-bucket
+
+  - it: falls back to legacy folder name when collectorConfig folderName is empty
+    template: templates/deployment.yaml
+    set:
+      collectorConfig.folderName: ""
+      quotamgmtprocessor.folder_name: legacy-folder
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: FOLDER_NAME
+            value: legacy-folder
+
+  - it: falls back to legacy bucket when collectorConfig s3Bucket is empty
+    template: templates/deployment.yaml
+    set:
+      collectorConfig.s3Bucket: ""
+      quotamgmtprocessor.s3_bucket: legacy-bucket
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: legacy-bucket
+
+  - it: renders load balancer FOLDER_NAME directly from the same helper
+    template: templates/load-balancer.yaml
+    set:
+      collectorConfig.folderName: lb-folder
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: FOLDER_NAME
+            value: lb-folder
+
+  - it: renders load balancer S3_BUCKET directly from the same helper
+    template: templates/load-balancer.yaml
+    set:
+      collectorConfig.s3Bucket: lb-bucket
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: S3_BUCKET
+            value: lb-bucket
+
+  - it: does not render main direct configmap when main collector uses S3 config
+    template: templates/configmap.yaml
+    set:
+      otelConfig.s3path: s3://example/main-config
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not mount main direct config when main collector uses S3 config
+    template: templates/deployment.yaml
+    set:
+      otelConfig.s3path: s3://example/main-config
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].volumeMounts
+          content:
+            name: sawmills-collector-config
+            mountPath: /etc/otel/config.yaml
+            subPath: config.yaml
+      - notExists:
+          path: spec.template.spec.volumes[?(@.name=="sawmills-collector-config")]
+
+  - it: renders main direct configmap when main collector does not use S3 config
+    template: templates/configmap.yaml
+    set:
+      otelConfig.s3path: ""
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: does not render telemetry direct configmap when telemetry collector uses S3 config
+    template: templates/telemetry-configmap.yaml
+    set:
+      telemetryOtelConfig.s3path: s3://example/telemetry-config
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders telemetry direct configmap when telemetry collector does not use S3 config
+    template: templates/telemetry-configmap.yaml
+    set:
+      telemetryOtelConfig.s3path: ""
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: does not mount telemetry direct config when telemetry collector uses S3 config
+    template: templates/deployment.yaml
+    set:
+      telemetryOtelConfig.s3path: s3://example/telemetry-config
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].volumeMounts
+          content:
+            name: sawmills-telemetry-config
+            mountPath: /etc/otel/config.yaml
+            subPath: telemetry-config.yaml
+
+  - it: does not render load balancer telemetry direct configmap when LB telemetry uses S3 config
+    template: templates/load-balancer-telemetry-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryOtelConfig.s3path: s3://example/lb-telemetry-config
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not mount load balancer telemetry direct config when LB telemetry uses S3 config
+    template: templates/load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryOtelConfig.s3path: s3://example/lb-telemetry-config
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].volumeMounts
+          content:
+            name: sawmills-load-balancer-telemetry-config
+            mountPath: /etc/otel/config.yaml
+            subPath: telemetry-config.yaml

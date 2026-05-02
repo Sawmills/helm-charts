@@ -1,3 +1,5 @@
+{{- $telemetryOtelConfig := default dict .Values.telemetryOtelConfig }}
+{{- if not (default "" $telemetryOtelConfig.s3path) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,4 +11,5 @@ data:
   telemetry-config.yaml: |
     {{- if .Values.telemetryConfig }}
       {{- include "sawmills-collector.telemetryConfig" . | nindent 6 }}
-    {{- end }} 
+    {{- end }}
+{{- end }}

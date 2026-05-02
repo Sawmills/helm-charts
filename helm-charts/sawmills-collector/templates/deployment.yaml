@@ -1,6 +1,9 @@
 {{- $mainDrain := .Values.rollout.main.drain | default dict }}
 {{- $mainStartupProbe := .Values.rollout.main.probes.startup | default dict }}
 {{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) }}
+{{- $mainOtelConfig := default dict .Values.otelConfig }}
+{{- $mainOtelS3Path := default "" $mainOtelConfig.s3path }}
+{{- $mainOtelEncryptionKey := default "" $mainOtelConfig.encryptionKey }}
 {{- $telemetryOtelConfig := default (dict) .Values.telemetryOtelConfig }}
 {{- $telemetryOtelS3Path := default "" $telemetryOtelConfig.s3path }}
 {{- $telemetryOtelEncryptionKey := default "" $telemetryOtelConfig.encryptionKey }}
@@ -229,9 +232,11 @@ spec:
               {{- toYaml .Values.telemetry.resources.limits | nindent 14 }}
             {{- end }}
           volumeMounts:
+            {{- if not $telemetryOtelS3Path }}
             - name: sawmills-telemetry-config
               mountPath: /etc/otel/config.yaml
               subPath: telemetry-config.yaml
+            {{- end }}
             {{- if .Values.kedaScaler.enabled }}
             - name: sawmills-telemetry-keda-config
               mountPath: /etc/otel/keda.yaml
@@ -253,10 +258,10 @@ spec:
                 - ALL
           image: {{ include "sawmills-collector.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if or .Values.otelConfig.s3path $mainCollectorDrainEnabled }}
+          {{- if or $mainOtelS3Path $mainCollectorDrainEnabled }}
           args:
-            {{- if .Values.otelConfig.s3path }}
-            - "--config={{ .Values.otelConfig.s3path }}{{- if .Values.otelConfig.encryptionKey }}@{{ .Values.otelConfig.encryptionKey }}{{- end }}"
+            {{- if $mainOtelS3Path }}
+            - "--config={{ $mainOtelS3Path }}{{- if $mainOtelEncryptionKey }}@{{ $mainOtelEncryptionKey }}{{- end }}"
             {{- else }}
             - "--config=file:/etc/otel/config.yaml"
             {{- end }}
@@ -265,23 +270,7 @@ spec:
             {{- end }}
           {{- end }}
           env:
-            - name: MY_POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: MY_POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: FOLDER_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "sawmills-collector.fullname" . }}-secret
-                  key: folder-name
-            - name: S3_BUCKET
-              value: {{ .Values.quotamgmtprocessor.s3_bucket }}
-            - name: COLLECTOR_NAME
-              value: {{ .Values.collectorName }}
+            {{- include "sawmills-collector.runtimeConfigEnv" . | nindent 12 }}
             - name: AUTH_KEY
               valueFrom:
                 secretKeyRef:
@@ -353,7 +342,7 @@ spec:
               {{- toYaml .Values.resources.limits | nindent 14 }}
             {{- end }}
           volumeMounts:
-          {{- if not .Values.otelConfig.s3path }}
+          {{- if not $mainOtelS3Path }}
             - name: sawmills-collector-config
               mountPath: /etc/otel/config.yaml
               subPath: config.yaml
@@ -383,7 +372,7 @@ spec:
             secretName: {{ include "sawmills-collector.haproxyTlsSecretName" . }}
         {{- end }}
         {{- end }}
-        {{- if not .Values.otelConfig.s3path }}
+        {{- if not $mainOtelS3Path }}
         - name: sawmills-collector-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-config
@@ -399,12 +388,14 @@ spec:
               - key: config.yaml
                 path: config.yaml
         {{- end }}
+        {{- if not $telemetryOtelS3Path }}
         - name: sawmills-telemetry-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-telemetry-config
             items:
               - key: telemetry-config.yaml
                 path: telemetry-config.yaml
+        {{- end }}
         {{- if .Values.kedaScaler.enabled }}
         - name: sawmills-telemetry-keda-config
           configMap:
