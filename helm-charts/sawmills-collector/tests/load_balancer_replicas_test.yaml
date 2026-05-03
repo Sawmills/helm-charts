@@ -1,0 +1,60 @@
+suite: Load Balancer Replica Ownership Tests
+templates:
+  - templates/load-balancer.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: renders replicas when load balancer scaling is not controller-managed
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 4
+        autoscaling:
+          enabled: false
+        keda:
+          enabled: false
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 4
+
+  - it: omits replicas when load balancer HPA owns scaling
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 4
+        autoscaling:
+          enabled: true
+        keda:
+          enabled: false
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: omits replicas when load balancer KEDA owns scaling
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 4
+        autoscaling:
+          enabled: false
+        keda:
+          enabled: true
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: omits replicas from StatefulSet when autoscaling owns scaling
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 4
+        storage:
+          enabled: true
+        autoscaling:
+          enabled: true
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - notExists:
+          path: spec.replicas

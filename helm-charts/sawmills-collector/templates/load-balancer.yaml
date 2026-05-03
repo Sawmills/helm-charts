@@ -10,6 +10,8 @@
 {{- $haproxyReadinessType := (dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower }}
 {{- $haproxyReadinessPath := dig "probes" "readiness" "path" "/ready" .Values.haproxy }}
 {{- $haproxyReadinessPort := dig "probes" "readiness" "port" 13135 .Values.haproxy }}
+{{- $lbAutoscalingEnabled := and .Values.loadBalancer.autoscaling (eq .Values.loadBalancer.autoscaling.enabled true) }}
+{{- $lbKedaEnabled := and .Values.loadBalancer.keda (eq .Values.loadBalancer.keda.enabled true) }}
 {{- if eq $haproxyReadinessType "tcp" }}
 {{- $haproxyReadinessPort = (.Values.haproxy.healthcheck.port | default 13135) }}
 {{- end }}
@@ -25,7 +27,9 @@ metadata:
   labels:
     {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
 spec:
+  {{- if not (or $lbAutoscalingEnabled $lbKedaEnabled) }}
   replicas: {{ .Values.loadBalancer.replicas }}
+  {{- end }}
   {{- $lbStrategy := default (dict) .Values.loadBalancer.strategy }}
   {{- $lbStrategyType := default "RollingUpdate" $lbStrategy.type }}
   {{- if .Values.loadBalancer.storage.enabled }}
