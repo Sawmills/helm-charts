@@ -98,13 +98,6 @@ collector_gateway:
 collectorConfig:
   folderName: SAWMILLS_ORG
   s3Bucket: sawmills-plat-ue1-prod-quotas
-
-# Legacy aliases for generated values that have not migrated yet
-quotamgmtprocessor:
-  # Legacy alias for collectorConfig.s3Bucket
-  s3_bucket: sawmills-plat-ue1-prod-quotas
-  # Legacy alias for collectorConfig.folderName
-  folder_name: SAWMILLS_ORG
 ```
 
 ### Pin Images By Digest

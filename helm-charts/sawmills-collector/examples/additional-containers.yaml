@@ -84,12 +84,12 @@ additionalVolumes:
 
 # Rest of the standard sawmills-collector configuration
 collectorName: test-sawmills-collector
-quotamgmtprocessor:
-  s3_bucket: test-bucket
-  folder_name: TEST_ORG
+collectorConfig:
+  s3Bucket: test-bucket
+  folderName: TEST_ORG
+apiSecret:
+  name: test-sawmills-secret
+  key: api-key
 
 prometheusremotewrite:
   endpoint: https://test.sawmills.ai
-  api_key_secret:
-    name: test-sawmills-secret
-    key: api-key
