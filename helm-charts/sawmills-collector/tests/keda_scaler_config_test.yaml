@@ -1,0 +1,27 @@
+suite: keda scaler config
+templates:
+  - templates/keda-scaler-configmap.yaml
+tests:
+  - it: exposes self telemetry through prometheus pull reader instead of otlp push
+    template: templates/keda-scaler-configmap.yaml
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?m)^\s*-\s*pull:\s*$'
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?m)^\s*prometheus:\s*$'
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?m)^\s*host: \$\{env:MY_POD_IP\}\s*$'
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?m)^\s*port: \$\{env:OTEL_PROMETHEUS_PORT\}\s*$'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: '(?m)^\s*periodic:\s*$'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: '(?m)^\s*endpoint: \$\{env:MY_POD_IP\}:\$\{env:OTEL_PROMETHEUS_PORT\}\s*$'
