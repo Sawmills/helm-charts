@@ -128,7 +128,7 @@ key: api-key
 {{/*
 Resolve the runtime folder name injected as FOLDER_NAME.
 collectorConfig.folderName is the clear public value; quotamgmtprocessor.folder_name
-is kept as a backward-compatible alias because collectors-service still emits it.
+is kept as a backward-compatible alias for reused release values.
 */}}
 {{- define "sawmills-collector.folderName" -}}
 {{- $collectorConfig := default dict .Values.collectorConfig -}}
@@ -140,14 +140,14 @@ is kept as a backward-compatible alias because collectors-service still emits it
 {{- $folderName -}}
 {{- else -}}
 {{- $qmp := default dict .Values.quotamgmtprocessor -}}
-{{- default "" $qmp.folder_name -}}
+{{- default "SAWMILLS_ORG" $qmp.folder_name -}}
 {{- end -}}
 {{- end -}}
 
 {{/*
 Resolve the runtime S3 bucket injected as S3_BUCKET.
 collectorConfig.s3Bucket is the clear public value; quotamgmtprocessor.s3_bucket
-is kept as a backward-compatible alias because collectors-service still emits it.
+is kept as a backward-compatible alias for reused release values.
 */}}
 {{- define "sawmills-collector.s3Bucket" -}}
 {{- $collectorConfig := default dict .Values.collectorConfig -}}
@@ -159,7 +159,7 @@ is kept as a backward-compatible alias because collectors-service still emits it
 {{- $s3Bucket -}}
 {{- else -}}
 {{- $qmp := default dict .Values.quotamgmtprocessor -}}
-{{- default "" $qmp.s3_bucket -}}
+{{- default "sawmills-plat-ue1-prod-quotas" $qmp.s3_bucket -}}
 {{- end -}}
 {{- end -}}
 

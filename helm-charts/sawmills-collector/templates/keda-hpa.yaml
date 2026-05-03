@@ -71,14 +71,14 @@ spec:
     {{- end }}
     {{- if .Values.keda.scaling.cpu.enabled }}
     - type: cpu
+      metricType: Utilization
       metadata:
-        type: Utilization
         value: {{ .Values.keda.scaling.cpu.targetUtilization | quote }}
     {{- end }}
     {{- if .Values.keda.scaling.memory.enabled }}
     - type: memory
+      metricType: Utilization
       metadata:
-        type: Utilization
         value: {{ .Values.keda.scaling.memory.targetUtilization | quote }}
     {{- end }}
 {{- end }}

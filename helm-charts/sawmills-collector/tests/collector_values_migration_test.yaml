@@ -1,0 +1,82 @@
+suite: Collector Values Migration
+templates:
+  - templates/deployment.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: uses apiSecret for collector API key references
+    set:
+      apiSecret:
+        name: new-secret
+        key: new-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: AUTH_KEY
+            valueFrom:
+              secretKeyRef:
+                name: new-secret
+                key: new-key
+
+  - it: keeps prometheusremotewrite api_key_secret as a legacy alias
+    set:
+      prometheusremotewrite:
+        api_key_secret:
+          name: legacy-secret
+          key: legacy-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: AUTH_KEY
+            valueFrom:
+              secretKeyRef:
+                name: legacy-secret
+                key: legacy-key
+
+  - it: prefers apiSecret over legacy prometheusremotewrite api_key_secret
+    set:
+      apiSecret:
+        name: new-secret
+        key: new-key
+      prometheusremotewrite:
+        api_key_secret:
+          name: legacy-secret
+          key: legacy-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: AUTH_KEY
+            valueFrom:
+              secretKeyRef:
+                name: new-secret
+                key: new-key
+
+  - it: uses serviceAccount.name for pod service account
+    set:
+      serviceAccount:
+        name: new-service-account
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: new-service-account
+
+  - it: keeps serviceAccountName as a legacy alias
+    set:
+      serviceAccountName: legacy-service-account
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: legacy-service-account
+
+  - it: prefers serviceAccount.name over legacy serviceAccountName
+    set:
+      serviceAccount:
+        name: new-service-account
+      serviceAccountName: legacy-service-account
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: new-service-account
