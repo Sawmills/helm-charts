@@ -1172,11 +1172,11 @@ kedaScaler:
             - stdout
         metrics:
           readers:
-            - periodic:
+            - pull:
                 exporter:
-                  otlp:
-                    protocol: grpc
-                    endpoint: ${env:MY_POD_IP}:${env:OTEL_PROMETHEUS_PORT}
+                  prometheus:
+                    host: ${env:MY_POD_IP}
+                    port: ${env:OTEL_PROMETHEUS_PORT}
 
 loadBalancer:
   enabled: false
