@@ -16,6 +16,11 @@ mode: deployment
 collectorName: sawmills-collector
 collectorId: sawmills-collector-id
 
+# Optional runtime resource base name. Leave empty to keep using the Helm release name.
+# Set this when embedding the chart in an umbrella/monochart release where the
+# collector resources need their own stable Kubernetes base name.
+resourceBaseName: ""
+
 # Rollout configuration
 rollout:
   # Global rollout settings

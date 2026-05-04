@@ -117,7 +117,11 @@ spec:
       {{- end }}
       {{- if not (empty .Values.affinity) }}
       affinity:
-        {{- toYaml .Values.affinity | nindent 8 }}
+        {{- $affinity := toYaml .Values.affinity }}
+        {{- if .Values.resourceBaseName }}
+        {{- $affinity = replace "sawmills-collector-chart" (include "sawmills-collector.selectorName" .) $affinity }}
+        {{- end }}
+        {{- $affinity | nindent 8 }}
       {{- end }}
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName }}

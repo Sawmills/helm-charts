@@ -79,7 +79,11 @@ spec:
       {{- end }}
       {{- if not (empty .Values.loadBalancer.affinity) }}
       affinity:
-        {{- toYaml .Values.loadBalancer.affinity | nindent 8 }}
+        {{- $affinity := toYaml .Values.loadBalancer.affinity }}
+        {{- if .Values.resourceBaseName }}
+        {{- $affinity = replace "sawmills-collector-chart-lb" (include "sawmills-collector.loadBalancerSelectorName" .) $affinity }}
+        {{- end }}
+        {{- $affinity | nindent 8 }}
       {{- end }}
       {{- if .Values.loadBalancer.priorityClassName }}
       priorityClassName: {{ .Values.loadBalancer.priorityClassName }}

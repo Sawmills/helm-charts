@@ -82,6 +82,10 @@ mode: daemonSet
 collectorName: sawmills-collector
 collectorId: sawmills-collector-id
 
+# Optional stable Kubernetes resource base name.
+# Useful when this chart is embedded under an umbrella or monochart release.
+resourceBaseName: ""
+
 # Prometheus Remote Write endpoint
 prometheusremotewrite:
   endpoint: https://ingress.sawmills.ai
@@ -99,6 +103,8 @@ collectorConfig:
   folderName: SAWMILLS_ORG
   s3Bucket: sawmills-plat-ue1-prod-quotas
 ```
+
+Set `resourceBaseName` when the Helm release name is owned by a parent chart but the collector needs stable resource names. For example, `resourceBaseName: coinbase-logs` renders the regular collector as `coinbase-logs`, the load balancer as `coinbase-logs-lb`, the backend service as `coinbase-logs-backend`, and the load-balancer headless service as `coinbase-logs-headless`.
 
 ### Pin Images By Digest
 
