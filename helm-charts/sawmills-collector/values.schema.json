@@ -4,9 +4,9 @@
   "properties": {
     "resourceBaseName": {
       "type": "string",
-      "maxLength": 46,
+      "maxLength": 32,
       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$|^$",
-      "description": "Optional stable Kubernetes resource base name. Limited to 46 characters so generated names such as <base>-backend-headless remain valid DNS labels."
+      "description": "Optional stable Kubernetes resource base name. Limited to 32 characters so generated names such as <base>-load-balancer-telemetry-config remain valid DNS labels."
     },
     "proxy": {
       "type": "object",

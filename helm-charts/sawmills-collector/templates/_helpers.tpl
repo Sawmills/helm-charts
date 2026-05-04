@@ -82,11 +82,7 @@ Selector labels
 {{- end }}
 
 {{- define "sawmills-collector.selectorInstance" -}}
-{{- if .Values.resourceBaseName -}}
-{{- include "sawmills-collector.resourceBaseName" . }}
-{{- else -}}
 {{- .Release.Name }}
-{{- end }}
 {{- end }}
 
 {{- define "sawmills-collector.selectorLabels" -}}

@@ -19,10 +19,10 @@ collectorId: sawmills-collector-id
 # Optional runtime resource base name. Leave empty to keep using the Helm release name.
 # Set this when embedding the chart in an umbrella/monochart release where the
 # collector resources need their own stable Kubernetes base name.
-# Must be a Kubernetes DNS label no longer than 46 characters so generated
-# suffixed Services such as <base>-backend-headless remain valid.
-# Changing this on an existing release changes immutable workload selectors.
-# Adopt it with a fresh install or a delete-and-recreate migration.
+# Must be a Kubernetes DNS label no longer than 32 characters so generated
+# suffixed names such as <base>-load-balancer-telemetry-config remain valid.
+# Changing this on an existing release changes rendered resource names.
+# Adopt it with a fresh install or a planned rename migration.
 resourceBaseName: ""
 
 # Rollout configuration
