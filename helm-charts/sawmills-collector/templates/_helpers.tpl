@@ -15,8 +15,8 @@ Defaults to the Helm release name for backward compatibility.
 
 {{/*
 Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
+Returns the runtime resource base name: .Values.resourceBaseName when set,
+otherwise .Release.Name for backward compatibility.
 */}}
 {{- define "sawmills-collector.fullname" -}}
 {{- include "sawmills-collector.resourceBaseName" . }}
