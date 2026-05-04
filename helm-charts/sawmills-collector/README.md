@@ -84,6 +84,7 @@ collectorId: sawmills-collector-id
 
 # Optional stable Kubernetes resource base name.
 # Useful when this chart is embedded under an umbrella or monochart release.
+# Must be a DNS label no longer than 46 characters.
 resourceBaseName: ""
 
 # Prometheus Remote Write endpoint
@@ -104,7 +105,7 @@ collectorConfig:
   s3Bucket: sawmills-plat-ue1-prod-quotas
 ```
 
-Set `resourceBaseName` when the Helm release name is owned by a parent chart but the collector needs stable resource names. For example, `resourceBaseName: coinbase-logs` renders the regular collector as `coinbase-logs`, the load balancer as `coinbase-logs-lb`, the backend service as `coinbase-logs-backend`, and the load-balancer headless service as `coinbase-logs-headless`.
+Set `resourceBaseName` when the Helm release name is owned by a parent chart but the collector needs stable resource names. For example, `resourceBaseName: coinbase-logs` renders the regular collector as `coinbase-logs`, the load balancer as `coinbase-logs-lb`, the backend service as `coinbase-logs-backend`, and the load-balancer headless service as `coinbase-logs-headless`. The value is capped at 46 characters so the longest generated Service name, `<base>-backend-headless`, stays within Kubernetes DNS label limits.
 
 ### Pin Images By Digest
 
