@@ -119,6 +119,27 @@ app.kubernetes.io/instance: {{ include "sawmills-collector.selectorInstance" . }
 {{- end }}
 
 {{/*
+Render affinity values while preserving backward-compatible defaults.
+When resourceBaseName is set, only the chart's built-in legacy selector name is rewritten.
+*/}}
+{{- define "sawmills-collector.renderAffinity" -}}
+{{- $root := index . "root" -}}
+{{- $affinity := toYaml (index . "affinity") -}}
+{{- if $root.Values.resourceBaseName -}}
+{{- $affinity = replace (index . "legacyName") (index . "selectorName") $affinity -}}
+{{- end -}}
+{{- $affinity -}}
+{{- end }}
+
+{{- define "sawmills-collector.renderCollectorAffinity" -}}
+{{- include "sawmills-collector.renderAffinity" (dict "root" . "affinity" .Values.affinity "legacyName" "sawmills-collector-chart" "selectorName" (include "sawmills-collector.selectorName" .)) -}}
+{{- end }}
+
+{{- define "sawmills-collector.renderLoadBalancerAffinity" -}}
+{{- include "sawmills-collector.renderAffinity" (dict "root" . "affinity" .Values.loadBalancer.affinity "legacyName" "sawmills-collector-chart-lb" "selectorName" (include "sawmills-collector.loadBalancerSelectorName" .)) -}}
+{{- end }}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "sawmills-collector.serviceAccountName" -}}

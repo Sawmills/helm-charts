@@ -247,6 +247,9 @@ tests:
       - equal:
           path: spec.selector.matchLabels["app.kubernetes.io/instance"]
           value: customer-umbrella
+      - contains:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.labelSelector.matchExpressions[0].values
+          content: coinbase-logs
 
   - it: uses resourceBaseName for KEDA scaler service selectors
     template: templates/keda-scaler-service.yaml

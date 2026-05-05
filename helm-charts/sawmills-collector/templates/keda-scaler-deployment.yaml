@@ -94,9 +94,9 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- if not (empty .Values.affinity) }}
       affinity:
-        {{- toYaml . | nindent 8 }}
+        {{- include "sawmills-collector.renderCollectorAffinity" . | nindent 8 }}
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
