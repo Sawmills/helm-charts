@@ -38,7 +38,7 @@ tests:
           path: spec.ingress[0].ports[0].port
           value: 4518
       - equal:
-          path: spec.ingress[1].from[0].namespaceSelector.matchLabels.name
+          path: spec.ingress[1].from[0].namespaceSelector.matchLabels["kubernetes.io/metadata.name"]
           value: keda
       - equal:
           path: spec.ingress[1].from[0].podSelector.matchLabels["app.kubernetes.io/name"]

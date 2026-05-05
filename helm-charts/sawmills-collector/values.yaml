@@ -1079,7 +1079,7 @@ kedaScaler:
     allowKedaOperator: true
     kedaOperatorNamespaceSelector:
       matchLabels:
-        name: keda
+        kubernetes.io/metadata.name: keda
     kedaOperatorPodSelector:
       matchLabels:
         app.kubernetes.io/name: keda-operator
