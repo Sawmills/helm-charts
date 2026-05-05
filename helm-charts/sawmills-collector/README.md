@@ -770,6 +770,8 @@ Enable the KEDA scaler component:
 ```yaml
 kedaScaler:
   enabled: true
+  networkPolicy:
+    enabled: true
   resources:
     limits:
       cpu: 500m
@@ -778,6 +780,11 @@ kedaScaler:
       cpu: 500m
       memory: 128Mi
 ```
+
+When the namespace has default-deny ingress policy, enable
+`kedaScaler.networkPolicy.enabled`. The chart allows collector and load-balancer
+pods from the same release to send OTLP metrics to the scaler, and allows the
+KEDA operator namespace to call the external scaler gRPC endpoint.
 
 ## Troubleshooting
 
