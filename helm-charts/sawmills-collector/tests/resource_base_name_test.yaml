@@ -61,6 +61,34 @@ tests:
           path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.labelSelector.matchExpressions[0].values
           content: coinbase-logs
 
+  - it: rewrites only exact legacy affinity selector values
+    template: templates/deployment.yaml
+    release:
+      name: customer-umbrella
+      namespace: customer-ns
+    set:
+      resourceBaseName: coinbase-logs
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - sawmills-collector-chart
+                        - note-sawmills-collector-chart
+                topologyKey: kubernetes.io/hostname
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.labelSelector.matchExpressions[0].values[0]
+          value: coinbase-logs
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.labelSelector.matchExpressions[0].values[1]
+          value: note-sawmills-collector-chart
+
   - it: uses resourceBaseName for backend service names when load balancer is enabled
     template: templates/service.yaml
     release:

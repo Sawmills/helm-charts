@@ -126,7 +126,9 @@ When resourceBaseName is set, only the chart's built-in legacy selector name is 
 {{- $root := index . "root" -}}
 {{- $affinity := toYaml (index . "affinity") -}}
 {{- if $root.Values.resourceBaseName -}}
-{{- $affinity = replace (index . "legacyName") (index . "selectorName") $affinity -}}
+{{- $legacyListItem := printf "- %s" (index . "legacyName") -}}
+{{- $selectorListItem := printf "- %s" (index . "selectorName") -}}
+{{- $affinity = replace $legacyListItem $selectorListItem $affinity -}}
 {{- end -}}
 {{- $affinity -}}
 {{- end }}
