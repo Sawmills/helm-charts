@@ -1077,7 +1077,9 @@ kedaScaler:
     enabled: false
     allowSameReleasePodsToOtlp: true
     allowKedaOperator: true
-    kedaOperatorNamespaceSelector: {}
+    kedaOperatorNamespaceSelector:
+      matchLabels:
+        name: keda
     kedaOperatorPodSelector:
       matchLabels:
         app.kubernetes.io/name: keda-operator

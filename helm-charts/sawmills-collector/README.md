@@ -785,8 +785,9 @@ When the namespace has default-deny ingress policy, enable
 `kedaScaler.networkPolicy.enabled`. The chart allows collector and load-balancer
 pods from the same release to send OTLP metrics to the scaler, and allows the
 KEDA operator pods to call the external scaler gRPC endpoint. Override
+`kedaScaler.networkPolicy.kedaOperatorNamespaceSelector` or
 `kedaScaler.networkPolicy.kedaOperatorPodSelector` if your KEDA install uses
-different pod labels.
+different namespace or pod labels.
 
 ## Troubleshooting
 
