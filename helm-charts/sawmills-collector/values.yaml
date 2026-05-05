@@ -1077,10 +1077,10 @@ kedaScaler:
     enabled: false
     allowSameReleasePodsToOtlp: true
     allowKedaOperator: true
-    kedaOperatorNamespaceSelector:
+    kedaOperatorNamespaceSelector: {}
+    kedaOperatorPodSelector:
       matchLabels:
-        kubernetes.io/metadata.name: keda
-    kedaOperatorPodSelector: {}
+        app.kubernetes.io/name: keda-operator
     extraIngress: []
   probes:
     liveness:
