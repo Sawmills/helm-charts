@@ -79,7 +79,7 @@ spec:
       {{- end }}
       {{- if not (empty .Values.loadBalancer.affinity) }}
       affinity:
-        {{- toYaml .Values.loadBalancer.affinity | nindent 8 }}
+        {{- include "sawmills-collector.renderLoadBalancerAffinity" . | nindent 8 }}
       {{- end }}
       {{- if .Values.loadBalancer.priorityClassName }}
       priorityClassName: {{ .Values.loadBalancer.priorityClassName }}

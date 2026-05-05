@@ -82,6 +82,11 @@ mode: daemonSet
 collectorName: sawmills-collector
 collectorId: sawmills-collector-id
 
+# Optional stable Kubernetes resource base name.
+# Useful when this chart is embedded under an umbrella or monochart release.
+# Must be a DNS label no longer than 32 characters.
+resourceBaseName: ""
+
 # Prometheus Remote Write endpoint
 prometheusremotewrite:
   endpoint: https://ingress.sawmills.ai
@@ -99,6 +104,12 @@ collectorConfig:
   folderName: SAWMILLS_ORG
   s3Bucket: sawmills-plat-ue1-prod-quotas
 ```
+
+Set `resourceBaseName` when the Helm release name is owned by a parent chart but the collector needs stable resource names. For example, `resourceBaseName: coinbase-logs` renders the regular collector as `coinbase-logs`, the load balancer as `coinbase-logs-lb`, the backend service as `coinbase-logs-backend`, and the load-balancer headless service as `coinbase-logs-headless`. The value is capped at 32 characters so the longest generated name, `<base>-load-balancer-telemetry-config`, stays within Kubernetes DNS label limits.
+
+Changing `resourceBaseName` on an existing release changes rendered resource names. Use it for fresh installs, or plan a rename migration when adopting it on an already-installed release.
+
+When overriding `affinity` or `loadBalancer.affinity` with `resourceBaseName` set, use the selector label values rendered by the chart: `<resourceBaseName>` for the collector and `<resourceBaseName>-lb` for the load balancer. The default affinity blocks are rewritten automatically; arbitrary custom selector values are not.
 
 ### Pin Images By Digest
 

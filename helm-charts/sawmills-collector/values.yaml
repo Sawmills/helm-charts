@@ -16,6 +16,15 @@ mode: deployment
 collectorName: sawmills-collector
 collectorId: sawmills-collector-id
 
+# Optional runtime resource base name. Leave empty to keep using the Helm release name.
+# Set this when embedding the chart in an umbrella/monochart release where the
+# collector resources need their own stable Kubernetes base name.
+# Must be a Kubernetes DNS label no longer than 32 characters so generated
+# suffixed names such as <base>-load-balancer-telemetry-config remain valid.
+# Changing this on an existing release changes rendered resource names.
+# Adopt it with a fresh install or a planned rename migration.
+resourceBaseName: ""
+
 # Rollout configuration
 rollout:
   # Global rollout settings
@@ -256,6 +265,9 @@ podLabels: {}
 
 # Node affinity settings for the Sawmills collector pods
 # Default configuration spreads pods across nodes to ensure high availability
+# If resourceBaseName is set and you override this block, use the selector label
+# value rendered by sawmills-collector.selectorName. The default value below is
+# automatically rewritten to resourceBaseName; unrelated custom values are not.
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -1196,6 +1208,10 @@ loadBalancer:
   nodeSelector: {}
   tolerations: []
   # Default configuration spreads LB pods across nodes to ensure high availability
+  # If resourceBaseName is set and you override this block, use the selector
+  # label value rendered by sawmills-collector.loadBalancerSelectorName.
+  # The default value below is automatically rewritten to <resourceBaseName>-lb;
+  # unrelated custom values are not.
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:

@@ -6,12 +6,20 @@ Expand the name of the chart.
 {{- end }}
 
 {{/*
+Resolve the runtime resource base name.
+Defaults to the Helm release name for backward compatibility.
+*/}}
+{{- define "sawmills-collector.resourceBaseName" -}}
+{{- default .Release.Name .Values.resourceBaseName | toString | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
+Returns the runtime resource base name: .Values.resourceBaseName when set,
+otherwise .Release.Name for backward compatibility.
 */}}
 {{- define "sawmills-collector.fullname" -}}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- include "sawmills-collector.resourceBaseName" . }}
 {{- end }}
 
 {{/*
@@ -65,9 +73,21 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
+{{- define "sawmills-collector.selectorName" -}}
+{{- if .Values.resourceBaseName -}}
+{{- include "sawmills-collector.resourceBaseName" . }}
+{{- else -}}
+{{- include "sawmills-collector.name" . }}
+{{- end }}
+{{- end }}
+
+{{- define "sawmills-collector.selectorInstance" -}}
+{{- .Release.Name }}
+{{- end }}
+
 {{- define "sawmills-collector.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "sawmills-collector.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/name: {{ include "sawmills-collector.selectorName" . }}
+app.kubernetes.io/instance: {{ include "sawmills-collector.selectorInstance" . }}
 {{- end }}
 
 {{/*
@@ -85,9 +105,40 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
+{{- define "sawmills-collector.loadBalancerSelectorName" -}}
+{{- if .Values.resourceBaseName -}}
+{{- printf "%s-lb" (include "sawmills-collector.resourceBaseName" .) | trunc 63 | trimSuffix "-" }}
+{{- else -}}
+{{- printf "%s-lb" (include "sawmills-collector.name" .) }}
+{{- end }}
+{{- end }}
+
 {{- define "sawmills-collector.loadBalancerSelectorLabels" -}}
-app.kubernetes.io/name: {{ include "sawmills-collector.name" . }}-lb
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/name: {{ include "sawmills-collector.loadBalancerSelectorName" . }}
+app.kubernetes.io/instance: {{ include "sawmills-collector.selectorInstance" . }}
+{{- end }}
+
+{{/*
+Render affinity values while preserving backward-compatible defaults.
+When resourceBaseName is set, only the chart's built-in legacy selector name is rewritten.
+*/}}
+{{- define "sawmills-collector.renderAffinity" -}}
+{{- $root := index . "root" -}}
+{{- $affinity := toYaml (index . "affinity") -}}
+{{- if $root.Values.resourceBaseName -}}
+{{- $legacyListItem := printf "- %s" (index . "legacyName") -}}
+{{- $selectorListItem := printf "- %s" (index . "selectorName") -}}
+{{- $affinity = replace $legacyListItem $selectorListItem $affinity -}}
+{{- end -}}
+{{- $affinity -}}
+{{- end }}
+
+{{- define "sawmills-collector.renderCollectorAffinity" -}}
+{{- include "sawmills-collector.renderAffinity" (dict "root" . "affinity" .Values.affinity "legacyName" "sawmills-collector-chart" "selectorName" (include "sawmills-collector.selectorName" .)) -}}
+{{- end }}
+
+{{- define "sawmills-collector.renderLoadBalancerAffinity" -}}
+{{- include "sawmills-collector.renderAffinity" (dict "root" . "affinity" .Values.loadBalancer.affinity "legacyName" "sawmills-collector-chart-lb" "selectorName" (include "sawmills-collector.loadBalancerSelectorName" .)) -}}
 {{- end }}
 
 {{/*

@@ -117,7 +117,7 @@ spec:
       {{- end }}
       {{- if not (empty .Values.affinity) }}
       affinity:
-        {{- toYaml .Values.affinity | nindent 8 }}
+        {{- include "sawmills-collector.renderCollectorAffinity" . | nindent 8 }}
       {{- end }}
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName }}
