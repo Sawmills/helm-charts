@@ -401,6 +401,9 @@ keda:
     external:
       enabled: false
       metricType: Value
+      # LB trigger implementation. Defaults to external for backward compatibility.
+      # Valid values: external, metrics-api.
+      loadBalancerTriggerType: external
       loadBalancerMetricType: AverageValue
       metadata:
         scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
@@ -1103,7 +1106,7 @@ kedaScaler:
           metric:
             # Only pass to the collector used to export metrics to Keda metrics that can be used
             # for fallback and latency of requests.
-            - name != "haproxy_server_http_responses_total" and name != "http.server.duration" and name != "otelcol_exporter_queue_size" and name != "otelcol_exporter_queue_capacity" and name != "http.server.request.duration"
+            - name != "haproxy_server_http_responses_total" and name != "http.server.duration" and name != "otelcol_exporter_queue_size" and name != "otelcol_exporter_queue_capacity" and name != "otelcol_loadbalancer_central_queue_compressed_bytes" and name != "otelcol_loadbalancer_central_queue_compressed_capacity" and name != "otelcol_loadbalancer_central_queue_saturation" and name != "otelcol_loadbalancer_central_queue_oldest_item_age" and name != "http.server.request.duration"
     exporters:
       otlp/keda:
         endpoint: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}'

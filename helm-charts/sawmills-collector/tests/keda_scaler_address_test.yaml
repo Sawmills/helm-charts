@@ -72,3 +72,25 @@ tests:
       - notMatchRegex:
           path: spec.triggers[0].metadata.scalerAddress
           pattern: '\.sawmills\.svc\.cluster\.local'
+
+  - it: resolves LB metrics-api URL from release namespace and monitoring port
+    template: templates/keda-hpa.yaml
+    release:
+      name: sawmills-collector
+      namespace: sawmills-o11y
+    set:
+      keda.enabled: true
+      keda.scaling.external.enabled: true
+      keda.scaling.external.loadBalancerTriggerType: metrics-api
+      keda.scaling.external.loadBalancerMetadata.query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+      keda.scaling.external.loadBalancerMetadata.targetValue: "10485760"
+      kedaScaler.enabled: true
+      kedaScaler.service.monitoringPort: 19466
+      loadBalancer.enabled: true
+    asserts:
+      - equal:
+          path: spec.triggers[0].metadata.url
+          value: http://sawmills-collector-keda-otel-scaler.sawmills-o11y.svc.cluster.local:19466/query?query=sum%28otelcol_loadbalancer_central_queue_compressed_bytes%29
+      - notMatchRegex:
+          path: spec.triggers[0].metadata.url
+          pattern: '\.sawmills\.svc\.cluster\.local'
