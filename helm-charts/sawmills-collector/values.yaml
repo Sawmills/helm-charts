@@ -1073,17 +1073,6 @@ kedaScaler:
   enabled: false
   imagePullPolicy: Always
   podSecurityContext: {}
-  networkPolicy:
-    enabled: false
-    allowSameReleasePodsToOtlp: true
-    allowKedaOperator: true
-    kedaOperatorNamespaceSelector:
-      matchLabels:
-        kubernetes.io/metadata.name: keda
-    kedaOperatorPodSelector:
-      matchLabels:
-        app.kubernetes.io/name: keda-operator
-    extraIngress: []
   probes:
     liveness:
       initialDelaySeconds: 5
