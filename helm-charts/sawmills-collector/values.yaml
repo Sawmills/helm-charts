@@ -1104,9 +1104,8 @@ kedaScaler:
         error_mode: ignore
         metrics:
           metric:
-            # Only pass to the collector used to export metrics to Keda metrics that can be used
-            # for fallback and latency of requests.
-            - name != "haproxy_server_http_responses_total" and name != "http.server.duration" and name != "otelcol_exporter_queue_size" and name != "otelcol_exporter_queue_capacity" and name != "otelcol_loadbalancer_central_queue_compressed_bytes" and name != "otelcol_loadbalancer_central_queue_compressed_capacity" and name != "otelcol_loadbalancer_central_queue_saturation" and name != "otelcol_loadbalancer_central_queue_oldest_item_age" and name != "http.server.request.duration"
+            # Drop every metric that is not in the KEDA scaler store allowlist.
+            - not IsMatch(name, "^(haproxy_server_http_responses_total|http\\.server\\.duration|otelcol_exporter_queue_size|otelcol_exporter_queue_capacity|otelcol_loadbalancer_central_queue_compressed_bytes|otelcol_loadbalancer_central_queue_compressed_capacity|otelcol_loadbalancer_central_queue_saturation|otelcol_loadbalancer_central_queue_oldest_item_age|http\\.server\\.request\\.duration)$")
     exporters:
       otlp/keda:
         endpoint: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}'
