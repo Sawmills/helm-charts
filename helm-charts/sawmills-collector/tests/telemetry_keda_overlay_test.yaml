@@ -109,16 +109,16 @@ tests:
     asserts:
       - matchRegex:
           path: data["keda.yaml"]
-          pattern: otelcol_loadbalancer_central_queue_compressed_bytes
+          pattern: name\s*!=\s*"otelcol_loadbalancer_central_queue_compressed_bytes"
       - matchRegex:
           path: data["keda.yaml"]
-          pattern: otelcol_loadbalancer_central_queue_compressed_capacity
+          pattern: name\s*!=\s*"otelcol_loadbalancer_central_queue_compressed_capacity"
       - matchRegex:
           path: data["keda.yaml"]
-          pattern: otelcol_loadbalancer_central_queue_saturation
+          pattern: name\s*!=\s*"otelcol_loadbalancer_central_queue_saturation"
       - matchRegex:
           path: data["keda.yaml"]
-          pattern: otelcol_loadbalancer_central_queue_oldest_item_age
+          pattern: name\s*!=\s*"otelcol_loadbalancer_central_queue_oldest_item_age"
 
   - it: resolves keda otlp exporter endpoint and preserves literal template-like config
     template: telemetry-keda-configmap.yaml
