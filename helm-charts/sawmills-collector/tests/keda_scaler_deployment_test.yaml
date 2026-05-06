@@ -1,0 +1,38 @@
+suite: keda scaler deployment
+templates:
+  - templates/keda-scaler-deployment.yaml
+tests:
+  - it: does not use host networking by default
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.hostNetwork
+      - notExists:
+          path: spec.template.spec.dnsPolicy
+
+  - it: supports host networking for clusters that cannot allow scaler ingress with NetworkPolicy
+    set:
+      kedaScaler.enabled: true
+      kedaScaler.hostNetwork.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: true
+      - equal:
+          path: spec.template.spec.dnsPolicy
+          value: ClusterFirstWithHostNet
+
+  - it: supports overriding host networking dns policy
+    set:
+      kedaScaler.enabled: true
+      kedaScaler.hostNetwork:
+        enabled: true
+        dnsPolicy: Default
+    asserts:
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: true
+      - equal:
+          path: spec.template.spec.dnsPolicy
+          value: Default

@@ -770,6 +770,8 @@ Enable the KEDA scaler component:
 ```yaml
 kedaScaler:
   enabled: true
+  hostNetwork:
+    enabled: false
   networkPolicy:
     enabled: true
   resources:
@@ -790,6 +792,10 @@ endpoint. By default, the namespace selector uses Kubernetes' automatic
 `kedaScaler.networkPolicy.kedaOperatorNamespaceSelector` or
 `kedaScaler.networkPolicy.kedaOperatorPodSelector` if your KEDA install uses
 different namespace or pod labels.
+
+If the cluster cannot grant NetworkPolicy management to the Sawmills operator,
+`kedaScaler.hostNetwork.enabled` can be used as a fallback for the scaler pod.
+Keep it disabled by default and prefer NetworkPolicy when RBAC allows it.
 
 ## Troubleshooting
 

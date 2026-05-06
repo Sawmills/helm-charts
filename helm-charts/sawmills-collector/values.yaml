@@ -1073,6 +1073,9 @@ kedaScaler:
   enabled: false
   imagePullPolicy: Always
   podSecurityContext: {}
+  hostNetwork:
+    enabled: false
+    dnsPolicy: ClusterFirstWithHostNet
   networkPolicy:
     enabled: false
     allowSameReleasePodsToOtlp: true
