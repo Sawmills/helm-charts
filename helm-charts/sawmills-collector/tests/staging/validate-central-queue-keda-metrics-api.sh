@@ -7,6 +7,7 @@ KUBIE_ENV="${KUBIE_ENV:-staging}"
 QUERY="${QUERY:-sum(otelcol_loadbalancer_central_queue_compressed_bytes)}"
 TARGET="${TARGET:-10485760}"
 SCALER_SVC="${SCALER_SVC:-${RELEASE}-keda-otel-scaler}"
+MONITORING_PORT="${MONITORING_PORT:-19465}"
 SCALEDOBJECT="${SCALEDOBJECT:-${RELEASE}-keda-hpa}"
 HPA="${HPA:-keda-hpa-${SCALEDOBJECT}}"
 MODE="${MODE:-happy}"
@@ -174,7 +175,7 @@ cleanup_curl_pod() {
 cleanup_curl_pod
 trap cleanup_curl_pod EXIT
 run run "${curl_pod}" -n "${NAMESPACE}" --restart=Never --image=curlimages/curl:8.15.0 --command -- \
-	curl -fsS "http://${SCALER_SVC}:19465/query?query=${json_query}" >/dev/null
+	curl -fsS "http://${SCALER_SVC}:${MONITORING_PORT}/query?query=${json_query}" >/dev/null
 set +e
 run wait pod/"${curl_pod}" -n "${NAMESPACE}" --for=jsonpath='{.status.phase}'=Succeeded --timeout=60s
 wait_status=$?

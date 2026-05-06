@@ -53,7 +53,7 @@ spec:
       {{- end }}
       metadata:
         {{- if and .Values.loadBalancer.enabled (eq $lbTriggerType "metrics-api") }}
-        url: {{ include "sawmills-collector.kedaMetricsAPIURL" (dict "root" $ "query" .Values.keda.scaling.external.loadBalancerMetadata.query) | quote }}
+        url: {{ include "sawmills-collector.kedaMetricsAPIURL" (dict "root" . "query" .Values.keda.scaling.external.loadBalancerMetadata.query) | quote }}
         format: "json"
         valueLocation: "result"
         targetValue: {{ required "keda.scaling.external.loadBalancerMetadata.targetValue is required for metrics-api" .Values.keda.scaling.external.loadBalancerMetadata.targetValue | quote }}

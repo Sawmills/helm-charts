@@ -19,7 +19,7 @@ tests:
           value: my-release-keda-otel-scaler.any-ns.svc.cluster.local:9444
       - notMatchRegex:
           path: spec.triggers[0].metadata.scalerAddress
-          pattern: '\.sawmills\.svc\.cluster\.local'
+          pattern: \.sawmills\.svc\.cluster\.local
 
   - it: truncates long release names in scalerAddress to keep the service label valid
     template: templates/keda-hpa.yaml
@@ -71,7 +71,7 @@ tests:
           value: "300"
       - notMatchRegex:
           path: spec.triggers[0].metadata.scalerAddress
-          pattern: '\.sawmills\.svc\.cluster\.local'
+          pattern: \.sawmills\.svc\.cluster\.local
 
   - it: resolves LB metrics-api URL from release namespace and monitoring port
     template: templates/keda-hpa.yaml
@@ -93,4 +93,4 @@ tests:
           value: http://sawmills-collector-keda-otel-scaler.sawmills-o11y.svc.cluster.local:19466/query?query=sum%28otelcol_loadbalancer_central_queue_compressed_bytes%29
       - notMatchRegex:
           path: spec.triggers[0].metadata.url
-          pattern: '\.sawmills\.svc\.cluster\.local'
+          pattern: \.sawmills\.svc\.cluster\.local

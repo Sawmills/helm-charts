@@ -592,6 +592,9 @@ Returns "<keda-scaler-name>.<namespace>.svc.cluster.local".
 
 {{/*
 Build a KEDA metrics-api URL for the scaler monitoring HTTP endpoint.
+Call with dict "root" set to the chart root context and "query" set to the
+plain query string. Requires kedaScaler.enabled=true. Returns:
+"http://<keda-scaler-service>:<monitoringPort>/query?query=<urlencoded-query>".
 */}}
 {{- define "sawmills-collector.kedaMetricsAPIURL" -}}
 {{- if not .root.Values.kedaScaler.enabled -}}
