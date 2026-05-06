@@ -594,6 +594,9 @@ Returns "<keda-scaler-name>.<namespace>.svc.cluster.local".
 Build a KEDA metrics-api URL for the scaler monitoring HTTP endpoint.
 */}}
 {{- define "sawmills-collector.kedaMetricsAPIURL" -}}
+{{- if not .root.Values.kedaScaler.enabled -}}
+{{- fail "kedaScaler.enabled must be true when keda.scaling.external.loadBalancerTriggerType is metrics-api" -}}
+{{- end -}}
 {{- $query := required "keda.scaling.external.loadBalancerMetadata.query is required for metrics-api" .query -}}
 {{- printf "http://%s:%v/query?query=%s" (include "sawmills-collector.kedaScalerSvcFQDN" .root) .root.Values.kedaScaler.service.monitoringPort (urlquery $query) -}}
 {{- end -}}

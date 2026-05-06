@@ -129,6 +129,20 @@ tests:
       - notExists:
           path: spec.triggers[0].metadata.scalerAddress
 
+  - it: requires keda scaler when rendering LB metrics-api queue scaler
+    set:
+      loadBalancer:
+        enabled: true
+      keda:
+        enabled: true
+        scaling:
+          external:
+            enabled: true
+            loadBalancerTriggerType: metrics-api
+    asserts:
+      - failedTemplate:
+          errorMessage: 'kedaScaler.enabled must be true when keda.scaling.external.loadBalancerTriggerType is metrics-api'
+
   - it: renders KEDA HPA ownership transfer settings
     set:
       loadBalancer:

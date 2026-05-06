@@ -56,7 +56,7 @@ spec:
         url: {{ include "sawmills-collector.kedaMetricsAPIURL" (dict "root" $ "query" .Values.keda.scaling.external.loadBalancerMetadata.query) | quote }}
         format: "json"
         valueLocation: "result"
-        targetValue: {{ .Values.keda.scaling.external.loadBalancerMetadata.targetValue | quote }}
+        targetValue: {{ required "keda.scaling.external.loadBalancerMetadata.targetValue is required for metrics-api" .Values.keda.scaling.external.loadBalancerMetadata.targetValue | quote }}
         {{- else if .Values.loadBalancer.enabled }}
         {{- range $key, $value := .Values.keda.scaling.external.loadBalancerMetadata }}
         {{- if eq $key "scalerAddress" }}
