@@ -238,6 +238,9 @@ keda:
       enabled: false
       metricType: Value
       loadBalancerMetricType: AverageValue
+      # Defaults to external for backward compatibility. Use metrics-api for
+      # central compressed queue autoscaling. Valid values: external, metrics-api.
+      loadBalancerTriggerType: external
       metadata:
         scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
         query: >-
@@ -250,6 +253,30 @@ keda:
         # targetValue is queued LB batches per desired collector pod.
         query: sum(otelcol_exporter_queue_size{exporter=~"loadbalancing/collector-loadbalancer.*"})
         targetValue: "300"
+```
+
+For central queue autoscaling, use KEDA's `metrics-api` scaler so KEDA can create the HPA from static trigger metadata and read queue values over the scaler pod's monitoring HTTP endpoint:
+
+```yaml
+keda:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  scaling:
+    cpu:
+      enabled: false
+    memory:
+      enabled: false
+    external:
+      enabled: true
+      loadBalancerMetricType: AverageValue
+      loadBalancerTriggerType: metrics-api
+      loadBalancerMetadata:
+        # targetValue is compressed central queue bytes per desired collector pod.
+        query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+        targetValue: "10485760"
+kedaScaler:
+  enabled: true
 ```
 
 ### HAProxy Load Balancing

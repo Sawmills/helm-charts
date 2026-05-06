@@ -102,6 +102,24 @@ tests:
           path: data["keda.yaml"]
           pattern: '(?m)^\s*metrics/keda:\s*$'
 
+  - it: keeps central queue metrics in the default keda telemetry allowlist
+    template: telemetry-keda-configmap.yaml
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: not IsMatch\(name,\s*"[^"]*otelcol_loadbalancer_central_queue_compressed_bytes
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: not IsMatch\(name,\s*"[^"]*otelcol_loadbalancer_central_queue_compressed_capacity
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: not IsMatch\(name,\s*"[^"]*otelcol_loadbalancer_central_queue_saturation
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: not IsMatch\(name,\s*"[^"]*otelcol_loadbalancer_central_queue_oldest_item_age
+
   - it: resolves keda otlp exporter endpoint and preserves literal template-like config
     template: telemetry-keda-configmap.yaml
     release:
@@ -120,10 +138,10 @@ tests:
     asserts:
       - matchRegex:
           path: data["keda.yaml"]
-          pattern: 'my-release-keda-otel-scaler\.any-ns\.svc\.cluster\.local'
+          pattern: my-release-keda-otel-scaler\.any-ns\.svc\.cluster\.local
       - notMatchRegex:
           path: data["keda.yaml"]
-          pattern: '\.sawmills\.svc\.cluster\.local'
+          pattern: \.sawmills\.svc\.cluster\.local
       - matchRegex:
           path: data["keda.yaml"]
           pattern: '\{\{ must_stay_literal \}\}'

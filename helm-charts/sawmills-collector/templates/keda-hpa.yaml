@@ -44,14 +44,20 @@ spec:
         {{- end }}
     {{- end }}
     {{- if .Values.keda.scaling.external.enabled }}
-    - type: external
+    {{- $lbTriggerType := default "external" .Values.keda.scaling.external.loadBalancerTriggerType }}
+    - type: {{ if .Values.loadBalancer.enabled }}{{ $lbTriggerType }}{{ else }}external{{ end }}
       {{- if .Values.loadBalancer.enabled }}
       metricType: {{ .Values.keda.scaling.external.loadBalancerMetricType | default .Values.keda.scaling.external.metricType }}
       {{- else }}
       metricType: {{ .Values.keda.scaling.external.metricType }}
       {{- end }}
       metadata:
-        {{- if .Values.loadBalancer.enabled }}
+        {{- if and .Values.loadBalancer.enabled (eq $lbTriggerType "metrics-api") }}
+        url: {{ include "sawmills-collector.kedaMetricsAPIURL" (dict "root" . "query" .Values.keda.scaling.external.loadBalancerMetadata.query) | quote }}
+        format: "json"
+        valueLocation: "result"
+        targetValue: {{ required "keda.scaling.external.loadBalancerMetadata.targetValue is required for metrics-api" .Values.keda.scaling.external.loadBalancerMetadata.targetValue | quote }}
+        {{- else if .Values.loadBalancer.enabled }}
         {{- range $key, $value := .Values.keda.scaling.external.loadBalancerMetadata }}
         {{- if eq $key "scalerAddress" }}
         {{ $key }}: {{ tpl (toString $value) $ | quote }}

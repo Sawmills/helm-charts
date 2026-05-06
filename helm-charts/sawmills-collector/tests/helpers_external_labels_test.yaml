@@ -111,7 +111,7 @@ tests:
           pod_name: ${env:MY_POD_NAME}
           pipeline_id: test-pipeline-456
           pipeline_name: test-pipeline-name
-          environment: staging
+          environment: test
           region: us-west-2
           service: collector
       telemetryExternalConfig:
@@ -141,7 +141,7 @@ tests:
           pattern: 'set\(attributes\["pipeline_name"\], "test-pipeline-name"\)'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["environment"\], "staging"\)'
+          pattern: 'set\(attributes\["environment"\], "test"\)'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'set\(attributes\["region"\], "us-west-2"\)'

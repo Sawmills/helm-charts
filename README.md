@@ -114,7 +114,7 @@ Brief description of the changes made.
 - [ ] Unit tests pass
 - [ ] Integration tests pass
 - [ ] Manual testing completed
-- [ ] Tested in staging environment
+- [ ] Tested in a non-production environment
 
 ### Test Details
 Describe how you tested these changes:

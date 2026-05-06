@@ -25,6 +25,9 @@ tests:
           path: spec.triggers[0].type
           value: external
       - equal:
+          path: spec.triggers[0].metadata.scalerAddress
+          value: RELEASE-NAME-keda-otel-scaler.NAMESPACE.svc.cluster.local:4418
+      - equal:
           path: spec.triggers[0].metricType
           value: AverageValue
       - equal:
@@ -81,6 +84,64 @@ tests:
       - equal:
           path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown.policies[1].periodSeconds
           value: 60
+
+  - it: renders LB metrics-api queue scaler with AverageValue
+    release:
+      name: sawmills-collector
+      namespace: sample-namespace
+    set:
+      loadBalancer:
+        enabled: true
+      kedaScaler:
+        enabled: true
+      keda:
+        enabled: true
+        scaling:
+          external:
+            enabled: true
+            loadBalancerTriggerType: metrics-api
+            loadBalancerMetadata:
+              query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+              targetValue: "10485760"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.triggers[0].type
+          value: metrics-api
+      - equal:
+          path: spec.triggers[0].metricType
+          value: AverageValue
+      - equal:
+          path: spec.triggers[0].metadata.format
+          value: json
+      - equal:
+          path: spec.triggers[0].metadata.valueLocation
+          value: result
+      - equal:
+          path: spec.triggers[0].metadata.targetValue
+          value: "10485760"
+      - equal:
+          path: spec.triggers[0].metadata.url
+          value: http://sawmills-collector-keda-otel-scaler.sample-namespace.svc.cluster.local:19465/query?query=sum%28otelcol_loadbalancer_central_queue_compressed_bytes%29
+      - notExists:
+          path: spec.triggers[0].metadata.scalerAddress
+
+  - it: requires keda scaler when rendering LB metrics-api queue scaler
+    set:
+      loadBalancer:
+        enabled: true
+      keda:
+        enabled: true
+        scaling:
+          external:
+            enabled: true
+            loadBalancerTriggerType: metrics-api
+    asserts:
+      - failedTemplate:
+          errorMessage: 'kedaScaler.enabled must be true when keda.scaling.external.loadBalancerTriggerType is metrics-api'
 
   - it: renders KEDA HPA ownership transfer settings
     set:
