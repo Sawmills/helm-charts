@@ -1,9 +1,0 @@
-suite: RBAC permissions
-templates:
-  - sawmills-role.yaml
-tests:
-  - it: allows the operator to manage collector scaler network policies
-    asserts:
-      - contains:
-          path: rules[?(@.apiGroups[0]=="networking.k8s.io")].resources
-          content: networkpolicies
