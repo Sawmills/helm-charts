@@ -284,7 +284,7 @@ spec:
             {{- toYaml .Values.extraEnv | nindent 12 }}
             {{- end }}
           ports:
-            - name: livetail-control
+            - name: livetail-ctrl
               containerPort: 13138
               protocol: TCP
             {{- range $name, $config := .Values.ports }}
