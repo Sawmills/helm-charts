@@ -522,6 +522,8 @@ additionalVolumes: []
 #     mountPath: /etc/config
 additionalVolumeMounts: []
 
+# Internal LiveTail direct-notify control uses container port 13138 on main-collector.
+# Do not add it to service.ports; remote-operator reaches selected ready pods by Pod IP.
 ports: {}
 # Example of adding a port
 # grpc:
