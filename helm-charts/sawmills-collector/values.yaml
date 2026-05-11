@@ -522,6 +522,8 @@ additionalVolumes: []
 #     mountPath: /etc/config
 additionalVolumeMounts: []
 
+# Extra container ports. Each entry also creates a Service port.
+# Do NOT add 13138 here — LiveTail control is Pod-IP-only (declared in deployment template).
 ports: {}
 # Example of adding a port
 # grpc:
