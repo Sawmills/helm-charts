@@ -284,6 +284,8 @@ spec:
             {{- toYaml .Values.extraEnv | nindent 12 }}
             {{- end }}
           ports:
+            # Pod-IP-only LiveTail control surface (livetailcontrolextension).
+            # Hardcoded — must NOT be added to .Values.ports (would leak via Service).
             - name: livetail-ctrl
               containerPort: 13138
               protocol: TCP
