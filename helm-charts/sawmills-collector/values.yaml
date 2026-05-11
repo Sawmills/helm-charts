@@ -1268,6 +1268,37 @@ loadBalancer:
   #     extensions: [health_check, file_storage/otc]
   extraEnv: []
   ports: {}
+  # Optional pressure-aware readiness for LB collector pods. When enabled, the
+  # chart adds the existing Sawmills backend_drain extension to the LB config
+  # and points the Kubernetes readiness probe at backend_drain /ready. Liveness
+  # stays on the collector health_check endpoint.
+  pressureReadiness:
+    enabled: false
+    port: 13137
+    readinessPath: /ready
+    drainPath: /drain
+    drainDuration: 15s
+    # Defaults to HAProxy /ready when HAProxy HTTP readiness is enabled,
+    # otherwise to collector health_check.
+    healthCheckEndpoint: ""
+    metricsEndpoint: http://${env:MY_POD_IP}:8888/metrics
+    queueSaturationFailThreshold: 0.85
+    queueSaturationRecoverThreshold: 0.60
+    inflightSaturationFailThreshold: 0.85
+    inflightSaturationRecoverThreshold: 0.60
+    memorySaturationFailThreshold: 0.85
+    memorySaturationRecoverThreshold: 0.70
+    capacityWarningThreshold: 0.60
+    failChecks: 2
+    recoverChecks: 3
+    rejectedQuietDuration: 1m
+    oldestItemAgeFailThreshold: 1m
+    # When unset, derived from loadBalancer.resources.limits.memory. Set 0 to
+    # disable memory pressure gating for limitless pods.
+    memoryLimitBytes: null
+    serviceExtensions:
+      - health_check
+      - cgroupruntime
   # Pod disruption budget for LB pods. Enabled by default to prevent
   # simultaneous voluntary disruptions (node scale-down, upgrades)
   # from taking all LB pods offline at once.
