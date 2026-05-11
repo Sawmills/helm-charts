@@ -803,7 +803,7 @@ loadBalancer:
 
 When `memoryLimitBytes` is unset, the chart derives it from `loadBalancer.resources.limits.memory`; set `memoryLimitBytes: 0` to disable memory pressure gating for pods without memory limits. The rendered `backend_drain` config preserves configured LB `service.extensions` and appends `backend_drain`.
 
-Pressure readiness is observable through the collector's own metrics. Use `otelcol_backend_drain_pressure_ready{reason="..."}` for the current pressure readiness state and `otelcol_backend_drain_pressure_transitions_total{state="...",reason="..."}` for ready/not-ready transitions. Reason labels are stable categories such as `queue_compressed_saturated`, `inflight_uncompressed_saturated`, `memory_saturated`, `queue_age_saturated`, `rejected_or_refused_records_increased`, and `metrics_scrape_failed`.
+Pressure readiness is observable through the collector's own metrics. Use `otelcol_backend_drain_pressure_warning{reason="..."}` for the warning band between `capacityWarningThreshold` and fail thresholds, `otelcol_backend_drain_pressure_ready{reason="..."}` for the current pressure readiness state, and `otelcol_backend_drain_pressure_transitions_total{state="...",reason="..."}` for ready/not-ready transitions. Reason labels are stable categories such as `queue_compressed_warning`, `queue_compressed_saturated`, `inflight_uncompressed_saturated`, `memory_saturated`, `queue_age_saturated`, `rejected_or_refused_records_increased`, and `metrics_scrape_failed`.
 
 ### Remote Operator OTLP Ingest (LB Tier)
 
