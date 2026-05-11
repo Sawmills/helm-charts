@@ -7,6 +7,8 @@
 {{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
 {{- $lbTelemetryOtelEncryptionKey := default "" $lbTelemetryOtelConfig.encryptionKey }}
 {{- $lbStartupProbe := .Values.rollout.loadBalancer.probes.startup | default dict }}
+{{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict }}
+{{- $lbPressureReadinessEnabled := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) }}
 {{- $haproxyReadinessType := (dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower }}
 {{- $haproxyReadinessPath := dig "probes" "readiness" "path" "/ready" .Values.haproxy }}
 {{- $haproxyReadinessPort := dig "probes" "readiness" "port" 13135 .Values.haproxy }}
@@ -127,9 +129,16 @@ spec:
                 - ALL
           image: {{ include "sawmills-collector.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if $lbOtelS3Path }}
+          {{- if or $lbOtelS3Path $lbPressureReadinessEnabled }}
           args:
+            {{- if $lbOtelS3Path }}
             - "--config={{ $lbOtelS3Path }}{{- if $lbOtelEncryptionKey }}@{{ $lbOtelEncryptionKey }}{{- end }}"
+            {{- else }}
+            - "--config=file:/etc/otel/config.yaml"
+            {{- end }}
+            {{- if $lbPressureReadinessEnabled }}
+            - "--config=file:/etc/otel/load-balancer-readiness-config.yaml"
+            {{- end }}
           {{- end }}
           env:
             {{- include "sawmills-collector.runtimeConfigEnv" . | nindent 12 }}
@@ -174,7 +183,10 @@ spec:
             failureThreshold: {{ .Values.rollout.loadBalancer.probes.liveness.failureThreshold }}
           readinessProbe:
             httpGet:
-              {{- if .Values.haproxy.enabled }}
+              {{- if $lbPressureReadinessEnabled }}
+              path: {{ default "/ready" $lbPressureReadiness.readinessPath }}
+              port: {{ default 13137 $lbPressureReadiness.port }}
+              {{- else if .Values.haproxy.enabled }}
               path: {{ $haproxyReadinessPath }}
               port: {{ $haproxyReadinessPort }}  # Route through HAProxy to ensure backend is UP before receiving traffic
               {{- else }}
@@ -214,6 +226,11 @@ spec:
             - name: sawmills-collector-config-load-balancer
               mountPath: /etc/otel/config.yaml
               subPath: config.yaml
+          {{- end }}
+          {{- if $lbPressureReadinessEnabled }}
+            - name: sawmills-load-balancer-readiness-config
+              mountPath: /etc/otel/load-balancer-readiness-config.yaml
+              subPath: load-balancer-readiness-config.yaml
           {{- end }}
             - name: tmp
               mountPath: /tmp
@@ -354,6 +371,14 @@ spec:
             items:
               - key: config.yaml
                 path: config.yaml
+        {{- end }}
+        {{- if $lbPressureReadinessEnabled }}
+        - name: sawmills-load-balancer-readiness-config
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-load-balancer-readiness-config
+            items:
+              - key: config.yaml
+                path: load-balancer-readiness-config.yaml
         {{- end }}
         {{- if not $lbTelemetryOtelS3Path }}
         - name: sawmills-load-balancer-telemetry-config

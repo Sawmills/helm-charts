@@ -1,0 +1,70 @@
+{{- $lbPressure := .Values.loadBalancer.pressureReadiness | default dict }}
+{{- if and .Values.loadBalancer.enabled ($lbPressure.enabled | default false) }}
+{{- $lbConfig := default dict .Values.loadBalancer.otelCollectorConfig }}
+{{- $serviceExtensions := list }}
+{{- if and (kindIs "map" $lbConfig) (hasKey $lbConfig "service") (kindIs "map" $lbConfig.service) (hasKey $lbConfig.service "extensions") }}
+{{- $serviceExtensions = deepCopy $lbConfig.service.extensions }}
+{{- else }}
+{{- $serviceExtensions = deepCopy (default (list "health_check" "cgroupruntime") $lbPressure.serviceExtensions) }}
+{{- end }}
+{{- $filteredServiceExtensions := list }}
+{{- range $serviceExtensions }}
+{{- if . }}
+{{- $filteredServiceExtensions = append $filteredServiceExtensions . }}
+{{- end }}
+{{- end }}
+{{- if not (has "backend_drain" $filteredServiceExtensions) }}
+{{- $filteredServiceExtensions = append $filteredServiceExtensions "backend_drain" }}
+{{- end }}
+{{- $healthCheckEndpoint := default "http://${env:MY_POD_IP}:13133/healthcheck" $lbPressure.healthCheckEndpoint }}
+{{- if and .Values.haproxy.enabled (eq ((dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower) "http") (not $lbPressure.healthCheckEndpoint) }}
+{{- $healthCheckEndpoint = printf "http://${env:MY_POD_IP}:%v%v" (dig "probes" "readiness" "port" 13135 .Values.haproxy) (dig "probes" "readiness" "path" "/ready" .Values.haproxy) }}
+{{- end }}
+{{- $memoryLimitBytes := "" }}
+{{- if and (hasKey $lbPressure "memoryLimitBytes") (not (kindIs "invalid" (get $lbPressure "memoryLimitBytes"))) }}
+{{- $memoryLimitBytes = get $lbPressure "memoryLimitBytes" }}
+{{- end }}
+{{- if or (eq (toString $memoryLimitBytes) "") (eq (toString $memoryLimitBytes) "<nil>") }}
+{{- $memoryLimitBytes = 0 }}
+{{- if and (not .Values.loadBalancer.resources.disableLimits) .Values.loadBalancer.resources.limits .Values.loadBalancer.resources.limits.memory }}
+{{- $memoryLimitBytes = include "sawmills-collector.memoryBytes" (.Values.loadBalancer.resources.limits.memory | toString) }}
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sawmills-collector.fullname" . }}-load-balancer-readiness-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    extensions:
+      backend_drain:
+        endpoint: ${env:MY_POD_IP}:{{ default 13137 $lbPressure.port }}
+        readiness_path: {{ default "/ready" $lbPressure.readinessPath }}
+        drain_path: {{ default "/drain" $lbPressure.drainPath }}
+        health_check_endpoint: {{ $healthCheckEndpoint }}
+        drain_duration: {{ default "15s" $lbPressure.drainDuration }}
+        {{- with $lbPressure.requestTimeout }}
+        request_timeout: {{ . }}
+        {{- end }}
+        pressure_check:
+          enabled: true
+          metrics_endpoint: {{ default "http://${env:MY_POD_IP}:8888/metrics" $lbPressure.metricsEndpoint }}
+          queue_saturation_fail_threshold: {{ default 0.85 $lbPressure.queueSaturationFailThreshold }}
+          queue_saturation_recover_threshold: {{ default 0.60 $lbPressure.queueSaturationRecoverThreshold }}
+          inflight_saturation_fail_threshold: {{ default 0.85 $lbPressure.inflightSaturationFailThreshold }}
+          inflight_saturation_recover_threshold: {{ default 0.60 $lbPressure.inflightSaturationRecoverThreshold }}
+          memory_saturation_fail_threshold: {{ default 0.85 $lbPressure.memorySaturationFailThreshold }}
+          memory_saturation_recover_threshold: {{ default 0.70 $lbPressure.memorySaturationRecoverThreshold }}
+          capacity_warning_threshold: {{ default 0.60 $lbPressure.capacityWarningThreshold }}
+          fail_checks: {{ default 2 $lbPressure.failChecks }}
+          recover_checks: {{ default 3 $lbPressure.recoverChecks }}
+          rejected_quiet_duration: {{ default "1m" $lbPressure.rejectedQuietDuration }}
+          oldest_item_age_fail_threshold: {{ default "1m" $lbPressure.oldestItemAgeFailThreshold }}
+          memory_limit_bytes: {{ $memoryLimitBytes }}
+    service:
+      extensions:
+{{- toYaml $filteredServiceExtensions | nindent 8 }}
+{{- end }}

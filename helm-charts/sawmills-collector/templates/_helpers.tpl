@@ -505,6 +505,23 @@ to prevent invalid GOMEMLIMIT values that would crash Go pods at startup.
 {{- end }}
 
 {{/*
+Compute Kubernetes memory quantity bytes for backend_drain pressure checks.
+Accepts Gi and Mi suffixes to match the existing GOMEMLIMIT helper.
+*/}}
+{{- define "sawmills-collector.memoryBytes" -}}
+{{- $raw := . | toString -}}
+{{- if hasSuffix "Gi" $raw -}}
+  {{- $num := trimSuffix "Gi" $raw | float64 -}}
+  {{- printf "%.0f" (mulf $num 1073741824) -}}
+{{- else if hasSuffix "Mi" $raw -}}
+  {{- $num := trimSuffix "Mi" $raw | float64 -}}
+  {{- printf "%.0f" (mulf $num 1048576) -}}
+{{- else -}}
+  {{- fail (printf "memoryBytes: unsupported memory format %q — use Gi or Mi (e.g. \"4Gi\", \"512Mi\")" $raw) -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Check if any HAProxy mapping has TLS enabled (only when HAProxy is actually enabled)
 */}}
 {{- define "sawmills-collector.haproxyTlsEnabled" -}}

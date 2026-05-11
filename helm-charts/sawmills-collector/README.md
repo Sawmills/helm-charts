@@ -780,6 +780,29 @@ Validation guardrails in this chart:
 * `compress_in_memory: true` requires `sending_queue.enabled: true`
 * `compress_in_memory: true` requires `payload_compression: snappy|zstd`
 
+#### Load Balancer Pressure Readiness
+
+`loadBalancer.pressureReadiness.enabled: true` adds the Sawmills `backend_drain` extension to LB collector pods and points the LB collector Kubernetes readiness probe at `backend_drain` `/ready`. Liveness stays on the collector `health_check` endpoint.
+
+```yaml
+loadBalancer:
+  enabled: true
+  pressureReadiness:
+    enabled: true
+    metricsEndpoint: http://${env:MY_POD_IP}:8888/metrics
+    queueSaturationFailThreshold: 0.85
+    queueSaturationRecoverThreshold: 0.60
+    inflightSaturationFailThreshold: 0.85
+    inflightSaturationRecoverThreshold: 0.60
+    memorySaturationFailThreshold: 0.85
+    memorySaturationRecoverThreshold: 0.70
+    capacityWarningThreshold: 0.60
+    rejectedQuietDuration: 1m
+    oldestItemAgeFailThreshold: 1m
+```
+
+When `memoryLimitBytes` is unset, the chart derives it from `loadBalancer.resources.limits.memory`; set `memoryLimitBytes: 0` to disable memory pressure gating for pods without memory limits. The rendered `backend_drain` config preserves configured LB `service.extensions` and appends `backend_drain`.
+
 ### Remote Operator OTLP Ingest (LB Tier)
 
 When `loadBalancer.enabled: true`, the chart now configures the LB telemetry collector to accept OTLP/HTTP metrics from remote-operator on port `14319` and exposes it on the LB service as `ro-otlp-http`.
