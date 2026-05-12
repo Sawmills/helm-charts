@@ -34,10 +34,13 @@ Create chart name and version as used by the chart label.
 Build the remote-operator image reference. If image.digest is set, pin by digest and ignore image.tag.
 */}}
 {{- define "sawmills-remote-operator.image" -}}
-{{- if .Values.image.digest -}}
-{{- printf "%s@%s" .Values.image.repository .Values.image.digest -}}
+{{- $image := default dict .Values.image -}}
+{{- $repository := default "public.ecr.aws/s7a5m1b4/sawmills-remote-operator" $image.repository -}}
+{{- if $image.digest -}}
+{{- printf "%s@%s" $repository $image.digest -}}
 {{- else -}}
-{{- printf "%s:%s" .Values.image.repository .Values.image.tag -}}
+{{- $tag := required "image.tag is required when image.digest is not set" $image.tag -}}
+{{- printf "%s:%s" $repository $tag -}}
 {{- end -}}
 {{- end }}
 

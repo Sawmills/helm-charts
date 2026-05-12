@@ -13,6 +13,17 @@ tests:
           path: spec.template.spec.containers[0].image
           value: public.ecr.aws/s7a5m1b4/sawmills-remote-operator@sha256:deadbeef
 
+  - it: should default image repository when reused values only contain tag
+    set:
+      apiKey: test-key
+      collectorName: sawmills-collector
+      image.repository: null
+      image.tag: 0.262.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/s7a5m1b4/sawmills-remote-operator:0.262.0
+
   - it: should pass managed collector and haproxy image digests
     set:
       apiKey: test-key
