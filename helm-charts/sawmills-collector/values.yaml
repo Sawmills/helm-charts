@@ -113,7 +113,7 @@ rollout:
       # chart cannot inspect the remote file directly.
       serviceExtensions:
         - health_check
-        - cgroupruntime
+        - cgroup_runtime
       # Keep drain.duration + shutdownReserve below
       # rollout.terminationGracePeriodSeconds so the collector still has time
       # to handle SIGTERM after the drain hook returns.
@@ -592,7 +592,7 @@ otelCollectorConfig: {}
 #   health_check:
 #     endpoint: ${env:MY_POD_IP}:13133
 
-#   cgroupruntime:
+#   cgroup_runtime:
 #     gomaxprocs:
 #       enabled: true
 #     gomemlimit:
@@ -600,7 +600,7 @@ otelCollectorConfig: {}
 #       ratio: 0.8
 
 # service:
-#   extensions: [health_check, cgroupruntime]
+#   extensions: [health_check, cgroup_runtime]
 #   telemetry:
 #     logs:
 #       level: info
@@ -982,7 +982,7 @@ telemetryConfig:
       max_stale: 1m
 
   extensions:
-    cgroupruntime:
+    cgroup_runtime:
       gomaxprocs:
         enabled: true
       gomemlimit:
@@ -1003,7 +1003,7 @@ telemetryConfig:
     forward:
 
   service:
-    extensions: [health_check, cgroupruntime]
+    extensions: [health_check, cgroup_runtime]
     pipelines:
       metrics/customer_collector:
         receivers: [otlp/customer_collector]
@@ -1155,7 +1155,7 @@ kedaScaler:
         send_batch_size: 1024
         timeout: 1s
     extensions:
-      cgroupruntime:
+      cgroup_runtime:
         gomaxprocs:
           enabled: true
         gomemlimit:
@@ -1166,7 +1166,7 @@ kedaScaler:
     service:
       extensions:
         - health_check
-        - cgroupruntime
+        - cgroup_runtime
       pipelines:
         metrics:
           receivers:
@@ -1281,7 +1281,7 @@ loadBalancer:
     # Defaults to HAProxy /ready when HAProxy HTTP readiness is enabled,
     # otherwise to collector health_check.
     healthCheckEndpoint: ""
-    metricsEndpoint: http://${env:MY_POD_IP}:8888/metrics
+    metricsEndpoint: http://${env:MY_POD_IP}:19465/metrics
     queueSaturationFailThreshold: 0.85
     queueSaturationRecoverThreshold: 0.60
     inflightSaturationFailThreshold: 0.85
@@ -1298,7 +1298,7 @@ loadBalancer:
     memoryLimitBytes: null
     serviceExtensions:
       - health_check
-      - cgroupruntime
+      - cgroup_runtime
   # Pod disruption budget for LB pods. Enabled by default to prevent
   # simultaneous voluntary disruptions (node scale-down, upgrades)
   # from taking all LB pods offline at once.

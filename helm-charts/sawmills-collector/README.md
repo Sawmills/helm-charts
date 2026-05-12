@@ -588,7 +588,7 @@ rollout:
       readinessPath: /ready
       drainPath: /drain
       healthCheckEndpoint: http://${env:MY_POD_IP}:13133/healthcheck
-      serviceExtensions: [health_check, cgroupruntime]
+      serviceExtensions: [health_check, cgroup_runtime]
       duration: 120s
       shutdownReserve: 10s
     preStopSleepSeconds: 15
@@ -608,7 +608,7 @@ rollout:
       readinessPath: /ready
       drainPath: /drain
       healthCheckEndpoint: http://${env:MY_POD_IP}:13133/healthcheck
-      serviceExtensions: [health_check, cgroupruntime]
+      serviceExtensions: [health_check, cgroup_runtime]
       duration: 120s
       shutdownReserve: 10s
 ```
@@ -616,7 +616,7 @@ rollout:
 With that topology enabled, the chart:
 
 * Adds a separate `backend_drain` config overlay as an extra `--config`, including S3-backed main collector configs.
-* Preserves the main collector extension list by defaulting to `health_check`, `cgroupruntime`, and appending `backend_drain` unless `otelCollectorConfig.service.extensions` already specifies a custom list.
+* Preserves the main collector extension list by defaulting to `health_check`, `cgroup_runtime`, and appending `backend_drain` unless `otelCollectorConfig.service.extensions` already specifies a custom list.
 * When the main collector config comes from S3, mirror any extra `service.extensions` entries in `rollout.main.drain.serviceExtensions`, because the chart cannot inspect or merge the remote extension list for you.
 * Configures the drain-aware readiness server to mirror the normal `health_check` endpoint until drain starts, so readiness still tracks real collector health.
 * Switches the main collector readiness probe to the drain-aware endpoint.
@@ -789,7 +789,7 @@ loadBalancer:
   enabled: true
   pressureReadiness:
     enabled: true
-    metricsEndpoint: http://${env:MY_POD_IP}:8888/metrics
+    metricsEndpoint: http://${env:MY_POD_IP}:19465/metrics
     queueSaturationFailThreshold: 0.85
     queueSaturationRecoverThreshold: 0.60
     inflightSaturationFailThreshold: 0.85
