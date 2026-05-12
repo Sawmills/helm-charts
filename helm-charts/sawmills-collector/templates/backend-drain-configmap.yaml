@@ -4,7 +4,7 @@
 {{- if and (kindIs "map" .Values.otelCollectorConfig) (hasKey .Values.otelCollectorConfig "service") (kindIs "map" .Values.otelCollectorConfig.service) (hasKey .Values.otelCollectorConfig.service "extensions") }}
 {{- $serviceExtensions = deepCopy .Values.otelCollectorConfig.service.extensions }}
 {{- else }}
-{{- $serviceExtensions = deepCopy (default (list "health_check" "cgroupruntime") $mainDrain.serviceExtensions) }}
+{{- $serviceExtensions = deepCopy (default (list "health_check" "cgroup_runtime") $mainDrain.serviceExtensions) }}
 {{- end }}
 {{- $filteredServiceExtensions := list }}
 {{- range $serviceExtensions }}

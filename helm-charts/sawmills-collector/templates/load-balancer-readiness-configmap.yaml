@@ -5,7 +5,7 @@
 {{- if and (kindIs "map" $lbConfig) (hasKey $lbConfig "service") (kindIs "map" $lbConfig.service) (hasKey $lbConfig.service "extensions") }}
 {{- $serviceExtensions = deepCopy $lbConfig.service.extensions }}
 {{- else }}
-{{- $serviceExtensions = deepCopy (default (list "health_check" "cgroupruntime") $lbPressure.serviceExtensions) }}
+{{- $serviceExtensions = deepCopy (default (list "health_check" "cgroup_runtime") $lbPressure.serviceExtensions) }}
 {{- end }}
 {{- $filteredServiceExtensions := list }}
 {{- range $serviceExtensions }}
@@ -51,7 +51,7 @@ data:
         {{- end }}
         pressure_check:
           enabled: true
-          metrics_endpoint: {{ default "http://${env:MY_POD_IP}:8888/metrics" $lbPressure.metricsEndpoint }}
+          metrics_endpoint: {{ default "http://${env:MY_POD_IP}:19465/metrics" $lbPressure.metricsEndpoint }}
           queue_saturation_fail_threshold: {{ default 0.85 $lbPressure.queueSaturationFailThreshold }}
           queue_saturation_recover_threshold: {{ default 0.60 $lbPressure.queueSaturationRecoverThreshold }}
           inflight_saturation_fail_threshold: {{ default 0.85 $lbPressure.inflightSaturationFailThreshold }}
