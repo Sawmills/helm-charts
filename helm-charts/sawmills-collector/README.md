@@ -209,6 +209,10 @@ keda:
   maxReplicas: 100
   pollingInterval: 30
   cooldownPeriod: 0
+  fallback:
+    enabled: false
+    failureThreshold: 3
+    replicas: 10
   annotations: {}
   # For non-Helm-owned HPA ownership transfer:
   # annotations:
@@ -262,6 +266,10 @@ keda:
   enabled: true
   minReplicas: 3
   maxReplicas: 20
+  fallback:
+    enabled: true
+    failureThreshold: 3
+    replicas: 10
   scaling:
     cpu:
       enabled: false
@@ -824,7 +832,7 @@ kedaScaler:
   enabled: true
   resources:
     limits:
-      cpu: 500m
+      cpu: 2
       memory: 256Mi
     requests:
       cpu: 500m

@@ -66,17 +66,20 @@ spec:
                   fieldPath: status.podIP
           livenessProbe:
             httpGet:
-              path: /healthcheck
-              port: {{ .Values.kedaScaler.service.healthcheckPort }}
+              path: /query?query=up
+              port: {{ .Values.kedaScaler.service.monitoringPort }}
             initialDelaySeconds: {{ .Values.kedaScaler.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.kedaScaler.probes.liveness.periodSeconds }}
             failureThreshold: {{ .Values.kedaScaler.probes.liveness.failureThreshold }}
+            timeoutSeconds: {{ .Values.kedaScaler.probes.liveness.timeoutSeconds }}
           readinessProbe:
             httpGet:
               path: /healthcheck
               port: {{ .Values.kedaScaler.service.healthcheckPort }}
             initialDelaySeconds: {{ .Values.kedaScaler.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.kedaScaler.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.kedaScaler.probes.readiness.failureThreshold }}
+            timeoutSeconds: {{ .Values.kedaScaler.probes.readiness.timeoutSeconds }}
           resources:
             {{- toYaml .Values.kedaScaler.resources | nindent 12 }}
           volumeMounts:
