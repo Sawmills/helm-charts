@@ -285,7 +285,6 @@ keda:
         targetValue: "10485760"
 kedaScaler:
   enabled: true
-  replicaCount: 1
 ```
 
 ### HAProxy Load Balancing
@@ -831,7 +830,6 @@ Enable the KEDA scaler component:
 ```yaml
 kedaScaler:
   enabled: true
-  replicaCount: 1
   resources:
     limits:
       cpu: 2

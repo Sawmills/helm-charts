@@ -1082,7 +1082,6 @@ serviceMonitor:
 
 kedaScaler:
   enabled: false
-  replicaCount: 1
   imagePullPolicy: Always
   podSecurityContext: {}
   probes:

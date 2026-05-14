@@ -7,19 +7,34 @@ tests:
       kedaScaler.enabled: true
     asserts:
       - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.port
           value: 19465
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.path
           value: /query?query=up
       - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 3
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.timeoutSeconds
+          value: 2
+      - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.port
           value: 13134
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
           value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.failureThreshold
+          value: 3
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.timeoutSeconds
+          value: 1
 
-  - it: renders configurable replica count
+  - it: keeps the scaler fixed at one replica
     set:
       kedaScaler:
         enabled: true
@@ -27,4 +42,4 @@ tests:
     asserts:
       - equal:
           path: spec.replicas
-          value: 2
+          value: 1
