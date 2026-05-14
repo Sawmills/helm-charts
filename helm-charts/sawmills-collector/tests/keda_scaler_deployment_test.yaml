@@ -1,0 +1,30 @@
+suite: keda scaler deployment
+templates:
+  - templates/keda-scaler-deployment.yaml
+tests:
+  - it: probes the query endpoint for liveness
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 19465
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /query?query=up
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 13134
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthcheck
+
+  - it: renders configurable replica count
+    set:
+      kedaScaler:
+        enabled: true
+        replicaCount: 2
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2

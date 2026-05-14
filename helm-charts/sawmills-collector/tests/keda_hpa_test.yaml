@@ -129,6 +129,38 @@ tests:
       - notExists:
           path: spec.triggers[0].metadata.scalerAddress
 
+  - it: renders fallback replicas for metrics-api scaler failures
+    release:
+      name: sawmills-collector
+      namespace: sample-namespace
+    set:
+      loadBalancer:
+        enabled: true
+      kedaScaler:
+        enabled: true
+      keda:
+        enabled: true
+        fallback:
+          enabled: true
+          failureThreshold: 3
+          replicas: 10
+        scaling:
+          external:
+            enabled: true
+            loadBalancerTriggerType: metrics-api
+            loadBalancerMetadata:
+              query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+              targetValue: "10485760"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.fallback.failureThreshold
+          value: 3
+      - equal:
+          path: spec.fallback.replicas
+          value: 10
+
   - it: requires keda scaler when rendering LB metrics-api queue scaler
     set:
       loadBalancer:

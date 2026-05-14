@@ -354,6 +354,12 @@ keda:
   maxReplicas: 100
   pollingInterval: 30
   cooldownPeriod: 0
+  # KEDA fallback keeps the target deployment above min replicas when scaler
+  # metrics fail repeatedly.
+  fallback:
+    enabled: false
+    failureThreshold: 3
+    replicas: 10
   # Optional annotations for the KEDA ScaledObject.
   # For non-Helm-owned HPA -> KEDA ownership transfers, set:
   #   scaledobject.keda.sh/transfer-hpa-ownership: "true"
@@ -1076,16 +1082,20 @@ serviceMonitor:
 
 kedaScaler:
   enabled: false
+  replicaCount: 1
   imagePullPolicy: Always
   podSecurityContext: {}
   probes:
     liveness:
       initialDelaySeconds: 5
       periodSeconds: 5
-      failureThreshold: 5
+      failureThreshold: 3
+      timeoutSeconds: 2
     readiness:
       initialDelaySeconds: 5
       periodSeconds: 5
+      failureThreshold: 3
+      timeoutSeconds: 1
   service:
     type: ClusterIP
     otlpReceiverPort: 4518
@@ -1095,7 +1105,7 @@ kedaScaler:
     otelPrometheusPort: 19876
   resources:
     limits:
-      cpu: 500m
+      cpu: 2
       memory: 256Mi
     requests:
       cpu: 500m
