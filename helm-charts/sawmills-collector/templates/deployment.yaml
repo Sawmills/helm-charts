@@ -1,6 +1,11 @@
 {{- $mainDrain := .Values.rollout.main.drain | default dict }}
 {{- $mainStartupProbe := .Values.rollout.main.probes.startup | default dict }}
 {{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) }}
+{{- $mainCollectorDrainConfigSource := default "overlay" $mainDrain.configSource }}
+{{- if and $mainCollectorDrainEnabled (not (or (eq $mainCollectorDrainConfigSource "overlay") (eq $mainCollectorDrainConfigSource "mainConfig"))) }}
+{{- fail (printf "rollout.main.drain.configSource must be one of: overlay, mainConfig (got %q)" $mainCollectorDrainConfigSource) }}
+{{- end }}
+{{- $mainCollectorDrainOverlayEnabled := and $mainCollectorDrainEnabled (eq $mainCollectorDrainConfigSource "overlay") }}
 {{- $mainOtelConfig := default dict .Values.otelConfig }}
 {{- $mainOtelS3Path := default "" $mainOtelConfig.s3path }}
 {{- $mainOtelEncryptionKey := default "" $mainOtelConfig.encryptionKey }}
@@ -265,7 +270,7 @@ spec:
             {{- else }}
             - "--config=file:/etc/otel/config.yaml"
             {{- end }}
-            {{- if $mainCollectorDrainEnabled }}
+            {{- if $mainCollectorDrainOverlayEnabled }}
             - "--config=file:/etc/otel/backend-drain-config.yaml"
             {{- end }}
           {{- end }}
@@ -352,7 +357,7 @@ spec:
               mountPath: /etc/otel/config.yaml
               subPath: config.yaml
           {{- end }}
-          {{- if $mainCollectorDrainEnabled }}
+          {{- if $mainCollectorDrainOverlayEnabled }}
             - name: sawmills-backend-drain-config
               mountPath: /etc/otel/backend-drain-config.yaml
               subPath: config.yaml
@@ -385,10 +390,10 @@ spec:
               - key: config.yaml
                 path: config.yaml
         {{- end }}
-        {{- if $mainCollectorDrainEnabled }}
+        {{- if $mainCollectorDrainOverlayEnabled }}
         - name: sawmills-backend-drain-config
           configMap:
-            name: {{ include "sawmills-collector.fullname" . }}-backend-drain-config
+            name: {{ include "sawmills-collector.backendDrainConfigName" . }}
             items:
               - key: config.yaml
                 path: config.yaml
