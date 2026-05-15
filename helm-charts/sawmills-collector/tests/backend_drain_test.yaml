@@ -73,6 +73,75 @@ tests:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- backend_drain\n'
 
+  - it: should use an image-scoped backend drain config map
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[1].configMap.name
+          value: RELEASE-NAME-backend-drain-config-60a88d09c3fc
+
+  - it: should keep image-scoped backend drain config maps for old replicas
+    template: backend-drain-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-backend-drain-config-60a88d09c3fc
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+
+  - it: should skip backend drain overlay when main config owns drain config
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+      rollout.main.drain.configSource: mainConfig
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].args[0]
+          value: --config=file:/etc/otel/config.yaml
+      - lengthEqual:
+          path: spec.template.spec.containers[1].args
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13137
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /ready
+      - notExists:
+          path: spec.template.spec.containers[1].args[1]
+      - equal:
+          path: spec.template.spec.containers[1].volumeMounts[1].name
+          value: sawmills-livetail-config
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: sawmills-telemetry-config
+
+  - it: should not render backend drain overlay config when main config owns drain config
+    template: backend-drain-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+      rollout.main.drain.configSource: mainConfig
+    asserts:
+      - hasDocuments:
+          count: 0
+
   - it: should not render lifecycle patch marker on upgrades
     template: deployment.yaml
     values:

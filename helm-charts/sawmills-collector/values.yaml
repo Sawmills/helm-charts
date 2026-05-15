@@ -100,9 +100,13 @@ rollout:
     preStopSleepSeconds: 15
     drain:
       # When loadBalancer.enabled=true, the chart adds a small backend_drain
-      # overlay config and switches the main collector readiness/preStop hooks
-      # to this dedicated endpoint.
+      # overlay config by default and switches the main collector
+      # readiness/preStop hooks to this dedicated endpoint.
       enabled: true
+      # overlay preserves the legacy chart-rendered backend_drain config file.
+      # mainConfig expects backend_drain to exist in the primary collector config
+      # and is used by collectors-service for S3-backed rollout configs.
+      configSource: overlay
       port: 13137
       readinessPath: /ready
       drainPath: /drain

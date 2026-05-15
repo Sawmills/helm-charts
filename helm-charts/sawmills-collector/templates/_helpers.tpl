@@ -41,6 +41,15 @@ Build the collector image reference. If image.digest is set, pin by digest and i
 {{- end }}
 
 {{/*
+Name backend drain config by collector image so old ReplicaSets never consume
+config rendered for a newer binary that may contain unsupported extensions.
+*/}}
+{{- define "sawmills-collector.backendDrainConfigName" -}}
+{{- $imageHash := include "sawmills-collector.image" . | sha256sum | trunc 12 -}}
+{{- printf "%s-backend-drain-config-%s" (include "sawmills-collector.fullname" .) $imageHash | trunc 253 | trimSuffix "-" -}}
+{{- end }}
+
+{{/*
 Build the HAProxy image reference. Supports the legacy haproxy.image string and
 the structured haproxy.image.repository/tag/digest format.
 */}}
