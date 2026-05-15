@@ -334,6 +334,10 @@ autoscaling:
   enabled: false
   minReplicas: 3
   maxReplicas: 50
+  # Optional absolute per-pod CPU target, e.g. 400m. When set, the HPA uses
+  # Resource/AverageValue instead of CPU utilization, so scaling is not coupled
+  # to low CPU requests.
+  targetCPUAverageValue: ""
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
   # Add behavior configuration for faster scaling
@@ -1376,6 +1380,10 @@ loadBalancer:
     enabled: false
     minReplicas: 3
     maxReplicas: 50
+    # Optional absolute per-pod CPU target, e.g. 400m. When set, the HPA uses
+    # Resource/AverageValue instead of CPU utilization, so scaling is not coupled
+    # to low CPU requests.
+    targetCPUAverageValue: ""
     targetCPUUtilizationPercentage: 80
     targetMemoryUtilizationPercentage: 80
     behavior:

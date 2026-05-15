@@ -183,6 +183,9 @@ autoscaling:
   enabled: true
   minReplicas: 3
   maxReplicas: 50
+  # Optional absolute per-pod CPU target, e.g. 400m. When set, the HPA uses
+  # Resource/AverageValue instead of CPU utilization.
+  targetCPUAverageValue: ""
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
   behavior:
@@ -725,6 +728,15 @@ Enable a separate load balancer deployment:
 loadBalancer:
   enabled: true
   replicas: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 50
+    # Optional absolute per-pod CPU target, e.g. 400m. When set, the HPA uses
+    # Resource/AverageValue instead of CPU utilization.
+    targetCPUAverageValue: ""
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
   minReadySeconds: 15
   strategy:
     type: RollingUpdate

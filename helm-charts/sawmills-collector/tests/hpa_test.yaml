@@ -19,6 +19,28 @@ tests:
           path: spec.scaleTargetRef.name
           value: RELEASE-NAME
 
+  - it: renders absolute CPU average value target when configured
+    set:
+      autoscaling:
+        enabled: true
+        targetCPUUtilizationPercentage: 0
+        targetMemoryUtilizationPercentage: 0
+        targetCPUAverageValue: 400m
+      keda:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.metrics[0].resource.name
+          value: cpu
+      - equal:
+          path: spec.metrics[0].resource.target.type
+          value: AverageValue
+      - equal:
+          path: spec.metrics[0].resource.target.averageValue
+          value: 400m
+
   - it: does not render the standard HPA when KEDA is enabled
     set:
       autoscaling:

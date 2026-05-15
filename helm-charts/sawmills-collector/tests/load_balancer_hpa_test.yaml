@@ -52,6 +52,33 @@ tests:
           path: spec.maxReplicas
           value: 20
 
+  - it: should render absolute CPU average value target when configured
+    set:
+      loadBalancer:
+        enabled: true
+        autoscaling:
+          enabled: true
+          minReplicas: 2
+          maxReplicas: 10
+          targetCPUUtilizationPercentage: 0
+          targetMemoryUtilizationPercentage: 0
+          targetCPUAverageValue: 400m
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.metrics[0].type
+          value: Resource
+      - equal:
+          path: spec.metrics[0].resource.name
+          value: cpu
+      - equal:
+          path: spec.metrics[0].resource.target.type
+          value: AverageValue
+      - equal:
+          path: spec.metrics[0].resource.target.averageValue
+          value: 400m
+
   - it: should target StatefulSet when storage is enabled
     set:
       loadBalancer:
