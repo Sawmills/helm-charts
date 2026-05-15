@@ -42,6 +42,22 @@ echo "📋 Running sibling fallback tests..."
 helm unittest . -f 'tests/sibling_fallback_test.yaml' --color
 
 echo ""
+echo "📋 Running backend drain configSource validation..."
+if invalid_config_source_output=$(helm template config-source-validation . \
+	--skip-schema-validation \
+	--set loadBalancer.enabled=true \
+	--set rollout.main.drain.enabled=true \
+	--set rollout.main.drain.configSource=typo 2>&1 >/dev/null); then
+	echo "Expected invalid rollout.main.drain.configSource to fail" >&2
+	exit 1
+fi
+
+if [[ ${invalid_config_source_output} != *'rollout.main.drain.configSource must be one of: overlay, mainConfig (got "typo")'* ]]; then
+	echo "${invalid_config_source_output}" >&2
+	exit 1
+fi
+
+echo ""
 echo "📋 Running all tests..."
 helm unittest . --color
 

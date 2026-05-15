@@ -8,6 +8,28 @@
       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$|^$",
       "description": "Optional stable Kubernetes resource base name. Limited to 32 characters so generated names such as <base>-load-balancer-telemetry-config remain valid DNS labels."
     },
+    "rollout": {
+      "type": "object",
+      "properties": {
+        "main": {
+          "type": "object",
+          "properties": {
+            "drain": {
+              "type": "object",
+              "properties": {
+                "configSource": {
+                  "type": "string",
+                  "enum": ["overlay", "mainConfig"]
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
     "proxy": {
       "type": "object",
       "properties": {
