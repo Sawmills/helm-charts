@@ -364,8 +364,6 @@ spec:
           {{- end }}
             - name: sawmills-livetail-config
               mountPath: /etc/livetail-config/
-            - name: sawmills-hot-reload-notifications
-              mountPath: /etc/hot-reload-notifications/
             - name: tmp
               mountPath: /tmp
             {{- with .Values.additionalVolumeMounts }}
@@ -417,9 +415,6 @@ spec:
         - name: sawmills-livetail-config
           configMap:
             name: {{ include "sawmills-collector.fullname" . }}-livetail-config
-        - name: sawmills-hot-reload-notifications
-          configMap:
-            name: {{ include "sawmills-collector.fullname" . }}-hot-reload-notifications
         - name: tmp
           emptyDir: {}
         {{- with .Values.additionalVolumes }}

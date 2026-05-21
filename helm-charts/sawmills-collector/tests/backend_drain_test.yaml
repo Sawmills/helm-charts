@@ -83,7 +83,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.volumes[1].configMap.name
-          value: RELEASE-NAME-backend-drain-config-60a88d09c3fc
+          value: RELEASE-NAME-backend-drain-config-0366332b7e00
 
   - it: should keep image-scoped backend drain config maps for old replicas
     template: backend-drain-configmap.yaml
@@ -95,7 +95,7 @@ tests:
     asserts:
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-backend-drain-config-60a88d09c3fc
+          value: RELEASE-NAME-backend-drain-config-0366332b7e00
       - equal:
           path: metadata.annotations["helm.sh/resource-policy"]
           value: keep
