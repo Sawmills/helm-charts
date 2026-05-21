@@ -1367,6 +1367,13 @@ loadBalancer:
                 value: 1
             stabilizationWindowSeconds: 0
     scaling:
+      prometheus:
+        enabled: false
+        metricType: Value
+        metadata:
+          serverAddress: ""
+          query: ""
+          threshold: ""
       cpu:
         enabled: true
         targetUtilization: 80

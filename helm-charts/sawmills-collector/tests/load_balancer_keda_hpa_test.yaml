@@ -1,10 +1,195 @@
 suite: Load Balancer KEDA HPA Tests
 templates:
   - templates/load-balancer-keda-hpa.yaml
+  - templates/load-balancer-hpa.yaml
 values:
   - ../values.yaml
 tests:
+  - it: renders Prometheus trigger for load balancer KEDA scaling
+    template: templates/load-balancer-keda-hpa.yaml
+    release:
+      name: sawmills-collector
+      namespace: sample-namespace
+    set:
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+          minReplicas: 3
+          maxReplicas: 25
+          scaling:
+            prometheus:
+              enabled: true
+              metricType: Value
+              metadata:
+                serverAddress: http://thanos-operator-query-frontend.monitoring:9090
+                query: histogram_quantile(0.999, sum(rate(http_server_duration_bucket[1m])) by (le))
+                threshold: "8000"
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.scaleTargetRef.kind
+          value: Deployment
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: sawmills-collector-lb
+      - equal:
+          path: spec.minReplicaCount
+          value: 3
+      - equal:
+          path: spec.maxReplicaCount
+          value: 25
+      - equal:
+          path: spec.triggers[0].type
+          value: prometheus
+      - equal:
+          path: spec.triggers[0].metricType
+          value: Value
+      - equal:
+          path: spec.triggers[0].metadata.serverAddress
+          value: http://thanos-operator-query-frontend.monitoring:9090
+      - equal:
+          path: spec.triggers[0].metadata.query
+          value: histogram_quantile(0.999, sum(rate(http_server_duration_bucket[1m])) by (le))
+      - equal:
+          path: spec.triggers[0].metadata.threshold
+          value: "8000"
+
+  - it: targets StatefulSet for Prometheus scaling when load balancer storage is enabled
+    template: templates/load-balancer-keda-hpa.yaml
+    set:
+      loadBalancer:
+        enabled: true
+        storage:
+          enabled: true
+        keda:
+          enabled: true
+          scaling:
+            prometheus:
+              enabled: true
+              metadata:
+                serverAddress: http://thanos-operator-query-frontend.monitoring:9090
+                query: histogram_quantile(0.999, sum(rate(http_server_duration_bucket[1m])) by (le))
+                threshold: "8000"
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.scaleTargetRef.kind
+          value: StatefulSet
+
+  - it: requires Prometheus metadata when load balancer Prometheus scaling is enabled
+    template: templates/load-balancer-keda-hpa.yaml
+    set:
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+          scaling:
+            prometheus:
+              enabled: true
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: 'loadBalancer.keda.scaling.prometheus.metadata.serverAddress is required when loadBalancer.keda.scaling.prometheus.enabled is true'
+
+  - it: renders false and zero Prometheus metadata values
+    template: templates/load-balancer-keda-hpa.yaml
+    set:
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+          scaling:
+            prometheus:
+              enabled: true
+              metadata:
+                serverAddress: http://thanos-operator-query-frontend.monitoring:9090
+                query: histogram_quantile(0.999, sum(rate(http_server_duration_bucket[1m])) by (le))
+                threshold: "8000"
+                ignoreNullValues: false
+                activationThreshold: 0
+                emptyOptionalValue: ""
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - equal:
+          path: spec.triggers[0].metadata.ignoreNullValues
+          value: "false"
+      - equal:
+          path: spec.triggers[0].metadata.activationThreshold
+          value: "0"
+      - notExists:
+          path: spec.triggers[0].metadata.emptyOptionalValue
+
+  - it: renders load balancer ScaledObject when autoscaling and KEDA are both enabled
+    template: templates/load-balancer-keda-hpa.yaml
+    set:
+      loadBalancer:
+        enabled: true
+        autoscaling:
+          enabled: true
+        keda:
+          enabled: true
+          scaling:
+            prometheus:
+              enabled: true
+              metadata:
+                serverAddress: http://thanos-operator-query-frontend.monitoring:9090
+                query: histogram_quantile(0.999, sum(rate(http_server_duration_bucket[1m])) by (le))
+                threshold: "8000"
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ScaledObject
+
+  - it: suppresses load balancer HPA when load balancer KEDA is enabled
+    template: templates/load-balancer-hpa.yaml
+    set:
+      loadBalancer:
+        enabled: true
+        autoscaling:
+          enabled: true
+        keda:
+          enabled: true
+          scaling:
+            prometheus:
+              enabled: true
+              metadata:
+                serverAddress: http://thanos-operator-query-frontend.monitoring:9090
+                query: histogram_quantile(0.999, sum(rate(http_server_duration_bucket[1m])) by (le))
+                threshold: "8000"
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
   - it: renders CPU and memory triggers with KEDA metricType syntax
+    template: templates/load-balancer-keda-hpa.yaml
     set:
       loadBalancer:
         enabled: true
