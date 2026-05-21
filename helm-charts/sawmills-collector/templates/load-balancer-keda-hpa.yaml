@@ -38,7 +38,7 @@ spec:
         query: {{ required "loadBalancer.keda.scaling.prometheus.metadata.query is required when loadBalancer.keda.scaling.prometheus.enabled is true" $prometheusMetadata.query | quote }}
         threshold: {{ required "loadBalancer.keda.scaling.prometheus.metadata.threshold is required when loadBalancer.keda.scaling.prometheus.enabled is true" $prometheusMetadata.threshold | quote }}
         {{- range $key, $value := $prometheusMetadata }}
-        {{- if and (not (has $key (list "serverAddress" "query" "threshold"))) (not (empty $value)) }}
+        {{- if and (not (has $key (list "serverAddress" "query" "threshold"))) (not (kindIs "invalid" $value)) (not (and (kindIs "string" $value) (eq $value ""))) }}
         {{- printf "%s: %s" $key ($value | quote) | nindent 8 }}
         {{- end }}
         {{- end }}
