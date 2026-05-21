@@ -89,6 +89,24 @@ tests:
           path: spec.scaleTargetRef.kind
           value: StatefulSet
 
+  - it: requires Prometheus metadata when load balancer Prometheus scaling is enabled
+    template: templates/load-balancer-keda-hpa.yaml
+    set:
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+          scaling:
+            prometheus:
+              enabled: true
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: 'loadBalancer.keda.scaling.prometheus.metadata.serverAddress is required when loadBalancer.keda.scaling.prometheus.enabled is true'
+
   - it: renders load balancer ScaledObject when autoscaling and KEDA are both enabled
     template: templates/load-balancer-keda-hpa.yaml
     set:

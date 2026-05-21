@@ -758,9 +758,13 @@ loadBalancer:
 
 `loadBalancer.autoscaling` renders a Kubernetes `HorizontalPodAutoscaler` with CPU and memory resource metrics, so the cluster must provide `metrics.k8s.io` data. In Prometheus/Thanos-only environments, use `loadBalancer.keda.scaling.prometheus` instead:
 
+When `loadBalancer.keda.enabled: true`, set `loadBalancer.podDisruptionBudget.minAvailable` explicitly. The default is computed from static `loadBalancer.replicas`, which can be higher than the actual pod count after KEDA scales down and can block voluntary disruptions such as node drains or upgrades.
+
 ```yaml
 loadBalancer:
   enabled: true
+  podDisruptionBudget:
+    minAvailable: 2
   keda:
     enabled: true
     minReplicas: 3
