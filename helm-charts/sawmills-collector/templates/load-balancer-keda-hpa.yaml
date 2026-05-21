@@ -29,6 +29,14 @@ spec:
     {{- end }}
   {{- end }}
   triggers:
+    {{- if .Values.loadBalancer.keda.scaling.prometheus.enabled }}
+    - type: prometheus
+      metricType: {{ .Values.loadBalancer.keda.scaling.prometheus.metricType }}
+      metadata:
+        {{- range $key, $value := .Values.loadBalancer.keda.scaling.prometheus.metadata }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+    {{- end }}
     {{- if .Values.loadBalancer.keda.scaling.cpu.enabled }}
     - type: cpu
       metricType: Utilization

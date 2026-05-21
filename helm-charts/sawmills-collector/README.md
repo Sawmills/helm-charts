@@ -756,6 +756,29 @@ loadBalancer:
     className: "standard"
 ```
 
+`loadBalancer.autoscaling` renders a Kubernetes `HorizontalPodAutoscaler` with CPU and memory resource metrics, so the cluster must provide `metrics.k8s.io` data. In Prometheus/Thanos-only environments, use `loadBalancer.keda.scaling.prometheus` instead:
+
+```yaml
+loadBalancer:
+  enabled: true
+  keda:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 25
+    scaling:
+      prometheus:
+        enabled: true
+        metricType: Value
+        metadata:
+          serverAddress: http://thanos-operator-query-frontend.monitoring:9090
+          query: "histogram_quantile(0.999, sum(rate(http_server_duration_bucket[1m])) by (le))"
+          threshold: "8000"
+      cpu:
+        enabled: false
+      memory:
+        enabled: false
+```
+
 #### Load Balancer Queue Compression Modes
 
 Configure these options in `loadBalancer.otelCollectorConfig.exporters.<loadbalancing-exporter>.sending_queue`:
