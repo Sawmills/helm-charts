@@ -1308,6 +1308,7 @@ loadBalancer:
     capacityWarningThreshold: 0.60
     failChecks: 2
     recoverChecks: 3
+    checkInterval: 1s
     rejectedQuietDuration: 1m
     oldestItemAgeFailThreshold: 1m
     # When unset, derived from loadBalancer.resources.limits.memory. Set 0 to

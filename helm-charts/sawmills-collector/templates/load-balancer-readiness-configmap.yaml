@@ -61,6 +61,7 @@ data:
           capacity_warning_threshold: {{ default 0.60 $lbPressure.capacityWarningThreshold }}
           fail_checks: {{ default 2 $lbPressure.failChecks }}
           recover_checks: {{ default 3 $lbPressure.recoverChecks }}
+          check_interval: {{ default "1s" $lbPressure.checkInterval }}
           rejected_quiet_duration: {{ default "1m" $lbPressure.rejectedQuietDuration }}
           oldest_item_age_fail_threshold: {{ default "1m" $lbPressure.oldestItemAgeFailThreshold }}
           memory_limit_bytes: {{ $memoryLimitBytes }}
