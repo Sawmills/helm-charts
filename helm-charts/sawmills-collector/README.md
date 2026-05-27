@@ -852,6 +852,7 @@ loadBalancer:
     memorySaturationFailThreshold: 0.85
     memorySaturationRecoverThreshold: 0.70
     capacityWarningThreshold: 0.60
+    checkInterval: 1s
     rejectedQuietDuration: 1m
     oldestItemAgeFailThreshold: 1m
 ```
