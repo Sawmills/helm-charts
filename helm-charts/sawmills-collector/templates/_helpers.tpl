@@ -631,6 +631,22 @@ plain query string. Requires kedaScaler.enabled=true. Returns:
 {{- end -}}
 
 {{/*
+Build a KEDA metrics-api URL for the load balancer scaler monitoring HTTP endpoint.
+Call with dict "root" set to the chart root context and "query" set to the
+plain query string. Requires kedaScaler.enabled=true. Fails if kedaScaler.enabled
+is false or the required query metadata is missing. Uses
+.root.Values.kedaScaler.service.monitoringPort. Returns:
+"http://<keda-scaler-service>:<monitoringPort>/query?query=<urlencoded-query>".
+*/}}
+{{- define "sawmills-collector.loadBalancerKedaMetricsAPIURL" -}}
+{{- if not .root.Values.kedaScaler.enabled -}}
+{{- fail "kedaScaler.enabled must be true when loadBalancer.keda.scaling.external.loadBalancerTriggerType is metrics-api" -}}
+{{- end -}}
+{{- $query := required "loadBalancer.keda.scaling.external.metadata.query is required for metrics-api" .query -}}
+{{- printf "http://%s:%v/query?query=%s" (include "sawmills-collector.kedaScalerSvcFQDN" .root) .root.Values.kedaScaler.service.monitoringPort (urlquery $query) -}}
+{{- end -}}
+
+{{/*
 Resolve whether to use native sidecar mode for HAProxy.
 Accepts .Values.haproxy.nativeSidecar: "false" | "true" | "auto"
 Returns "true" or "false" as a string.

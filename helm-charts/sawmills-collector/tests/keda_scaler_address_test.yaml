@@ -1,6 +1,7 @@
 suite: keda scaler address namespace templating
 templates:
   - templates/keda-hpa.yaml
+  - templates/load-balancer-keda-hpa.yaml
   - templates/keda-scaler-service.yaml
 tests:
   - it: resolves non-LB external scalerAddress from release namespace and configured port
@@ -93,4 +94,25 @@ tests:
           value: http://sawmills-collector-keda-otel-scaler.sample-namespace.svc.cluster.local:19466/query?query=sum%28otelcol_loadbalancer_central_queue_compressed_bytes%29
       - notMatchRegex:
           path: spec.triggers[0].metadata.url
+          pattern: \.sawmills\.svc\.cluster\.local
+
+  - it: resolves loadBalancer.keda external scalerAddress from release namespace and configured port
+    template: templates/load-balancer-keda-hpa.yaml
+    release:
+      name: sawmills-collector
+      namespace: sample-namespace
+    set:
+      kedaScaler.enabled: true
+      kedaScaler.service.kedaExternalScalerPort: 9444
+      loadBalancer.enabled: true
+      loadBalancer.keda.enabled: true
+      loadBalancer.keda.scaling.external.enabled: true
+      loadBalancer.keda.scaling.cpu.enabled: false
+      loadBalancer.keda.scaling.memory.enabled: false
+    asserts:
+      - equal:
+          path: spec.triggers[0].metadata.scalerAddress
+          value: sawmills-collector-keda-otel-scaler.sample-namespace.svc.cluster.local:9444
+      - notMatchRegex:
+          path: spec.triggers[0].metadata.scalerAddress
           pattern: \.sawmills\.svc\.cluster\.local
