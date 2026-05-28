@@ -290,6 +290,37 @@ kedaScaler:
   enabled: true
 ```
 
+For load balancer pod autoscaling, prefer `loadBalancer.keda.scaling.external` with the bundled Sawmills KEDA scaler. This mode does not require a separate Prometheus or VictoriaMetrics deployment:
+
+```yaml
+loadBalancer:
+  enabled: true
+  keda:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 25
+    pollingInterval: 15
+    cooldownPeriod: 31
+    scaling:
+      cpu:
+        enabled: false
+      memory:
+        enabled: false
+      prometheus:
+        enabled: false
+      external:
+        enabled: true
+        metricType: AverageValue
+        metadata:
+          scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
+          query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+          targetValue: "10485760"
+kedaScaler:
+  enabled: true
+```
+
+Use `sum(otelcol_loadbalancer_central_queue_compressed_bytes)` with target `10485760` for byte-sized central queue scaling. The legacy item-sized fallback is `sum(otelcol_exporter_queue_size{exporter=~"loadbalancing/collector-loadbalancer.*"})` with target `300`. Custom metrics must be forwarded through collector telemetry and allowed by `kedaScaler.telemetryConfig`.
+
 ### HAProxy Load Balancing
 
 Enable HAProxy for advanced load balancing:
@@ -756,7 +787,7 @@ loadBalancer:
     className: "standard"
 ```
 
-`loadBalancer.autoscaling` renders a Kubernetes `HorizontalPodAutoscaler` with CPU and memory resource metrics, so the cluster must provide `metrics.k8s.io` data. In Prometheus/Thanos-only environments, use `loadBalancer.keda.scaling.prometheus` instead:
+`loadBalancer.autoscaling` renders a Kubernetes `HorizontalPodAutoscaler` with CPU and memory resource metrics, so the cluster must provide `metrics.k8s.io` data. Prefer `loadBalancer.keda.scaling.external` with the bundled Sawmills KEDA scaler when resource metrics are not enough. `loadBalancer.keda.scaling.prometheus` remains available as an alternative configuration path:
 
 When `loadBalancer.keda.enabled: true`, set `loadBalancer.podDisruptionBudget.minAvailable` explicitly. The default is computed from static `loadBalancer.replicas`, which can be higher than the actual pod count after KEDA scales down and can block voluntary disruptions such as node drains or upgrades.
 
@@ -771,16 +802,24 @@ loadBalancer:
     maxReplicas: 25
     scaling:
       prometheus:
-        enabled: true
+        enabled: false
         metricType: Value
         metadata:
           serverAddress: http://thanos-operator-query-frontend.monitoring:9090
           query: "histogram_quantile(0.999, sum(rate(http_server_duration_bucket[1m])) by (le))"
           threshold: "8000"
+      external:
+        enabled: true
+        metricType: AverageValue
+        metadata:
+          query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+          targetValue: "10485760"
       cpu:
         enabled: false
       memory:
         enabled: false
+kedaScaler:
+  enabled: true
 ```
 
 #### Load Balancer Queue Compression Modes

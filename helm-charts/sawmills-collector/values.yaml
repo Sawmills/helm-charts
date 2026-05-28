@@ -1375,6 +1375,14 @@ loadBalancer:
           serverAddress: ""
           query: ""
           threshold: ""
+      external:
+        enabled: false
+        metricType: AverageValue
+        loadBalancerTriggerType: external
+        metadata:
+          scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
+          query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+          targetValue: "10485760"
       cpu:
         enabled: true
         targetUtilization: 80

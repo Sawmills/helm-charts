@@ -257,6 +257,24 @@ tests:
           path: spec.scaleTargetRef.name
           value: coinbase-logs-lb
 
+  - it: uses resourceBaseName for load balancer external scaler address
+    template: templates/load-balancer-keda-hpa.yaml
+    release:
+      name: customer-umbrella
+      namespace: customer-ns
+    set:
+      resourceBaseName: coinbase-logs
+      kedaScaler.enabled: true
+      loadBalancer.enabled: true
+      loadBalancer.keda.enabled: true
+      loadBalancer.keda.scaling.external.enabled: true
+      loadBalancer.keda.scaling.cpu.enabled: false
+      loadBalancer.keda.scaling.memory.enabled: false
+    asserts:
+      - equal:
+          path: spec.triggers[0].metadata.scalerAddress
+          value: coinbase-logs-keda-otel-scaler.customer-ns.svc.cluster.local:4418
+
   - it: uses resourceBaseName for KEDA scaler deployment and service selectors
     template: templates/keda-scaler-deployment.yaml
     release:

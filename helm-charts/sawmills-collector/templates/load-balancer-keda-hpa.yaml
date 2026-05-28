@@ -1,5 +1,8 @@
 # KEDA ScaledObject for the load balancer deployment/statefulset
 {{- if and .Values.loadBalancer.enabled .Values.loadBalancer.keda.enabled }}
+{{- if and .Values.loadBalancer.keda.scaling.external.enabled (not .Values.kedaScaler.enabled) }}
+{{- fail "kedaScaler.enabled must be true when loadBalancer.keda.scaling.external.enabled is true" }}
+{{- end }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -42,6 +45,30 @@ spec:
         {{- printf "%s: %s" $key ($value | quote) | nindent 8 }}
         {{- end }}
         {{- end }}
+    {{- end }}
+    {{- if .Values.loadBalancer.keda.scaling.external.enabled }}
+    {{- $external := .Values.loadBalancer.keda.scaling.external }}
+    {{- $externalMetadata := $external.metadata }}
+    {{- $lbTriggerType := default "external" $external.loadBalancerTriggerType }}
+    - type: {{ $lbTriggerType }}
+      {{- if eq $lbTriggerType "metrics-api" }}
+      metadata:
+        url: {{ include "sawmills-collector.loadBalancerKedaMetricsAPIURL" (dict "root" . "query" $externalMetadata.query) | quote }}
+        format: "json"
+        valueLocation: "result"
+        targetValue: {{ required "loadBalancer.keda.scaling.external.metadata.targetValue is required for metrics-api" $externalMetadata.targetValue | quote }}
+      {{- else }}
+      metricType: {{ $external.metricType }}
+      metadata:
+        scalerAddress: {{ required "loadBalancer.keda.scaling.external.metadata.scalerAddress is required when loadBalancer.keda.scaling.external.enabled is true" (tpl (toString $externalMetadata.scalerAddress) $) | quote }}
+        query: {{ required "loadBalancer.keda.scaling.external.metadata.query is required when loadBalancer.keda.scaling.external.enabled is true" $externalMetadata.query | quote }}
+        targetValue: {{ required "loadBalancer.keda.scaling.external.metadata.targetValue is required when loadBalancer.keda.scaling.external.enabled is true" $externalMetadata.targetValue | quote }}
+        {{- range $key, $value := $externalMetadata }}
+        {{- if and (not (has $key (list "scalerAddress" "query" "targetValue"))) (not (kindIs "invalid" $value)) (not (and (kindIs "string" $value) (eq $value ""))) }}
+        {{- printf "%s: %s" $key ($value | quote) | nindent 8 }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
     {{- end }}
     {{- if .Values.loadBalancer.keda.scaling.cpu.enabled }}
     - type: cpu

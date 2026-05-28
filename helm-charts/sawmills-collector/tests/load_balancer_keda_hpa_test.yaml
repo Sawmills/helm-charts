@@ -5,6 +5,121 @@ templates:
 values:
   - ../values.yaml
 tests:
+  - it: renders external scaler trigger for load balancer KEDA scaling
+    template: templates/load-balancer-keda-hpa.yaml
+    release:
+      name: sawmills-collector
+      namespace: sample-namespace
+    set:
+      kedaScaler:
+        enabled: true
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+          minReplicas: 3
+          maxReplicas: 25
+          scaling:
+            external:
+              enabled: true
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.scaleTargetRef.kind
+          value: Deployment
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: sawmills-collector-lb
+      - equal:
+          path: spec.minReplicaCount
+          value: 3
+      - equal:
+          path: spec.maxReplicaCount
+          value: 25
+      - equal:
+          path: spec.triggers[0].type
+          value: external
+      - equal:
+          path: spec.triggers[0].metricType
+          value: AverageValue
+      - equal:
+          path: spec.triggers[0].metadata.scalerAddress
+          value: sawmills-collector-keda-otel-scaler.sample-namespace.svc.cluster.local:4418
+      - equal:
+          path: spec.triggers[0].metadata.query
+          value: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+      - equal:
+          path: spec.triggers[0].metadata.targetValue
+          value: "10485760"
+
+  - it: requires keda scaler when load balancer external scaling is enabled
+    template: templates/load-balancer-keda-hpa.yaml
+    set:
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+          scaling:
+            external:
+              enabled: true
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: 'kedaScaler.enabled must be true when loadBalancer.keda.scaling.external.enabled is true'
+
+  - it: renders metrics-api trigger for load balancer KEDA scaling
+    template: templates/load-balancer-keda-hpa.yaml
+    release:
+      name: sawmills-collector
+      namespace: sample-namespace
+    set:
+      kedaScaler:
+        enabled: true
+        service:
+          monitoringPort: 19466
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+          scaling:
+            external:
+              enabled: true
+              loadBalancerTriggerType: metrics-api
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.triggers[0].type
+          value: metrics-api
+      - notExists:
+          path: spec.triggers[0].metricType
+      - equal:
+          path: spec.triggers[0].metadata.url
+          value: http://sawmills-collector-keda-otel-scaler.sample-namespace.svc.cluster.local:19466/query?query=sum%28otelcol_loadbalancer_central_queue_compressed_bytes%29
+      - equal:
+          path: spec.triggers[0].metadata.format
+          value: json
+      - equal:
+          path: spec.triggers[0].metadata.valueLocation
+          value: result
+      - equal:
+          path: spec.triggers[0].metadata.targetValue
+          value: "10485760"
+
   - it: renders Prometheus trigger for load balancer KEDA scaling
     template: templates/load-balancer-keda-hpa.yaml
     release:
