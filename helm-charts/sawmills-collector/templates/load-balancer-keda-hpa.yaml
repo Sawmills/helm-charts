@@ -60,7 +60,7 @@ spec:
       {{- else }}
       metricType: {{ $external.metricType }}
       metadata:
-        scalerAddress: {{ required "loadBalancer.keda.scaling.external.metadata.scalerAddress is required when loadBalancer.keda.scaling.external.enabled is true" (tpl (toString $externalMetadata.scalerAddress) $) | quote }}
+        scalerAddress: {{ required "loadBalancer.keda.scaling.external.metadata.scalerAddress is required when loadBalancer.keda.scaling.external.enabled is true" (tpl (toString $externalMetadata.scalerAddress) .) | quote }}
         query: {{ required "loadBalancer.keda.scaling.external.metadata.query is required when loadBalancer.keda.scaling.external.enabled is true" $externalMetadata.query | quote }}
         targetValue: {{ required "loadBalancer.keda.scaling.external.metadata.targetValue is required when loadBalancer.keda.scaling.external.enabled is true" $externalMetadata.targetValue | quote }}
         {{- range $key, $value := $externalMetadata }}

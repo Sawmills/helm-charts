@@ -631,7 +631,12 @@ plain query string. Requires kedaScaler.enabled=true. Returns:
 {{- end -}}
 
 {{/*
-Build a loadBalancer.keda metrics-api URL for the scaler monitoring HTTP endpoint.
+Build a KEDA metrics-api URL for the load balancer scaler monitoring HTTP endpoint.
+Call with dict "root" set to the chart root context and "query" set to the
+plain query string. Requires kedaScaler.enabled=true. Fails if kedaScaler.enabled
+is false or the required query metadata is missing. Uses
+.root.Values.kedaScaler.service.monitoringPort. Returns:
+"http://<keda-scaler-service>:<monitoringPort>/query?query=<urlencoded-query>".
 */}}
 {{- define "sawmills-collector.loadBalancerKedaMetricsAPIURL" -}}
 {{- if not .root.Values.kedaScaler.enabled -}}
