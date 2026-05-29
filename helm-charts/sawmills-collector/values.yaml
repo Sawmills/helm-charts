@@ -326,6 +326,9 @@ telemetry:
   # Prometheus port for the telemetry collector, can be used by customers to scrape metrics
   prometheus:
     port: 19465
+  # Small Prometheus endpoint used by LB backend_drain pressure readiness.
+  pressurePrometheus:
+    port: 19466
   # OTLP/HTTP ingest port on the telemetry collector for remote-operator metrics
   remoteOperatorOtlpHttpPort: 14319
 
@@ -1014,7 +1017,7 @@ telemetryConfig:
         - context: metric
           statement: route() where not IsMatch(name, "otelcol_processor_central_thp|otelcol_processor_thp|otelcol_processor_qmp")
           pipelines: [metrics/system]
-    forward:
+    forward: {}
 
   service:
     extensions: [health_check, cgroup_runtime]
@@ -1254,6 +1257,9 @@ loadBalancer:
   telemetryOtelConfig:
     s3path: ""
     encryptionKey: ""
+  # Optional inline telemetry config for the LB telemetry sidecar. Defaults to
+  # telemetryConfig when unset.
+  telemetryConfig: null
   # Direct LB OTel config. Queue compression options are configured under
   # otelCollectorConfig.exporters.<loadbalancing-exporter>.sending_queue:
   #   payload_compression: snappy|zstd|none
@@ -1298,7 +1304,10 @@ loadBalancer:
     # Defaults to HAProxy /ready when HAProxy HTTP readiness is enabled,
     # otherwise to collector health_check.
     healthCheckEndpoint: ""
-    metricsEndpoint: http://${env:MY_POD_IP}:19465/metrics
+    # Defaults to the small pressure endpoint when the chart renders inline LB
+    # telemetry config. Defaults to the regular telemetry endpoint for S3-backed
+    # LB telemetry unless an explicit value is provided.
+    metricsEndpoint: ""
     queueSaturationFailThreshold: 0.85
     queueSaturationRecoverThreshold: 0.60
     inflightSaturationFailThreshold: 0.85

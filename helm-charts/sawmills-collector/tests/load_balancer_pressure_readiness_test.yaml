@@ -1,6 +1,7 @@
 suite: load balancer pressure readiness
 templates:
   - load-balancer.yaml
+  - load-balancer-telemetry-configmap.yaml
   - load-balancer-readiness-configmap.yaml
 tests:
   - it: renders pressure-aware backend_drain readiness for LB pods
@@ -53,10 +54,163 @@ tests:
           count: 1
       - matchRegex:
           path: data["config.yaml"]
-          pattern: '(?ms)backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 15s\n\s+pressure_check:\n\s+enabled: true\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:19465/metrics\n\s+queue_saturation_fail_threshold: 0.85\n\s+queue_saturation_recover_threshold: 0.6\n\s+inflight_saturation_fail_threshold: 0.85\n\s+inflight_saturation_recover_threshold: 0.6\n\s+memory_saturation_fail_threshold: 0.85\n\s+memory_saturation_recover_threshold: 0.7\n\s+capacity_warning_threshold: 0.6\n\s+fail_checks: 2\n\s+recover_checks: 3\n\s+check_interval: 1s\n\s+rejected_quiet_duration: 1m\n\s+oldest_item_age_fail_threshold: 1m\n\s+memory_limit_bytes: 536870912\n'
+          pattern: '(?ms)backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 15s\n\s+pressure_check:\n\s+enabled: true\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics\n\s+queue_saturation_fail_threshold: 0.85\n\s+queue_saturation_recover_threshold: 0.6\n\s+inflight_saturation_fail_threshold: 0.85\n\s+inflight_saturation_recover_threshold: 0.6\n\s+memory_saturation_fail_threshold: 0.85\n\s+memory_saturation_recover_threshold: 0.7\n\s+capacity_warning_threshold: 0.6\n\s+fail_checks: 2\n\s+recover_checks: 3\n\s+check_interval: 1s\n\s+rejected_quiet_duration: 1m\n\s+oldest_item_age_fail_threshold: 1m\n\s+memory_limit_bytes: 536870912\n'
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- backend_drain\n'
+
+  - it: normalizes legacy explicit pressure metrics endpoints to the small pressure endpoint
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.metricsEndpoint: http://${env:MY_POD_IP}:19465/metrics
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:19465/metrics'
+
+  - it: keeps S3-backed telemetry readiness on the regular metrics endpoint by default
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.telemetryOtelConfig.s3path: s3://bucket/lb-telemetry.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PROMETHEUS_PORT\}/metrics'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics'
+
+  - it: defines the regular telemetry port env when S3-backed readiness uses it
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.telemetryOtelConfig.s3path: s3://bucket/lb-telemetry.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: PROMETHEUS_PORT
+            value: "19465"
+
+  - it: renders a pressure-only Prometheus endpoint for LB readiness
+    template: load-balancer-telemetry-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*prometheus/pressure_readiness:\n\s+endpoint: \$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}\n\s+metric_expiration: 1m\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*filter/pressure_readiness:\n\s+error_mode: ignore\n\s+metrics:\n\s+metric:\n\s+- not IsMatch\(name, ".*otelcol_loadbalancer_central_queue_compressed_bytes.*otelcol_loadbalancer_central_queue_oldest_item_age.*otelcol_process_memory_rss.*otelcol_receiver_refused_log_records.*otelcol_receiver_refused_log_records_total.*otelcol_receiver_refused_metric_points.*otelcol_receiver_refused_metric_points_total.*otelcol_receiver_refused_spans.*otelcol_receiver_refused_spans_total.*otelcol_processor_refused_log_records.*otelcol_processor_refused_log_records_total.*otelcol_processor_refused_metric_points.*otelcol_processor_refused_metric_points_total.*otelcol_processor_refused_spans.*otelcol_processor_refused_spans_total.*"\)\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/pressure_readiness:\n\s+exporters:\n\s+- prometheus/pressure_readiness\n\s+processors:\n\s+- filter/pressure_readiness\n\s+receivers:\n\s+- forward\n'
+
+  - it: exposes the pressure endpoint port on the LB telemetry collector
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].env
+          content:
+            name: PRESSURE_PROMETHEUS_PORT
+            value: "19466"
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].env
+          content:
+            name: PRESSURE_PROMETHEUS_PORT
+            value: "19466"
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
+          content:
+            name: pressure-prom
+            containerPort: 19466
+            protocol: TCP
+
+  - it: merges inline LB telemetry config with the required base config
+    template: load-balancer-telemetry-configmap.yaml
+    values:
+      - ../values.yaml
+      - fixtures/load_balancer_inline_telemetry_config.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'debug/main_marker:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/main_marker:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'debug/lb_marker:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/lb_marker:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*memory_limiter:\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*prometheusremotewrite:\n\s+endpoint:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*forward:\s*\{\}\s*$'
+
+  - it: keeps standalone custom LB telemetry readiness on the regular metrics endpoint
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - fixtures/load_balancer_standalone_telemetry_config.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PROMETHEUS_PORT\}/metrics'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics'
+
+  - it: does not render pressure exporter for standalone custom LB telemetry
+    template: load-balancer-telemetry-configmap.yaml
+    values:
+      - fixtures/load_balancer_standalone_telemetry_config.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'debug/lb_marker:'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'prometheus/pressure_readiness'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/pressure_readiness'
 
   - it: keeps s3 LB config and appends readiness overlay arg
     template: load-balancer.yaml
