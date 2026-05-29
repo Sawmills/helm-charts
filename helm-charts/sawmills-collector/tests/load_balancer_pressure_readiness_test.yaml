@@ -262,6 +262,166 @@ tests:
             containerPort: 19466
             protocol: TCP
 
+  - it: exposes telemetry sidecar pprof on the LB pod when enabled
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.pprof.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].env
+          content:
+            name: TELEMETRY_PPROF_PORT
+            value: "1778"
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
+          content:
+            name: telemetry-pprof
+            containerPort: 1778
+            protocol: TCP
+
+  - it: rejects telemetry sidecar pprof collision with LB pressure metrics port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 19466
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 19466 conflicts with telemetry.pressurePrometheus.port"
+
+  - it: rejects telemetry sidecar pprof collision with remote-operator telemetry ingest port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 14319
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 14319 conflicts with telemetry.remoteOperatorOtlpHttpPort"
+
+  - it: rejects telemetry sidecar pprof collision with HAProxy sibling check port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 13136
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 13136 conflicts with haproxy.sibling_fallback.check.port"
+
+  - it: rejects telemetry sidecar pprof collision with LB customer receiver port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.ports.otlp.port: 1778
+      loadBalancer.ports.otlp.protocol: TCP
+      telemetry.pprof.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 1778 conflicts with loadBalancer.ports.otlp.port"
+
+  - it: rejects telemetry sidecar pprof exposure through LB service target port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.pprof.enabled: true
+      loadBalancer.service.ports.debug.from: 1778
+      loadBalancer.service.ports.debug.to.port: 1778
+      loadBalancer.service.ports.debug.to.protocol: TCP
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 1778 conflicts with loadBalancer.service.ports.debug.from"
+
+  - it: rejects telemetry sidecar pprof collision with LB pressure readiness port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      rollout.main.drain.port: 13139
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 13137
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 13137 conflicts with loadBalancer.pressureReadiness.port"
+
+  - it: rejects telemetry sidecar pprof collision with worker drain port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 13137
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 13137 conflicts with rollout.main.drain.port"
+
+  - it: fails LB telemetry sidecar pprof with S3 config unless externally injected
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.pprof.enabled: true
+      loadBalancer.telemetryOtelConfig.s3path: s3://collector-bucket/lb-telemetry.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.configSource must be external when telemetry pprof is enabled with S3-backed telemetry config; ensure the S3 telemetry config contains the pprof extension"
+
+  - it: rejects externally injected LB telemetry pprof without LB S3 telemetry config
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.configSource: external
+      telemetryOtelConfig.s3path: s3://collector-bucket/main-telemetry.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.configSource=external requires loadBalancer.telemetryOtelConfig.s3path when loadBalancer.enabled=true because Helm will not inject pprof into inline LB telemetry config"
+
+  - it: allows LB telemetry sidecar pprof with S3 config when externally injected
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.configSource: external
+      telemetryOtelConfig.s3path: s3://collector-bucket/main-telemetry.yaml
+      loadBalancer.telemetryOtelConfig.s3path: s3://collector-bucket/lb-telemetry.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].env
+          content:
+            name: TELEMETRY_PPROF_PORT
+            value: "1778"
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
+          content:
+            name: telemetry-pprof
+            containerPort: 1778
+            protocol: TCP
+
   - it: merges inline LB telemetry config with the required base config
     template: load-balancer-telemetry-configmap.yaml
     values:

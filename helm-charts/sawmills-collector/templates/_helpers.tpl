@@ -287,7 +287,179 @@ Generate merged telemetry configuration with external labels
   {{- $processor := include "sawmills-collector.externalLabelsProcessor" . | fromYaml }}
   {{- $_ := set $config.processors "transform/external_labels" $processor }}
 {{- end }}
+{{- include "sawmills-collector.addTelemetryPprof" (dict "root" . "config" $config) }}
 {{- toYaml $config }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Validate telemetry-sidecar pprof config source and pod-local port safety.
+*/}}
+{{- define "sawmills-collector.validateTelemetryPprof" -}}
+{{- $pprof := .Values.telemetry.pprof | default dict -}}
+{{- if ($pprof.enabled | default false) }}
+  {{- $configSource := default "chart" $pprof.configSource -}}
+  {{- if not (has $configSource (list "chart" "external")) }}
+    {{- fail (printf "telemetry.pprof.configSource must be one of: chart, external (got %q)" $configSource) }}
+  {{- end }}
+  {{- $pprofPortValue := 1778 -}}
+  {{- if hasKey $pprof "port" }}
+    {{- $pprofPortValue = $pprof.port -}}
+  {{- end }}
+  {{- if not (regexMatch "^[0-9]+$" (toString $pprofPortValue)) }}
+    {{- fail (printf "telemetry.pprof.port must be an integer between 1 and 65535 (got %q)" (toString $pprofPortValue)) }}
+  {{- end }}
+  {{- $pprofPort := int $pprofPortValue -}}
+  {{- if or (lt $pprofPort 1) (gt $pprofPort 65535) }}
+    {{- fail (printf "telemetry.pprof.port must be between 1 and 65535 (got %d)" $pprofPort) }}
+  {{- end }}
+  {{- $telemetryPrometheusPort := int (default 19465 .Values.telemetry.prometheus.port) -}}
+  {{- if eq $pprofPort $telemetryPrometheusPort }}
+    {{- fail (printf "telemetry.pprof.port %d conflicts with telemetry.prometheus.port" $pprofPort) }}
+  {{- end }}
+  {{- if eq $pprofPort 13133 }}
+    {{- fail (printf "telemetry.pprof.port %d conflicts with main collector health_check port 13133" $pprofPort) }}
+  {{- end }}
+  {{- if eq $pprofPort 13134 }}
+    {{- fail (printf "telemetry.pprof.port %d conflicts with telemetry collector health_check port 13134" $pprofPort) }}
+  {{- end }}
+  {{- if eq $pprofPort 1777 }}
+    {{- fail (printf "telemetry.pprof.port %d conflicts with main collector pprof port 1777" $pprofPort) }}
+  {{- end }}
+  {{- if eq $pprofPort 13138 }}
+    {{- fail (printf "telemetry.pprof.port %d conflicts with main collector LiveTail control port 13138" $pprofPort) }}
+  {{- end }}
+  {{- range $name, $portConfig := (.Values.ports | default dict) }}
+    {{- $port := int (default 0 $portConfig.port) -}}
+    {{- if and (gt $port 0) (eq $pprofPort $port) }}
+      {{- fail (printf "telemetry.pprof.port %d conflicts with ports.%s.port" $pprofPort $name) }}
+    {{- end }}
+  {{- end }}
+  {{- range $name, $servicePort := (.Values.service.ports | default dict) }}
+    {{- $targetPort := int (default 0 $servicePort.from) -}}
+    {{- if and (gt $targetPort 0) (eq $pprofPort $targetPort) }}
+      {{- fail (printf "telemetry.pprof.port %d conflicts with service.ports.%s.from" $pprofPort $name) }}
+    {{- end }}
+  {{- end }}
+  {{- $mainDrain := .Values.rollout.main.drain | default dict -}}
+  {{- if and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) }}
+    {{- $mainDrainPort := int (default 13137 $mainDrain.port) -}}
+    {{- if eq $pprofPort $mainDrainPort }}
+      {{- fail (printf "telemetry.pprof.port %d conflicts with rollout.main.drain.port" $pprofPort) }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.haproxy.enabled }}
+    {{- range $name, $mapping := (.Values.haproxy.mapping | default dict) }}
+      {{- $port := int (default 0 $mapping.from) -}}
+      {{- if and (gt $port 0) (eq $pprofPort $port) }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with haproxy.mapping.%s.from" $pprofPort $name) }}
+      {{- end }}
+      {{- $to := $mapping.to | default dict -}}
+      {{- $targetPort := int (default 0 $to.port) -}}
+      {{- if and (gt $targetPort 0) (eq $pprofPort $targetPort) }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with haproxy.mapping.%s.to.port" $pprofPort $name) }}
+      {{- end }}
+    {{- end }}
+    {{- $siblingFallback := .Values.haproxy.sibling_fallback | default dict -}}
+    {{- if ($siblingFallback.enabled | default false) }}
+      {{- $siblingCheck := $siblingFallback.check | default dict -}}
+      {{- $siblingCheckPort := int (default 13136 $siblingCheck.port) -}}
+      {{- if eq $pprofPort $siblingCheckPort }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with haproxy.sibling_fallback.check.port" $pprofPort) }}
+      {{- end }}
+    {{- end }}
+    {{- if (.Values.haproxy.prometheus.enabled | default false) }}
+      {{- $haproxyPrometheusPort := int (default 8405 .Values.haproxy.prometheus.port) -}}
+      {{- if eq $pprofPort $haproxyPrometheusPort }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with haproxy.prometheus.port" $pprofPort) }}
+      {{- end }}
+    {{- end }}
+    {{- if (.Values.haproxy.stats.enabled | default false) }}
+      {{- $haproxyStatsPort := int (default 8406 .Values.haproxy.stats.port) -}}
+      {{- if eq $pprofPort $haproxyStatsPort }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with haproxy.stats.port" $pprofPort) }}
+      {{- end }}
+    {{- end }}
+    {{- if (.Values.haproxy.healthcheck.enabled | default false) }}
+      {{- $haproxyHealthPort := int (default 13135 .Values.haproxy.healthcheck.port) -}}
+      {{- if eq $pprofPort $haproxyHealthPort }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with haproxy.healthcheck.port" $pprofPort) }}
+      {{- end }}
+      {{- $forwardingHealth := .Values.haproxy.healthcheck.forwarding_health | default dict -}}
+      {{- if ($forwardingHealth.enabled | default false) }}
+        {{- $forwardingHealthPort := int (default 13136 $forwardingHealth.port) -}}
+        {{- if eq $pprofPort $forwardingHealthPort }}
+          {{- fail (printf "telemetry.pprof.port %d conflicts with haproxy.healthcheck.forwarding_health.port" $pprofPort) }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.loadBalancer.enabled }}
+    {{- range $name, $portConfig := (.Values.loadBalancer.ports | default dict) }}
+      {{- $port := int (default 0 $portConfig.port) -}}
+      {{- if and (gt $port 0) (eq $pprofPort $port) }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with loadBalancer.ports.%s.port" $pprofPort $name) }}
+      {{- end }}
+    {{- end }}
+    {{- range $name, $servicePort := (.Values.loadBalancer.service.ports | default dict) }}
+      {{- $targetPort := int (default 0 $servicePort.from) -}}
+      {{- if and (gt $targetPort 0) (eq $pprofPort $targetPort) }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with loadBalancer.service.ports.%s.from" $pprofPort $name) }}
+      {{- end }}
+    {{- end }}
+    {{- $remoteOperatorPort := int (default 14319 .Values.telemetry.remoteOperatorOtlpHttpPort) -}}
+    {{- if eq $pprofPort $remoteOperatorPort }}
+      {{- fail (printf "telemetry.pprof.port %d conflicts with telemetry.remoteOperatorOtlpHttpPort" $pprofPort) }}
+    {{- end }}
+    {{- $lbPressure := .Values.loadBalancer.pressureReadiness | default dict -}}
+    {{- if ($lbPressure.enabled | default false) }}
+      {{- $pressurePrometheusPort := int (default 19466 .Values.telemetry.pressurePrometheus.port) -}}
+      {{- if eq $pprofPort $pressurePrometheusPort }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with telemetry.pressurePrometheus.port" $pprofPort) }}
+      {{- end }}
+      {{- $pressureReadinessPort := int (default 13137 $lbPressure.port) -}}
+      {{- if eq $pprofPort $pressureReadinessPort }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with loadBalancer.pressureReadiness.port" $pprofPort) }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- $telemetryOtelConfig := default dict .Values.telemetryOtelConfig -}}
+  {{- $lbTelemetryOtelConfig := default dict .Values.loadBalancer.telemetryOtelConfig -}}
+  {{- $telemetryS3Path := default "" $telemetryOtelConfig.s3path -}}
+  {{- $lbTelemetryS3Path := default "" $lbTelemetryOtelConfig.s3path -}}
+  {{- if and (eq $configSource "chart") (or $telemetryS3Path (and .Values.loadBalancer.enabled $lbTelemetryS3Path)) }}
+    {{- fail "telemetry.pprof.configSource must be external when telemetry pprof is enabled with S3-backed telemetry config; ensure the S3 telemetry config contains the pprof extension" }}
+  {{- end }}
+  {{- if and (eq $configSource "external") (not $telemetryS3Path) }}
+    {{- fail "telemetry.pprof.configSource=external requires telemetryOtelConfig.s3path because Helm will not inject pprof into inline telemetry config" }}
+  {{- end }}
+  {{- if and (eq $configSource "external") .Values.loadBalancer.enabled (not $lbTelemetryS3Path) }}
+    {{- fail "telemetry.pprof.configSource=external requires loadBalancer.telemetryOtelConfig.s3path when loadBalancer.enabled=true because Helm will not inject pprof into inline LB telemetry config" }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Add pprof to a telemetry-sidecar collector config when telemetry.pprof.enabled=true.
+The sidecar uses TELEMETRY_PPROF_PORT so it never collides with main collector pprof.
+*/}}
+{{- define "sawmills-collector.addTelemetryPprof" -}}
+{{- $root := .root -}}
+{{- $config := .config -}}
+{{- $pprofValues := $root.Values.telemetry.pprof | default dict -}}
+{{- if and $config (($pprofValues.enabled | default false)) (eq (default "chart" $pprofValues.configSource) "chart") }}
+  {{- $extensions := get $config "extensions" | default dict }}
+  {{- $pprof := get $extensions "pprof" | default dict }}
+  {{- $_ := set $pprof "endpoint" "0.0.0.0:${env:TELEMETRY_PPROF_PORT}" }}
+  {{- $_ := set $extensions "pprof" $pprof }}
+  {{- $_ := set $config "extensions" $extensions }}
+  {{- $service := get $config "service" | default dict }}
+  {{- $serviceExtensions := get $service "extensions" | default list }}
+  {{- if not (has "pprof" $serviceExtensions) }}
+    {{- $serviceExtensions = append $serviceExtensions "pprof" }}
+  {{- end }}
+  {{- $_ := set $service "extensions" $serviceExtensions }}
+  {{- $_ := set $config "service" $service }}
 {{- end }}
 {{- end -}}
 
@@ -370,6 +542,7 @@ Generate merged telemetry configuration with external labels
   {{- $_ := set $config.processors "transform/external_labels" $processor }}
 {{- end }}
 {{- end }}
+{{- include "sawmills-collector.addTelemetryPprof" (dict "root" . "config" $config) }}
 {{- toYaml $config }}
 {{- end }}
 {{- end -}}
