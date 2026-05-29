@@ -617,6 +617,24 @@ Returns "<keda-scaler-name>.<namespace>.svc.cluster.local".
 {{- end -}}
 
 {{/*
+Get the load balancer KEDA ScaledObject name.
+Use distinct names for the external scaler trigger families so KEDA creates a
+fresh child HPA when migrating from legacy CPU/resource-backed ScaledObjects.
+Legacy Prometheus and resource-only configurations keep the original name.
+*/}}
+{{- define "sawmills-collector.loadBalancerKedaScaledObjectName" -}}
+{{- $suffix := "-lb-keda-hpa" -}}
+{{- $external := .Values.loadBalancer.keda.scaling.external -}}
+{{- $triggerType := default "external" $external.loadBalancerTriggerType -}}
+{{- if and $external.enabled (eq $triggerType "external") -}}
+{{- $suffix = "-lb-keda-external-hpa" -}}
+{{- else if and $external.enabled (eq $triggerType "metrics-api") -}}
+{{- $suffix = "-lb-keda-metrics-api-hpa" -}}
+{{- end -}}
+{{- printf "%s%s" (include "sawmills-collector.fullname" . | trunc 39 | trimSuffix "-") $suffix | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
 Build a KEDA metrics-api URL for the scaler monitoring HTTP endpoint.
 Call with dict "root" set to the chart root context and "query" set to the
 plain query string. Requires kedaScaler.enabled=true. Returns:

@@ -6,7 +6,7 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: {{ include "sawmills-collector.fullname" . }}-lb-keda-hpa
+  name: {{ include "sawmills-collector.loadBalancerKedaScaledObjectName" . }}
   namespace: {{ .Release.Namespace }}
   annotations:
     helm.sh/revision: {{ .Release.Revision | quote }}
