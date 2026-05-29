@@ -326,6 +326,15 @@ telemetry:
   # Prometheus port for the telemetry collector, can be used by customers to scrape metrics
   prometheus:
     port: 19465
+  # Optional pprof endpoint for the telemetry sidecar. Uses a different port
+  # than the main collector pprof endpoint because containers in a pod share
+  # the same network namespace.
+  pprof:
+    enabled: false
+    port: 1778
+    # chart: Helm injects pprof into inline telemetry configs.
+    # external: every rendered telemetry sidecar uses S3 config that already contains pprof.
+    configSource: chart
   # Small Prometheus endpoint used by LB backend_drain pressure readiness.
   pressurePrometheus:
     port: 19466

@@ -111,6 +111,23 @@ Changing `resourceBaseName` on an existing release changes rendered resource nam
 
 When overriding `affinity` or `loadBalancer.affinity` with `resourceBaseName` set, use the selector label values rendered by the chart: `<resourceBaseName>` for the collector and `<resourceBaseName>-lb` for the load balancer. The default affinity blocks are rewritten automatically; arbitrary custom selector values are not.
 
+### Telemetry Sidecar Pprof
+
+The main collector uses pprof port `1777`. When telemetry sidecar profiling is
+needed, enable a separate pod-local pprof endpoint on port `1778`:
+
+```yaml
+telemetry:
+  pprof:
+    enabled: true
+    port: 1778
+    configSource: chart
+```
+
+Use `configSource: chart` for inline telemetry configs. Use
+`configSource: external` only when both the main and LB telemetry configs are
+loaded from S3 and already contain the pprof extension.
+
 ### Pin Images By Digest
 
 Set `image.digest` to render the collector image as `repository@digest` instead of `repository:tag`:

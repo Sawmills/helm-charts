@@ -6,6 +6,7 @@
 {{- $lbTelemetryOtelConfig := default (dict) .Values.loadBalancer.telemetryOtelConfig }}
 {{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
 {{- $lbTelemetryOtelEncryptionKey := default "" $lbTelemetryOtelConfig.encryptionKey }}
+{{- include "sawmills-collector.validateTelemetryPprof" . }}
 {{- $lbStartupProbe := .Values.rollout.loadBalancer.probes.startup | default dict }}
 {{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict }}
 {{- $lbPressureReadinessEnabled := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) }}
@@ -290,6 +291,10 @@ spec:
               value: {{ .Values.collectorId }}
             - name: PROMETHEUS_PORT
               value: {{ .Values.telemetry.prometheus.port | quote }}
+            {{- if .Values.telemetry.pprof.enabled }}
+            - name: TELEMETRY_PPROF_PORT
+              value: {{ .Values.telemetry.pprof.port | default 1778 | quote }}
+            {{- end }}
             {{- if $lbPressureReadinessEnabled }}
             - name: PRESSURE_PROMETHEUS_PORT
               value: {{ .Values.telemetry.pressurePrometheus.port | default 19466 | quote }}
@@ -331,6 +336,11 @@ spec:
             - name: prometheus
               containerPort: {{ .Values.telemetry.prometheus.port }}
               protocol: TCP
+            {{- if .Values.telemetry.pprof.enabled }}
+            - name: telemetry-pprof
+              containerPort: {{ .Values.telemetry.pprof.port | default 1778 }}
+              protocol: TCP
+            {{- end }}
             {{- if $lbPressureReadinessEnabled }}
             - name: pressure-prom
               containerPort: {{ .Values.telemetry.pressurePrometheus.port | default 19466 }}

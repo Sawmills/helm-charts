@@ -12,6 +12,7 @@
 {{- $telemetryOtelConfig := default (dict) .Values.telemetryOtelConfig }}
 {{- $telemetryOtelS3Path := default "" $telemetryOtelConfig.s3path }}
 {{- $telemetryOtelEncryptionKey := default "" $telemetryOtelConfig.encryptionKey }}
+{{- include "sawmills-collector.validateTelemetryPprof" . }}
 {{- if $mainCollectorDrainEnabled }}
 {{- $drainDuration := default "15s" $mainDrain.duration }}
 {{- $shutdownReserve := default "10s" $mainDrain.shutdownReserve }}
@@ -194,6 +195,10 @@ spec:
               value: {{ .Values.collectorId }}
             - name: PROMETHEUS_PORT
               value: {{ .Values.telemetry.prometheus.port | quote }}
+            {{- if .Values.telemetry.pprof.enabled }}
+            - name: TELEMETRY_PPROF_PORT
+              value: {{ .Values.telemetry.pprof.port | default 1778 | quote }}
+            {{- end }}
             - name: PROMETHEUS_REMOTE_WRITE_ENDPOINT
               value: {{ .Values.prometheusremotewrite.endpoint }}
             - name: PROMETHEUS_REMOTE_WRITE_API_KEY
@@ -214,6 +219,11 @@ spec:
             - name: prometheus
               containerPort: {{ .Values.telemetry.prometheus.port }}
               protocol: TCP
+            {{- if .Values.telemetry.pprof.enabled }}
+            - name: telemetry-pprof
+              containerPort: {{ .Values.telemetry.pprof.port | default 1778 }}
+              protocol: TCP
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthcheck
