@@ -159,6 +159,12 @@ tests:
     asserts:
       - matchRegex:
           path: data["telemetry-config.yaml"]
+          pattern: 'debug/main_marker:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'metrics/main_marker:'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
           pattern: 'debug/lb_marker:'
       - matchRegex:
           path: data["telemetry-config.yaml"]
