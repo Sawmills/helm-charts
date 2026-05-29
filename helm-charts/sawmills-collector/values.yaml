@@ -1259,6 +1259,13 @@ loadBalancer:
     encryptionKey: ""
   # Optional inline telemetry config for the LB telemetry sidecar. Defaults to
   # telemetryConfig when unset.
+  #
+  # When inline LB telemetry inherits the shared prometheus external config, the
+  # template narrows only the LB prometheusremotewrite path: it keeps local
+  # debug/pressure metrics available, exports a slim allowlist remotely, moves
+  # static labels to exporter external_labels, and uses lower-concurrency queue
+  # tuning because readiness/KEDA use the separate pressure endpoint. Explicit
+  # inline LB prometheusremotewrite pipeline or exporter overrides are preserved.
   telemetryConfig: null
   # Direct LB OTel config. Queue compression options are configured under
   # otelCollectorConfig.exporters.<loadbalancing-exporter>.sending_queue:

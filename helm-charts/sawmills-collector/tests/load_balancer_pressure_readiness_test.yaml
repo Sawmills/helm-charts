@@ -124,6 +124,119 @@ tests:
           path: data["telemetry-config.yaml"]
           pattern: '(?ms)^\s*metrics/pressure_readiness:\n\s+exporters:\n\s+- prometheus/pressure_readiness\n\s+processors:\n\s+- filter/pressure_readiness\n\s+receivers:\n\s+- forward\n'
 
+  - it: renders slim LB remote-write telemetry path by default
+    template: load-balancer-telemetry-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*filter/lb_remote_write:\n\s+error_mode: ignore\n\s+metrics:\n\s+metric:\n\s+- not IsMatch\(name, ".*"\)\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_loadbalancer_central_queue_.*compressed_bytes'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_loadbalancer_backend_.*latency.*quarantine_total'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'haproxy_.*http_responses_total'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_\(receiver\|processor\)_refused_.*log_records'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_process_.*cpu_seconds_total'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'http\\\\.server\\\\.'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'request\\\\.duration'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*prometheusremotewrite:\n\s+endpoint: \$\{env:PROMETHEUS_REMOTE_WRITE_ENDPOINT\}\n\s+external_labels:\n\s+collector_id: \$\{env:COLLECTOR_ID\}\n\s+collector_name: \$\{env:COLLECTOR_NAME\}\n\s+pod_name: \$\{env:MY_POD_NAME\}\n\s+headers:\n\s+X-API-KEY: \$\{env:PROMETHEUS_REMOTE_WRITE_API_KEY\}\n\s+max_batch_request_parallelism: 1\n\s+max_batch_size_bytes: 6000000\n\s+remote_write_queue:\n\s+enabled: true\n\s+num_consumers: 4\n\s+queue_size: 500\n\s+retry_on_failure:\n\s+enabled: true\n\s+initial_interval: 2s\n\s+max_elapsed_time: 5s\n\s+max_interval: 5s\n\s+timeout: 30s\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/external/prometheusremotewrite:\n\s+exporters:\n\s+- prometheusremotewrite\n\s+processors:\n\s+- filter/lb_remote_write\n\s+receivers:\n\s+- forward\n'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/external/prometheusremotewrite:\n(?:.*\n)*?\s+- transform/external_labels\n'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_loadbalancer_backend_request_bytes'
+
+  - it: skips slim LB remote-write overlay for arrow external telemetry
+    template: load-balancer-telemetry-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetryExternalConfig.type: arrow
+    asserts:
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/lb_remote_write'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'max_batch_request_parallelism: 1'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'queue_size: 500'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/external/otelarrow:\n\s+exporters:\n\s+- otelarrow\n\s+processors:\n\s+- transform/external_labels\n\s+receivers:\n\s+- forward\n'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/external/prometheusremotewrite:'
+
+  - it: preserves explicit inline LB remote-write overrides
+    template: load-balancer-telemetry-configmap.yaml
+    values:
+      - ../values.yaml
+      - fixtures/load_balancer_inline_promrw_override.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'filter/lb_remote_write'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'queue_size: 500'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*prometheusremotewrite:\n\s+endpoint: \$\{env:PROMETHEUS_REMOTE_WRITE_ENDPOINT\}\n\s+headers:\n\s+X-API-KEY: \$\{env:PROMETHEUS_REMOTE_WRITE_API_KEY\}\n\s+remote_write_queue:\n\s+enabled: true\n\s+num_consumers: 9\n\s+queue_size: 123\n\s+storage: file_storage/prw\n\s+retry_on_failure:\n\s+enabled: true\n\s+initial_interval: 2s\n\s+max_elapsed_time: 5s\n\s+max_interval: 5s\n\s+timeout: 45s\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/external/prometheusremotewrite:\n\s+exporters:\n\s+- prometheusremotewrite\n\s+processors:\n\s+- transform/external_labels\n\s+- filter/custom_keep\n\s+receivers:\n\s+- forward\n'
+
+  - it: preserves inherited remote-write queue extras and custom processors
+    template: load-balancer-telemetry-configmap.yaml
+    values:
+      - ../values.yaml
+      - fixtures/shared_telemetry_inherited_promrw_override.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*filter/lb_remote_write:\n\s+error_mode: ignore\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*filter/inherited_keep:\n\s+metrics:\n\s+metric:\n\s+- name != "drop_me"\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*prometheusremotewrite:\n\s+endpoint: \$\{env:PROMETHEUS_REMOTE_WRITE_ENDPOINT\}\n\s+external_labels:\n\s+collector_id: \$\{env:COLLECTOR_ID\}\n\s+collector_name: \$\{env:COLLECTOR_NAME\}\n\s+inherited_label: inherited_value\n\s+pod_name: \$\{env:MY_POD_NAME\}\n\s+headers:\n\s+X-API-KEY: \$\{env:PROMETHEUS_REMOTE_WRITE_API_KEY\}\n\s+max_batch_request_parallelism: 1\n\s+max_batch_size_bytes: 6000000\n\s+remote_write_queue:\n\s+enabled: true\n\s+num_consumers: 4\n\s+queue_size: 500\n\s+storage: file_storage/prw\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/external/prometheusremotewrite:\n\s+exporters:\n\s+- prometheusremotewrite\n\s+processors:\n\s+- filter/lb_remote_write\n\s+- filter/inherited_keep\n\s+receivers:\n\s+- forward\n'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/external/prometheusremotewrite:\n(?:.*\n)*?\s+- transform/external_labels\n'
+
   - it: exposes the pressure endpoint port on the LB telemetry collector
     template: load-balancer.yaml
     values:

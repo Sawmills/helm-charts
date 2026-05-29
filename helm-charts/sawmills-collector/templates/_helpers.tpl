@@ -315,6 +315,47 @@ Generate merged telemetry configuration with external labels
   {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
 {{- end }}
 {{- if $hasSharedTelemetryBase }}
+{{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
+  {{- $lbTelemetryOverride := .Values.loadBalancer.telemetryConfig | default dict }}
+  {{- $lbOverrideService := get $lbTelemetryOverride "service" | default dict }}
+  {{- $lbOverridePipelines := get $lbOverrideService "pipelines" | default dict }}
+  {{- $lbOverrideExporters := get $lbTelemetryOverride "exporters" | default dict }}
+  {{- $hasExplicitLBPromRWOverride := or (hasKey $lbOverridePipelines "metrics/external/prometheusremotewrite") (hasKey $lbOverrideExporters "prometheusremotewrite") }}
+  {{- $service := get $config "service" | default dict }}
+  {{- $pipelines := get $service "pipelines" | default dict }}
+  {{- if and (not $hasExplicitLBPromRWOverride) (hasKey $pipelines "metrics/external/prometheusremotewrite") }}
+  {{- $processors := get $config "processors" | default dict }}
+  {{- $_ := set $processors "filter/lb_remote_write" (dict "error_mode" "ignore" "metrics" (dict "metric" (list "not IsMatch(name, \"^(otelcol_loadbalancer_central_queue_(compressed_bytes|compressed_capacity|compressed_capacity_bytes|saturation|items|rejected_compressed_bytes(_total)?|retries|decode_failures|inflight_uncompressed_bytes|inflight_uncompressed_capacity|inflight_uncompressed_capacity_bytes|configured_consumers|active_load_balancer_replicas|effective_consumers|active_consumers|queue_demand_consumers|backend_safe_consumers_per_lb|consumer_limit_reason|consumer_pressure_state|lanes|effective_lanes|oldest_item_age(_milliseconds)?|ready_windows|ready_window_limit|ready_lanes|ready_uncompressed_bytes|scheduler_state)|otelcol_loadbalancer_backend_(latency.*|outcome.*|quarantine_total|unquarantine_total|fail_open_total|reroute_total|stale_total)|otelcol_loadbalancer_num_(backends|backend_updates|resolutions)|otelcol_loadbalancer_resolver_stale_age|otelcol_(receiver|processor)_refused_(log_records|metric_points|spans)(_total)?|otelcol_exporter_queue_(size|capacity)|otelcol_process_(cpu_seconds_total|memory_rss(_bytes)?|runtime_heap_alloc_bytes)|process_(cpu_seconds_total|resident_memory_bytes)|haproxy_(server|backend)_http_responses_total|http\\\\.server\\\\.(duration|request\\\\.duration).*)$\")"))) }}
+  {{- $_ := set $config "processors" $processors }}
+  {{- $exporters := get $config "exporters" | default dict }}
+  {{- $promRW := get $exporters "prometheusremotewrite" | default dict }}
+  {{- $_ := set $promRW "timeout" "30s" }}
+  {{- $existingExternalLabels := get $promRW "external_labels" | default dict }}
+  {{- $_ := set $promRW "external_labels" (mergeOverwrite (deepCopy $existingExternalLabels) (deepCopy (.Values.prometheusremotewrite.external_labels | default dict))) }}
+  {{- $_ := set $promRW "max_batch_request_parallelism" 1 }}
+  {{- $_ := set $promRW "max_batch_size_bytes" 6000000 }}
+  {{- $remoteWriteQueue := get $promRW "remote_write_queue" | default dict }}
+  {{- $_ := set $remoteWriteQueue "enabled" true }}
+  {{- $_ := set $remoteWriteQueue "queue_size" 500 }}
+  {{- $_ := set $remoteWriteQueue "num_consumers" 4 }}
+  {{- $_ := set $promRW "remote_write_queue" $remoteWriteQueue }}
+  {{- $_ := set $exporters "prometheusremotewrite" $promRW }}
+  {{- $_ := set $config "exporters" $exporters }}
+  {{- $externalPromRW := get $pipelines "metrics/external/prometheusremotewrite" | default dict }}
+  {{- $currentProcessors := get $externalPromRW "processors" | default list }}
+  {{- $slimProcessors := list "filter/lb_remote_write" }}
+  {{- range $processor := $currentProcessors }}
+    {{- $processorName := toString $processor }}
+    {{- if and (ne $processorName "transform/external_labels") (ne $processorName "filter/lb_remote_write") }}
+      {{- $slimProcessors = append $slimProcessors $processor }}
+    {{- end }}
+  {{- end }}
+  {{- $_ := set $externalPromRW "processors" $slimProcessors }}
+  {{- $_ := set $pipelines "metrics/external/prometheusremotewrite" $externalPromRW }}
+  {{- $_ := set $service "pipelines" $pipelines }}
+  {{- $_ := set $config "service" $service }}
+  {{- end }}
+{{- end }}
 {{- /* LB-only remote-operator OTLP ingest wiring (receiver + dedicated pipeline). */ -}}
 {{- $lbOverlay := (fromYaml (printf "receivers:\n  otlp/remote_operator:\n    protocols:\n      http:\n        endpoint: ${env:MY_POD_IP}:%v\nprocessors:\n  transform/remove_unit_preserve_service_name:\n    error_mode: ignore\n    metric_statements:\n      - context: metric\n        statements:\n          - set(metric.unit, \"\")\nservice:\n  pipelines:\n    metrics/remote_operator:\n      receivers:\n        - otlp/remote_operator\n      processors:\n        - memory_limiter\n        - transform/remove_unit_preserve_service_name\n        - deltatocumulative\n        - batch\n      exporters:\n        - routing\n        - forward\n" (.Values.telemetry.remoteOperatorOtlpHttpPort | default 14319))) }}
 {{- $config = merge $config $lbOverlay }}

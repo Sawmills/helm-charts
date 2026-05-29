@@ -94,7 +94,10 @@ tests:
           pattern: 'num_consumers: 20'
 
   # =========================================================================
-  # Verify LB telemetry-collector gets the same protection
+  # Verify LB telemetry-collector keeps bounded retries while using its
+  # slimmer remote-write tuning. The LB path is intentionally slower/lower
+  # concurrency than the default collector telemetry path because readiness
+  # and KEDA use a separate pressure endpoint.
   # =========================================================================
 
   - it: "NEW CONFIG: LB telemetry-collector also has bounded retries"
@@ -107,7 +110,7 @@ tests:
           path: data["telemetry-config.yaml"]
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'timeout: 10s'
+          pattern: 'timeout: 30s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'max_elapsed_time: 5s'
@@ -116,10 +119,10 @@ tests:
           pattern: 'max_interval: 5s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'queue_size: 2000'
+          pattern: 'queue_size: 500'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'num_consumers: 20'
+          pattern: 'num_consumers: 4'
 
   # =========================================================================
   # Guard: retry_on_failure must always be enabled (never accidentally disabled)

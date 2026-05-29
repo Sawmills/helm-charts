@@ -1,0 +1,22 @@
+telemetryConfig:
+  exporters:
+    prometheusremotewrite:
+      external_labels:
+        inherited_label: inherited_value
+      remote_write_queue:
+        storage: file_storage/prw
+  processors:
+    filter/inherited_keep:
+      metrics:
+        metric:
+          - 'name != "drop_me"'
+  service:
+    pipelines:
+      metrics/external/prometheusremotewrite:
+        receivers:
+          - forward
+        processors:
+          - transform/external_labels
+          - filter/inherited_keep
+        exporters:
+          - prometheusremotewrite
