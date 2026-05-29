@@ -9,7 +9,7 @@ metadata:
     {{- include "sawmills-collector.labels" . | nindent 4 }}
 data:
   telemetry-config.yaml: |
-    {{- if .Values.telemetryConfig }}
+    {{- if or .Values.telemetryConfig .Values.loadBalancer.telemetryConfig }}
       {{- include "sawmills-collector.loadBalancerTelemetryConfig" . | nindent 6 }}
     {{- end }}
 {{- end }}

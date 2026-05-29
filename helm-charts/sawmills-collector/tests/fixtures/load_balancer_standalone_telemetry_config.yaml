@@ -1,0 +1,12 @@
+telemetryConfig: null
+
+loadBalancer:
+  telemetryConfig:
+    exporters:
+      debug/lb_marker: {}
+    service:
+      pipelines:
+        metrics/lb_marker:
+          receivers: []
+          exporters:
+            - debug/lb_marker

@@ -1,5 +1,18 @@
 {{- $lbPressure := .Values.loadBalancer.pressureReadiness | default dict }}
 {{- if and .Values.loadBalancer.enabled ($lbPressure.enabled | default false) }}
+{{- $defaultPressureMetricsEndpoint := "http://${env:MY_POD_IP}:${env:PRESSURE_PROMETHEUS_PORT}/metrics" }}
+{{- $defaultTelemetryMetricsEndpoint := "http://${env:MY_POD_IP}:${env:PROMETHEUS_PORT}/metrics" }}
+{{- $lbTelemetryOtelConfig := default dict .Values.loadBalancer.telemetryOtelConfig }}
+{{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
+{{- $hasSharedTelemetryBase := not (empty .Values.telemetryConfig) }}
+{{- $defaultMetricsEndpoint := $defaultPressureMetricsEndpoint }}
+{{- if or $lbTelemetryOtelS3Path (not $hasSharedTelemetryBase) }}
+{{- $defaultMetricsEndpoint = $defaultTelemetryMetricsEndpoint }}
+{{- end }}
+{{- $pressureMetricsEndpoint := default $defaultMetricsEndpoint $lbPressure.metricsEndpoint }}
+{{- if and $hasSharedTelemetryBase (not $lbTelemetryOtelS3Path) (or (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:19465/metrics") (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:8888/metrics") (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:${env:PROMETHEUS_PORT}/metrics")) }}
+{{- $pressureMetricsEndpoint = $defaultPressureMetricsEndpoint }}
+{{- end }}
 {{- $lbConfig := default dict .Values.loadBalancer.otelCollectorConfig }}
 {{- $serviceExtensions := list }}
 {{- if and (kindIs "map" $lbConfig) (hasKey $lbConfig "service") (kindIs "map" $lbConfig.service) (hasKey $lbConfig.service "extensions") }}
@@ -51,7 +64,7 @@ data:
         {{- end }}
         pressure_check:
           enabled: true
-          metrics_endpoint: {{ default "http://${env:MY_POD_IP}:19465/metrics" $lbPressure.metricsEndpoint }}
+          metrics_endpoint: {{ $pressureMetricsEndpoint }}
           queue_saturation_fail_threshold: {{ default 0.85 $lbPressure.queueSaturationFailThreshold }}
           queue_saturation_recover_threshold: {{ default 0.60 $lbPressure.queueSaturationRecoverThreshold }}
           inflight_saturation_fail_threshold: {{ default 0.85 $lbPressure.inflightSaturationFailThreshold }}

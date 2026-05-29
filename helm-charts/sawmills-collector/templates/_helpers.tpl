@@ -295,23 +295,39 @@ Generate merged telemetry configuration with external labels
 Generate merged telemetry configuration with external labels
 */}}
 {{- define "sawmills-collector.loadBalancerTelemetryConfig" -}}
-{{- if .Values.telemetryConfig }}
-{{- $config := deepCopy .Values.telemetryConfig }}
-{{- if .Values.haproxy.enabled }}
+{{- $baseTelemetryConfig := .Values.telemetryConfig }}
+{{- $hasSharedTelemetryBase := not (empty .Values.telemetryConfig) }}
+{{- if .Values.loadBalancer.telemetryConfig }}
+  {{- if $hasSharedTelemetryBase }}
+    {{- $baseTelemetryConfig = mergeOverwrite (deepCopy .Values.telemetryConfig) .Values.loadBalancer.telemetryConfig }}
+  {{- else }}
+    {{- $baseTelemetryConfig = deepCopy .Values.loadBalancer.telemetryConfig }}
+  {{- end }}
+{{- end }}
+{{- if $baseTelemetryConfig }}
+{{- $config := deepCopy $baseTelemetryConfig }}
+{{- if and $hasSharedTelemetryBase .Values.haproxy.enabled }}
   {{- $config = merge $config .Values.haproxyConfig }}
 {{- end }}
-{{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
+{{- if and $hasSharedTelemetryBase (eq .Values.telemetryExternalConfig.type "prometheus") }}
   {{- $config = merge $config .Values.telemetryExternalConfig.prometheusConfig }}
-{{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
+{{- else if and $hasSharedTelemetryBase (eq .Values.telemetryExternalConfig.type "arrow") }}
   {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
 {{- end }}
+{{- if $hasSharedTelemetryBase }}
 {{- /* LB-only remote-operator OTLP ingest wiring (receiver + dedicated pipeline). */ -}}
 {{- $lbOverlay := (fromYaml (printf "receivers:\n  otlp/remote_operator:\n    protocols:\n      http:\n        endpoint: ${env:MY_POD_IP}:%v\nprocessors:\n  transform/remove_unit_preserve_service_name:\n    error_mode: ignore\n    metric_statements:\n      - context: metric\n        statements:\n          - set(metric.unit, \"\")\nservice:\n  pipelines:\n    metrics/remote_operator:\n      receivers:\n        - otlp/remote_operator\n      processors:\n        - memory_limiter\n        - transform/remove_unit_preserve_service_name\n        - deltatocumulative\n        - batch\n      exporters:\n        - routing\n        - forward\n" (.Values.telemetry.remoteOperatorOtlpHttpPort | default 14319))) }}
 {{- $config = merge $config $lbOverlay }}
+{{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict }}
+{{- if ($lbPressureReadiness.enabled | default false) }}
+  {{- $pressureOverlay := (fromYaml "exporters:\n  prometheus/pressure_readiness:\n    endpoint: ${env:MY_POD_IP}:${env:PRESSURE_PROMETHEUS_PORT}\n    metric_expiration: 1m\nprocessors:\n  filter/pressure_readiness:\n    error_mode: ignore\n    metrics:\n      metric:\n        - not IsMatch(name, \"^(otelcol_loadbalancer_central_queue_compressed_bytes|otelcol_loadbalancer_central_queue_compressed_capacity|otelcol_loadbalancer_central_queue_compressed_capacity_bytes|otelcol_loadbalancer_central_queue_saturation|otelcol_loadbalancer_central_queue_inflight_uncompressed_bytes|otelcol_loadbalancer_central_queue_inflight_uncompressed_capacity|otelcol_loadbalancer_central_queue_inflight_uncompressed_capacity_bytes|otelcol_loadbalancer_central_queue_rejected_compressed_bytes|otelcol_loadbalancer_central_queue_rejected_compressed_bytes_total|otelcol_loadbalancer_central_queue_oldest_item_age|otelcol_loadbalancer_central_queue_oldest_item_age_milliseconds|otelcol_process_memory_rss|otelcol_process_memory_rss_bytes|otelcol_process_runtime_heap_alloc_bytes|otelcol_receiver_refused_log_records|otelcol_receiver_refused_log_records_total|otelcol_receiver_refused_metric_points|otelcol_receiver_refused_metric_points_total|otelcol_receiver_refused_spans|otelcol_receiver_refused_spans_total|otelcol_processor_refused_log_records|otelcol_processor_refused_log_records_total|otelcol_processor_refused_metric_points|otelcol_processor_refused_metric_points_total|otelcol_processor_refused_spans|otelcol_processor_refused_spans_total)$\")\nservice:\n  pipelines:\n    metrics/pressure_readiness:\n      receivers:\n        - forward\n      processors:\n        - filter/pressure_readiness\n      exporters:\n        - prometheus/pressure_readiness\n") }}
+  {{- $config = merge $config $pressureOverlay }}
+{{- end }}
 {{- /* Override transform/external_labels processor with dynamic config */ -}}
 {{- if and (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
   {{- $processor := include "sawmills-collector.externalLabelsProcessor" . | fromYaml }}
   {{- $_ := set $config.processors "transform/external_labels" $processor }}
+{{- end }}
 {{- end }}
 {{- toYaml $config }}
 {{- end }}
