@@ -1,0 +1,25 @@
+loadBalancer:
+  telemetryConfig:
+    exporters:
+      prometheusremotewrite:
+        timeout: 45s
+        remote_write_queue:
+          enabled: true
+          queue_size: 123
+          num_consumers: 9
+          storage: file_storage/prw
+    processors:
+      filter/custom_keep:
+        metrics:
+          metric:
+            - 'name == "custom_metric"'
+    service:
+      pipelines:
+        metrics/external/prometheusremotewrite:
+          receivers:
+            - forward
+          processors:
+            - transform/external_labels
+            - filter/custom_keep
+          exporters:
+            - prometheusremotewrite
