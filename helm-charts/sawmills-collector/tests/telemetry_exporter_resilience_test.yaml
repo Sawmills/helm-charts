@@ -137,6 +137,23 @@ tests:
           path: data["telemetry-config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- pprof\n'
 
+  - it: "NEW CONFIG: chart-managed telemetry pprof wires the telemetry sidecar pod port"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].env
+          content:
+            name: TELEMETRY_PPROF_PORT
+            value: "1778"
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
+          content:
+            name: telemetry-pprof
+            containerPort: 1778
+            protocol: TCP
+
   - it: "NEW CONFIG: telemetry sidecar pprof overrides stale inline endpoint"
     template: telemetry-configmap.yaml
     set:
@@ -267,6 +284,17 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "telemetry.pprof.port 1778 conflicts with service.ports.debug.from"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects named service target port exposure"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      service.ports.debug.from: telemetry-pprof
+      service.ports.debug.to.port: 1779
+      service.ports.debug.to.protocol: TCP
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 1778 conflicts with service.ports.debug.from targetPort telemetry-pprof"
 
   - it: "NEW CONFIG: telemetry sidecar pprof rejects HAProxy listener collision"
     template: deployment.yaml

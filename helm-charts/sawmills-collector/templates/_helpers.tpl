@@ -294,6 +294,7 @@ Generate merged telemetry configuration with external labels
 
 {{/*
 Validate telemetry-sidecar pprof config source and pod-local port safety.
+Emits no output; calls fail when configuration would expose or break pprof.
 */}}
 {{- define "sawmills-collector.validateTelemetryPprof" -}}
 {{- $pprof := .Values.telemetry.pprof | default dict -}}
@@ -336,8 +337,12 @@ Validate telemetry-sidecar pprof config source and pod-local port safety.
     {{- end }}
   {{- end }}
   {{- range $name, $servicePort := (.Values.service.ports | default dict) }}
-    {{- $targetPort := int (default 0 $servicePort.from) -}}
-    {{- if and (gt $targetPort 0) (eq $pprofPort $targetPort) }}
+    {{- $targetPortValue := default 0 $servicePort.from -}}
+    {{- if eq (toString $targetPortValue) "telemetry-pprof" }}
+      {{- fail (printf "telemetry.pprof.port %d conflicts with service.ports.%s.from targetPort telemetry-pprof" $pprofPort $name) }}
+    {{- end }}
+    {{- $targetPort := int $targetPortValue -}}
+    {{- if and (regexMatch "^[0-9]+$" (toString $targetPortValue)) (gt $targetPort 0) (eq $pprofPort $targetPort) }}
       {{- fail (printf "telemetry.pprof.port %d conflicts with service.ports.%s.from" $pprofPort $name) }}
     {{- end }}
   {{- end }}
@@ -402,8 +407,12 @@ Validate telemetry-sidecar pprof config source and pod-local port safety.
       {{- end }}
     {{- end }}
     {{- range $name, $servicePort := (.Values.loadBalancer.service.ports | default dict) }}
-      {{- $targetPort := int (default 0 $servicePort.from) -}}
-      {{- if and (gt $targetPort 0) (eq $pprofPort $targetPort) }}
+      {{- $targetPortValue := default 0 $servicePort.from -}}
+      {{- if eq (toString $targetPortValue) "telemetry-pprof" }}
+        {{- fail (printf "telemetry.pprof.port %d conflicts with loadBalancer.service.ports.%s.from targetPort telemetry-pprof" $pprofPort $name) }}
+      {{- end }}
+      {{- $targetPort := int $targetPortValue -}}
+      {{- if and (regexMatch "^[0-9]+$" (toString $targetPortValue)) (gt $targetPort 0) (eq $pprofPort $targetPort) }}
         {{- fail (printf "telemetry.pprof.port %d conflicts with loadBalancer.service.ports.%s.from" $pprofPort $name) }}
       {{- end }}
     {{- end }}
@@ -442,6 +451,7 @@ Validate telemetry-sidecar pprof config source and pod-local port safety.
 {{/*
 Add pprof to a telemetry-sidecar collector config when telemetry.pprof.enabled=true.
 The sidecar uses TELEMETRY_PPROF_PORT so it never collides with main collector pprof.
+Mutates the passed config in place and emits no YAML output.
 */}}
 {{- define "sawmills-collector.addTelemetryPprof" -}}
 {{- $root := .root -}}

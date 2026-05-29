@@ -348,6 +348,20 @@ tests:
       - failedTemplate:
           errorMessage: "telemetry.pprof.port 1778 conflicts with loadBalancer.service.ports.debug.from"
 
+  - it: rejects telemetry sidecar pprof exposure through named LB service target port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.pprof.enabled: true
+      loadBalancer.service.ports.debug.from: telemetry-pprof
+      loadBalancer.service.ports.debug.to.port: 1779
+      loadBalancer.service.ports.debug.to.protocol: TCP
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 1778 conflicts with loadBalancer.service.ports.debug.from targetPort telemetry-pprof"
+
   - it: rejects telemetry sidecar pprof collision with LB pressure readiness port
     template: load-balancer.yaml
     values:
