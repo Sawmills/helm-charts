@@ -2,8 +2,7 @@ suite: test external labels helper functions
 templates:
   - telemetry-configmap.yaml
 tests:
-  # Test 1: externalLabelsProcessor helper with all external labels
-  - it: should generate correct transform processor with ALL external labels
+  - it: should apply Prometheus remote write labels through exporter external_labels
     set:
       prometheusremotewrite:
         endpoint: https://test.example.com
@@ -23,41 +22,21 @@ tests:
           path: data["telemetry-config.yaml"]
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'transform/external_labels:'
+          pattern: '(?ms)^\s*prometheusremotewrite:\n\s+endpoint: \$\{env:PROMETHEUS_REMOTE_WRITE_ENDPOINT\}\n\s+external_labels:\n\s+cluster: us-east-1\n\s+collector_id: \$\{env:COLLECTOR_ID\}\n\s+collector_name: \$\{env:COLLECTOR_NAME\}\n\s+environment: production\n\s+pipeline_id: test-pipeline-123\n\s+pipeline_name: test-pipeline\n\s+pod_name: \$\{env:MY_POD_NAME\}\n\s+team: platform\n'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'error_mode: ignore'
-      - matchRegex:
+          pattern: '(?ms)^\s*metrics/external/prometheusremotewrite:\n\s+exporters:\n\s+- prometheusremotewrite\n\s+receivers:\n\s+- forward\n'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/external/prometheusremotewrite:\n(?:.*\n)*?\s+- transform/external_labels\n'
+      - notMatchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'context: datapoint'
-      # Test ALL external labels are present in transform processor
-      - matchRegex:
+      - notMatchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'set\(attributes\["collector_id"\], "\${env:COLLECTOR_ID}"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["collector_name"\], "\${env:COLLECTOR_NAME}"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["pod_name"\], "\${env:MY_POD_NAME}"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["pipeline_id"\], "test-pipeline-123"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["pipeline_name"\], "test-pipeline"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["environment"\], "production"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["cluster"\], "us-east-1"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["team"\], "platform"\)'
 
-  # Test 2: externalLabelsProcessor helper with additional pipeline labels
-  - it: should generate correct transform processor with pipeline labels
+  - it: should merge chart labels with existing Prometheus remote write external_labels
     set:
       prometheusremotewrite:
         endpoint: https://test.example.com
@@ -65,92 +44,29 @@ tests:
           collector_id: ${env:COLLECTOR_ID}
           collector_name: ${env:COLLECTOR_NAME}
           pod_name: ${env:MY_POD_NAME}
-          pipeline_id: test-pipeline-123
-          pipeline_name: test-pipeline
-          environment: production
+      telemetryConfig:
+        exporters:
+          prometheusremotewrite:
+            endpoint: ${env:PROMETHEUS_REMOTE_WRITE_ENDPOINT}
+            external_labels:
+              inherited_label: inherited_value
+              collector_id: old-value
+        service:
+          pipelines:
+            metrics/external/prometheusremotewrite:
+              receivers: [forward]
+              exporters: [prometheusremotewrite]
       telemetryExternalConfig:
         type: "prometheus"
     asserts:
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["pipeline_id"\], "test-pipeline-123"\)'
-      - matchRegex:
+          pattern: '(?ms)^\s*prometheusremotewrite:\n\s+endpoint: \$\{env:PROMETHEUS_REMOTE_WRITE_ENDPOINT\}\n\s+external_labels:\n\s+collector_id: \$\{env:COLLECTOR_ID\}\n\s+collector_name: \$\{env:COLLECTOR_NAME\}\n\s+inherited_label: inherited_value\n\s+pod_name: \$\{env:MY_POD_NAME\}\n'
+      - notMatchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["pipeline_name"\], "test-pipeline"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["environment"\], "production"\)'
+          pattern: 'collector_id: old-value'
 
-  # Test 3: externalLabelsProcessor helper with no external labels
-  - it: should generate empty transform processor when no external labels
-    set:
-      prometheusremotewrite:
-        endpoint: https://test.example.com
-        external_labels: null
-      telemetryExternalConfig:
-        type: "prometheus"
-    asserts:
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'transform/external_labels:'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'error_mode: ignore'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'metric_statements: \[\]'
-
-  # Test 4: transform processor gets ALL external labels (no duplicate exporter config)
-  - it: should add ALL external labels via transform processor only
-    set:
-      prometheusremotewrite:
-        endpoint: https://test.example.com
-        external_labels:
-          collector_id: ${env:COLLECTOR_ID}
-          collector_name: ${env:COLLECTOR_NAME}
-          pod_name: ${env:MY_POD_NAME}
-          pipeline_id: test-pipeline-456
-          pipeline_name: test-pipeline-name
-          environment: test
-          region: us-west-2
-          service: collector
-      telemetryExternalConfig:
-        type: "prometheus"
-    asserts:
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'prometheusremotewrite:'
-      # Test ALL external labels are present in transform processor
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'transform/external_labels:'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["collector_id"\], "\${env:COLLECTOR_ID}"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["collector_name"\], "\${env:COLLECTOR_NAME}"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["pod_name"\], "\${env:MY_POD_NAME}"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["pipeline_id"\], "test-pipeline-456"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["pipeline_name"\], "test-pipeline-name"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["environment"\], "test"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["region"\], "us-west-2"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["service"\], "collector"\)'
-
-  # Test 5: telemetryConfig helper merges configurations correctly
-  - it: should merge haproxy config when enabled
+  - it: should still merge haproxy telemetry config when enabled
     set:
       prometheusremotewrite:
         endpoint: https://test.example.com
@@ -171,13 +87,34 @@ tests:
           path: data["telemetry-config.yaml"]
           pattern: '(?ms)^\s+metrics/haproxy:\n\s+exporters:\n\s+- routing\n\s+- forward\n\s+processors:\n\s+- memory_limiter\n\s+- batch\n\s+receivers:\n\s+- prometheus/haproxy\n'
 
-  # Test 6: telemetryConfig helper handles arrow configuration
-  - it: should use arrow config when type is arrow
+  - it: should not render Prometheus remote write external_labels when labels are null
+    set:
+      prometheusremotewrite:
+        endpoint: https://test.example.com
+        external_labels: null
+      telemetryExternalConfig:
+        type: "prometheus"
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'prometheusremotewrite:'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'collector_id:'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'pod_name:'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'context: datapoint'
+
+  - it: should keep datapoint transform labels for arrow telemetry
     set:
       prometheusremotewrite:
         endpoint: https://test.example.com
         external_labels:
           collector_id: ${env:COLLECTOR_ID}
+          pipeline_id: test-pipeline-123
       telemetryExternalConfig:
         type: "arrow"
     asserts:
@@ -186,62 +123,17 @@ tests:
           pattern: 'metrics/external/otelarrow:'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'exporters:'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: '- otelarrow'
-
-  # Test 7: Both datapoint and resource contexts get labels
-  - it: should apply external labels to both datapoint and resource contexts
-    set:
-      prometheusremotewrite:
-        endpoint: https://test.example.com
-        external_labels:
-          test_label: test_value
-      telemetryExternalConfig:
-        type: "prometheus"
-    asserts:
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["test_label"\], "test_value"\)'
+          pattern: 'transform/external_labels:'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'context: datapoint'
-
-  # Test 8: External labels override existing processor config
-  - it: should override existing transform processor configuration
-    set:
-      prometheusremotewrite:
-        endpoint: https://test.example.com
-        external_labels:
-          new_label: new_value
-      telemetryConfig:
-        processors:
-          transform/external_labels:
-            error_mode: propagate
-            metric_statements:
-              - context: datapoint
-                statements:
-                  - set(attributes["old_label"], "old_value")
-      telemetryExternalConfig:
-        type: "prometheus"
-    asserts:
-      # Should use error_mode: ignore (from helper) not propagate (from original config)
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'error_mode: ignore'
-      - notMatchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'error_mode: propagate'
-      # Should have new labels, not old ones
+          pattern: 'set\(attributes\["collector_id"\], "\${env:COLLECTOR_ID}"\)'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["new_label"\], "new_value"\)'
-      - notMatchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["old_label"\], "old_value"\)'
+          pattern: 'set\(attributes\["pipeline_id"\], "test-pipeline-123"\)'
 
-  # Test 9: Configuration without telemetryConfig should not fail
   - it: should handle missing telemetryConfig gracefully
     set:
       prometheusremotewrite:
@@ -254,10 +146,9 @@ tests:
           path: data
       - notMatchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: '\S'  # Should be empty or whitespace only
+          pattern: '\S'
 
-  # Test 10: Complex external labels with special characters
-  - it: should handle complex external labels with special characters
+  - it: should handle complex Prometheus remote write external labels
     set:
       prometheusremotewrite:
         endpoint: https://test.example.com
@@ -270,10 +161,13 @@ tests:
     asserts:
       - matchRegex:
           path: data["telemetry-config.yaml"]
+          pattern: 'label-with-dash: value-with-dash'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'label_with_underscore: value_with_underscore'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'label\.with\.dots: value\.with\.dots'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
           pattern: 'set\(attributes\["label-with-dash"\], "value-with-dash"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["label_with_underscore"\], "value_with_underscore"\)'
-      - matchRegex:
-          path: data["telemetry-config.yaml"]
-          pattern: 'set\(attributes\["label\.with\.dots"\], "value\.with\.dots"\)' 

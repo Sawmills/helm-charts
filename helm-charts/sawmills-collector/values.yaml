@@ -913,7 +913,6 @@ telemetryExternalConfig:
       pipelines:
         metrics/external/prometheusremotewrite:
           receivers: [forward]
-          processors: [transform/external_labels]
           exporters: [prometheusremotewrite]
   arrowConfig:
     service:
