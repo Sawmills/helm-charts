@@ -36,6 +36,36 @@ tests:
           path: data["telemetry-config.yaml"]
           pattern: 'set\(attributes\["collector_id"\], "\${env:COLLECTOR_ID}"\)'
 
+  - it: should keep transform labels for custom Prometheus telemetry pipelines that reference them
+    set:
+      prometheusremotewrite:
+        endpoint: https://test.example.com
+        external_labels:
+          collector_id: ${env:COLLECTOR_ID}
+          custom_label: custom-value
+      telemetryConfig:
+        service:
+          pipelines:
+            metrics/custom_prometheus:
+              receivers: [forward]
+              processors: [transform/external_labels]
+              exporters: [prometheus]
+      telemetryExternalConfig:
+        type: "prometheus"
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/custom_prometheus:\n\s+exporters:\n\s+- prometheus\n\s+processors:\n\s+- transform/external_labels\n\s+receivers:\n\s+- forward\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'context: datapoint'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'set\(attributes\["custom_label"\], "custom-value"\)'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*metrics/external/prometheusremotewrite:\n(?:.*\n)*?\s+- transform/external_labels\n'
+
   - it: should merge chart labels with existing Prometheus remote write external_labels
     set:
       prometheusremotewrite:

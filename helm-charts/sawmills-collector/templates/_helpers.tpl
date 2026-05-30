@@ -317,6 +317,29 @@ pipeline while preserving any other custom processors.
 {{- end -}}
 
 {{/*
+Return true when any configured telemetry pipeline still references the legacy
+external-label transform. This keeps the default Prometheus remote write path
+exporter-native while preserving custom and Arrow pipelines that use the
+processor contract directly.
+*/}}
+{{- define "sawmills-collector.usesExternalLabelProcessor" -}}
+{{- $config := .config -}}
+{{- $usesExternalLabelProcessor := false -}}
+{{- if $config -}}
+  {{- $service := get $config "service" | default dict -}}
+  {{- $pipelines := get $service "pipelines" | default dict -}}
+  {{- range $_, $pipeline := $pipelines -}}
+    {{- range $processor := (get $pipeline "processors" | default list) -}}
+      {{- if eq (toString $processor) "transform/external_labels" -}}
+        {{- $usesExternalLabelProcessor = true -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- if $usesExternalLabelProcessor }}true{{ else }}false{{ end -}}
+{{- end -}}
+
+{{/*
 Generate merged telemetry configuration with external labels
 */}}
 {{- define "sawmills-collector.telemetryConfig" -}}
@@ -332,8 +355,7 @@ Generate merged telemetry configuration with external labels
 {{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
   {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
 {{- end }}
-{{- /* Arrow has no exporter-native external_labels, so keep the transform path there. */ -}}
-{{- if and (eq .Values.telemetryExternalConfig.type "arrow") (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
+{{- if and (eq (include "sawmills-collector.usesExternalLabelProcessor" (dict "config" $config)) "true") (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
   {{- $processor := include "sawmills-collector.externalLabelsProcessor" . | fromYaml }}
   {{- $_ := set $config.processors "transform/external_labels" $processor }}
 {{- end }}
@@ -602,8 +624,7 @@ Generate merged telemetry configuration with external labels
   {{- include "sawmills-collector.applyPrometheusRemoteWriteExternalLabels" (dict "root" . "config" $config) }}
   {{- include "sawmills-collector.removePrometheusRemoteWriteExternalLabelProcessor" (dict "config" $config) }}
 {{- end }}
-{{- /* Arrow has no exporter-native external_labels, so keep the transform path there. */ -}}
-{{- if and (eq .Values.telemetryExternalConfig.type "arrow") (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
+{{- if and (eq (include "sawmills-collector.usesExternalLabelProcessor" (dict "config" $config)) "true") (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
   {{- $processor := include "sawmills-collector.externalLabelsProcessor" . | fromYaml }}
   {{- $_ := set $config.processors "transform/external_labels" $processor }}
 {{- end }}
