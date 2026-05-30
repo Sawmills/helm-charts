@@ -269,6 +269,80 @@ metric_statements: []
 {{- end -}}
 
 {{/*
+Add configured external labels directly to the prometheusremotewrite exporter.
+This avoids datapoint-level transform work on the Prometheus remote write path.
+Mutates the passed config in place and emits no YAML output.
+*/}}
+{{- define "sawmills-collector.applyPrometheusRemoteWriteExternalLabels" -}}
+{{- $root := .root -}}
+{{- $config := .config -}}
+{{- $labels := $root.Values.prometheusremotewrite.external_labels | default dict -}}
+{{- if and $config (not (empty $labels)) -}}
+  {{- $exporters := get $config "exporters" | default dict -}}
+  {{- $promRW := get $exporters "prometheusremotewrite" | default dict -}}
+  {{- $existingExternalLabels := get $promRW "external_labels" | default dict -}}
+  {{- $_ := set $promRW "external_labels" (mergeOverwrite (deepCopy $existingExternalLabels) (deepCopy $labels)) -}}
+  {{- $_ := set $exporters "prometheusremotewrite" $promRW -}}
+  {{- $_ := set $config "exporters" $exporters -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Remove the legacy transform-only external-label processor from the Prometheus
+remote write pipeline. If custom processors are configured beside the
+transform, preserve the explicit chain because those processors may depend on
+the attributes the transform adds before export.
+*/}}
+{{- define "sawmills-collector.removePrometheusRemoteWriteExternalLabelProcessor" -}}
+{{- $config := .config -}}
+{{- if $config -}}
+  {{- $service := get $config "service" | default dict -}}
+  {{- $pipelines := get $service "pipelines" | default dict -}}
+  {{- $promRWPipeline := get $pipelines "metrics/external/prometheusremotewrite" | default dict -}}
+  {{- if hasKey $promRWPipeline "processors" -}}
+    {{- $hasExternalLabelProcessor := false -}}
+    {{- $keptProcessors := list -}}
+    {{- range $processor := (get $promRWPipeline "processors" | default list) -}}
+      {{- if ne (toString $processor) "transform/external_labels" -}}
+        {{- $keptProcessors = append $keptProcessors $processor -}}
+      {{- else -}}
+        {{- $hasExternalLabelProcessor = true -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if and $hasExternalLabelProcessor (empty $keptProcessors) -}}
+      {{- $_ := unset $promRWPipeline "processors" -}}
+      {{- $_ := set $pipelines "metrics/external/prometheusremotewrite" $promRWPipeline -}}
+      {{- $_ := set $service "pipelines" $pipelines -}}
+      {{- $_ := set $config "service" $service -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return true when any configured telemetry pipeline still references the legacy
+external-label transform. This keeps the default Prometheus remote write path
+exporter-native while preserving custom and Arrow pipelines that use the
+processor contract directly.
+*/}}
+{{- define "sawmills-collector.usesExternalLabelProcessor" -}}
+{{- $config := .config -}}
+{{- $usesExternalLabelProcessor := false -}}
+{{- if $config -}}
+  {{- $service := get $config "service" | default dict -}}
+  {{- $pipelines := get $service "pipelines" | default dict -}}
+  {{- range $_, $pipeline := $pipelines -}}
+    {{- range $processor := (get $pipeline "processors" | default list) -}}
+      {{- if eq (toString $processor) "transform/external_labels" -}}
+        {{- $usesExternalLabelProcessor = true -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- if $usesExternalLabelProcessor }}true{{ else }}false{{ end -}}
+{{- end -}}
+
+{{/*
 Generate merged telemetry configuration with external labels
 */}}
 {{- define "sawmills-collector.telemetryConfig" -}}
@@ -279,11 +353,12 @@ Generate merged telemetry configuration with external labels
 {{- end }}
 {{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
   {{- $config = merge $config .Values.telemetryExternalConfig.prometheusConfig }}
+  {{- include "sawmills-collector.applyPrometheusRemoteWriteExternalLabels" (dict "root" . "config" $config) }}
+  {{- include "sawmills-collector.removePrometheusRemoteWriteExternalLabelProcessor" (dict "config" $config) }}
 {{- else if eq .Values.telemetryExternalConfig.type "arrow" }}
   {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
 {{- end }}
-{{- /* Override transform/external_labels processor with dynamic config */ -}}
-{{- if and (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
+{{- if and (eq (include "sawmills-collector.usesExternalLabelProcessor" (dict "config" $config)) "true") (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
   {{- $processor := include "sawmills-collector.externalLabelsProcessor" . | fromYaml }}
   {{- $_ := set $config.processors "transform/external_labels" $processor }}
 {{- end }}
@@ -493,6 +568,8 @@ Generate merged telemetry configuration with external labels
 {{- end }}
 {{- if and $hasSharedTelemetryBase (eq .Values.telemetryExternalConfig.type "prometheus") }}
   {{- $config = merge $config .Values.telemetryExternalConfig.prometheusConfig }}
+  {{- include "sawmills-collector.applyPrometheusRemoteWriteExternalLabels" (dict "root" . "config" $config) }}
+  {{- include "sawmills-collector.removePrometheusRemoteWriteExternalLabelProcessor" (dict "config" $config) }}
 {{- else if and $hasSharedTelemetryBase (eq .Values.telemetryExternalConfig.type "arrow") }}
   {{- $config = merge $config .Values.telemetryExternalConfig.arrowConfig }}
 {{- end }}
@@ -525,12 +602,22 @@ Generate merged telemetry configuration with external labels
   {{- $_ := set $config "exporters" $exporters }}
   {{- $externalPromRW := get $pipelines "metrics/external/prometheusremotewrite" | default dict }}
   {{- $currentProcessors := get $externalPromRW "processors" | default list }}
-  {{- $slimProcessors := list "filter/lb_remote_write" }}
+  {{- $hasExternalLabelProcessor := false }}
+  {{- $customProcessors := list }}
   {{- range $processor := $currentProcessors }}
     {{- $processorName := toString $processor }}
-    {{- if and (ne $processorName "transform/external_labels") (ne $processorName "filter/lb_remote_write") }}
-      {{- $slimProcessors = append $slimProcessors $processor }}
+    {{- if eq $processorName "transform/external_labels" }}
+      {{- $hasExternalLabelProcessor = true }}
+    {{- else if ne $processorName "filter/lb_remote_write" }}
+      {{- $customProcessors = append $customProcessors $processor }}
     {{- end }}
+  {{- end }}
+  {{- $slimProcessors := list "filter/lb_remote_write" }}
+  {{- if and $hasExternalLabelProcessor (not (empty $customProcessors)) }}
+    {{- $slimProcessors = append $slimProcessors "transform/external_labels" }}
+  {{- end }}
+  {{- range $processor := $customProcessors }}
+    {{- $slimProcessors = append $slimProcessors $processor }}
   {{- end }}
   {{- $_ := set $externalPromRW "processors" $slimProcessors }}
   {{- $_ := set $pipelines "metrics/external/prometheusremotewrite" $externalPromRW }}
@@ -546,8 +633,11 @@ Generate merged telemetry configuration with external labels
   {{- $pressureOverlay := (fromYaml "exporters:\n  prometheus/pressure_readiness:\n    endpoint: ${env:MY_POD_IP}:${env:PRESSURE_PROMETHEUS_PORT}\n    metric_expiration: 1m\nprocessors:\n  filter/pressure_readiness:\n    error_mode: ignore\n    metrics:\n      metric:\n        - not IsMatch(name, \"^(otelcol_loadbalancer_central_queue_compressed_bytes|otelcol_loadbalancer_central_queue_compressed_capacity|otelcol_loadbalancer_central_queue_compressed_capacity_bytes|otelcol_loadbalancer_central_queue_saturation|otelcol_loadbalancer_central_queue_inflight_uncompressed_bytes|otelcol_loadbalancer_central_queue_inflight_uncompressed_capacity|otelcol_loadbalancer_central_queue_inflight_uncompressed_capacity_bytes|otelcol_loadbalancer_central_queue_rejected_compressed_bytes|otelcol_loadbalancer_central_queue_rejected_compressed_bytes_total|otelcol_loadbalancer_central_queue_oldest_item_age|otelcol_loadbalancer_central_queue_oldest_item_age_milliseconds|otelcol_process_memory_rss|otelcol_process_memory_rss_bytes|otelcol_process_runtime_heap_alloc_bytes|otelcol_receiver_refused_log_records|otelcol_receiver_refused_log_records_total|otelcol_receiver_refused_metric_points|otelcol_receiver_refused_metric_points_total|otelcol_receiver_refused_spans|otelcol_receiver_refused_spans_total|otelcol_processor_refused_log_records|otelcol_processor_refused_log_records_total|otelcol_processor_refused_metric_points|otelcol_processor_refused_metric_points_total|otelcol_processor_refused_spans|otelcol_processor_refused_spans_total)$\")\nservice:\n  pipelines:\n    metrics/pressure_readiness:\n      receivers:\n        - forward\n      processors:\n        - filter/pressure_readiness\n      exporters:\n        - prometheus/pressure_readiness\n") }}
   {{- $config = merge $config $pressureOverlay }}
 {{- end }}
-{{- /* Override transform/external_labels processor with dynamic config */ -}}
-{{- if and (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
+{{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
+  {{- include "sawmills-collector.applyPrometheusRemoteWriteExternalLabels" (dict "root" . "config" $config) }}
+  {{- include "sawmills-collector.removePrometheusRemoteWriteExternalLabelProcessor" (dict "config" $config) }}
+{{- end }}
+{{- if and (eq (include "sawmills-collector.usesExternalLabelProcessor" (dict "config" $config)) "true") (hasKey $config "processors") (hasKey $config.processors "transform/external_labels") .Values.prometheusremotewrite .Values.prometheusremotewrite.external_labels }}
   {{- $processor := include "sawmills-collector.externalLabelsProcessor" . | fromYaml }}
   {{- $_ := set $config.processors "transform/external_labels" $processor }}
 {{- end }}
