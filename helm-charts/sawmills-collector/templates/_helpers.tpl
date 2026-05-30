@@ -288,8 +288,10 @@ Mutates the passed config in place and emits no YAML output.
 {{- end -}}
 
 {{/*
-Remove the legacy external-label transform from the Prometheus remote write
-pipeline while preserving any other custom processors.
+Remove the legacy transform-only external-label processor from the Prometheus
+remote write pipeline. If custom processors are configured beside the
+transform, preserve the explicit chain because those processors may depend on
+the attributes the transform adds before export.
 */}}
 {{- define "sawmills-collector.removePrometheusRemoteWriteExternalLabelProcessor" -}}
 {{- $config := .config -}}
@@ -298,20 +300,21 @@ pipeline while preserving any other custom processors.
   {{- $pipelines := get $service "pipelines" | default dict -}}
   {{- $promRWPipeline := get $pipelines "metrics/external/prometheusremotewrite" | default dict -}}
   {{- if hasKey $promRWPipeline "processors" -}}
+    {{- $hasExternalLabelProcessor := false -}}
     {{- $keptProcessors := list -}}
     {{- range $processor := (get $promRWPipeline "processors" | default list) -}}
       {{- if ne (toString $processor) "transform/external_labels" -}}
         {{- $keptProcessors = append $keptProcessors $processor -}}
+      {{- else -}}
+        {{- $hasExternalLabelProcessor = true -}}
       {{- end -}}
     {{- end -}}
-    {{- if empty $keptProcessors -}}
+    {{- if and $hasExternalLabelProcessor (empty $keptProcessors) -}}
       {{- $_ := unset $promRWPipeline "processors" -}}
-    {{- else -}}
-      {{- $_ := set $promRWPipeline "processors" $keptProcessors -}}
+      {{- $_ := set $pipelines "metrics/external/prometheusremotewrite" $promRWPipeline -}}
+      {{- $_ := set $service "pipelines" $pipelines -}}
+      {{- $_ := set $config "service" $service -}}
     {{- end -}}
-    {{- $_ := set $pipelines "metrics/external/prometheusremotewrite" $promRWPipeline -}}
-    {{- $_ := set $service "pipelines" $pipelines -}}
-    {{- $_ := set $config "service" $service -}}
   {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -599,12 +602,22 @@ Generate merged telemetry configuration with external labels
   {{- $_ := set $config "exporters" $exporters }}
   {{- $externalPromRW := get $pipelines "metrics/external/prometheusremotewrite" | default dict }}
   {{- $currentProcessors := get $externalPromRW "processors" | default list }}
-  {{- $slimProcessors := list "filter/lb_remote_write" }}
+  {{- $hasExternalLabelProcessor := false }}
+  {{- $customProcessors := list }}
   {{- range $processor := $currentProcessors }}
     {{- $processorName := toString $processor }}
-    {{- if and (ne $processorName "transform/external_labels") (ne $processorName "filter/lb_remote_write") }}
-      {{- $slimProcessors = append $slimProcessors $processor }}
+    {{- if eq $processorName "transform/external_labels" }}
+      {{- $hasExternalLabelProcessor = true }}
+    {{- else if ne $processorName "filter/lb_remote_write" }}
+      {{- $customProcessors = append $customProcessors $processor }}
     {{- end }}
+  {{- end }}
+  {{- $slimProcessors := list "filter/lb_remote_write" }}
+  {{- if and $hasExternalLabelProcessor (not (empty $customProcessors)) }}
+    {{- $slimProcessors = append $slimProcessors "transform/external_labels" }}
+  {{- end }}
+  {{- range $processor := $customProcessors }}
+    {{- $slimProcessors = append $slimProcessors $processor }}
   {{- end }}
   {{- $_ := set $externalPromRW "processors" $slimProcessors }}
   {{- $_ := set $pipelines "metrics/external/prometheusremotewrite" $externalPromRW }}
