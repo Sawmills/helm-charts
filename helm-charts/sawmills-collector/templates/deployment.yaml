@@ -237,6 +237,20 @@ spec:
               port: 13134
             initialDelaySeconds: {{ .Values.rollout.telemetry.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.telemetry.probes.readiness.periodSeconds }}
+          {{- if .Values.rollout.telemetry.preStopSleepSeconds }}
+          # Single-handler preStop: hold SIGTERM long enough for in-flight
+          # telemetry pushes to 127.0.0.1:<main OTLP port> to drain before the
+          # main-collector starts closing its receivers during scale-down /
+          # rollout. Must stay <= rollout.terminationGracePeriodSeconds.
+          # Mirrors rollout.main.preStopSleepSeconds. Exec-only (no httpGet) —
+          # K8s rejects preStop blocks with more than one handler type.
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sleep
+                  - "{{ .Values.rollout.telemetry.preStopSleepSeconds }}"
+          {{- end }}
           resources:
             {{- if .Values.telemetry.resources.requests }}
             requests:
