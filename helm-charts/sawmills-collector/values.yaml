@@ -136,6 +136,13 @@ rollout:
       readiness:
         initialDelaySeconds: 5
         periodSeconds: 5
+    # Sleep-based preStop on the telemetry-collector sidecar. Without this,
+    # during HPA scale-down / rollout the sidecar keeps pushing to
+    # 127.0.0.1:<main-collector OTLP port> while the main-collector closes
+    # its receivers in parallel, surfacing as "connection refused" errors
+    # in customer environments. Keep <= rollout.terminationGracePeriodSeconds.
+    # Set to 0 to disable.
+    preStopSleepSeconds: 10
 
   # HAProxy specific settings
   haproxy:
