@@ -41,7 +41,7 @@
 {{- $filteredServiceExtensions = append $filteredServiceExtensions "forwarding_health" }}
 {{- end }}
 {{- $healthCheckEndpoint := default "http://${env:MY_POD_IP}:13133/healthcheck" $lbPressure.healthCheckEndpoint }}
-{{- if and .Values.haproxy.enabled $localBackendHealthcheckEnabled $forwardingHealthEnabled (not $lbPressure.healthCheckEndpoint) }}
+{{- if and .Values.haproxy.enabled $forwardingHealthEnabled (not $lbPressure.healthCheckEndpoint) }}
 {{- $healthCheckEndpoint = printf "http://${env:MY_POD_IP}:%v%v" (default 13136 $forwardingHealth.port) (default "/forwarding-health" $forwardingHealth.path) }}
 {{- else if and .Values.haproxy.enabled (eq ((dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower) "http") (not $lbPressure.healthCheckEndpoint) }}
 {{- $healthCheckEndpoint = printf "http://${env:MY_POD_IP}:%v%v" (dig "probes" "readiness" "port" 13135 .Values.haproxy) (dig "probes" "readiness" "path" "/ready" .Values.haproxy) }}
