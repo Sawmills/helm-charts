@@ -1052,6 +1052,23 @@ Fail fast for known invalid combinations.
 {{- end -}}
 
 {{/*
+Validate local backend healthcheck has a chart-rendered backend_drain endpoint.
+*/}}
+{{- define "sawmills-collector.validateHaproxyLocalBackendHealthcheck" -}}
+{{- $localBackendHealthcheck := .Values.haproxy.local_backend_healthcheck | default dict -}}
+{{- if ($localBackendHealthcheck.enabled | default false) -}}
+{{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict -}}
+{{- $mainDrain := .Values.rollout.main.drain | default dict -}}
+{{- $mainDrainConfigSource := default "overlay" $mainDrain.configSource -}}
+{{- $lbPressureBackendDrainRendered := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) -}}
+{{- $mainDrainBackendDrainRendered := and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) (eq $mainDrainConfigSource "overlay") -}}
+{{- if not (or $lbPressureBackendDrainRendered $mainDrainBackendDrainRendered) -}}
+{{- fail "haproxy.local_backend_healthcheck.enabled requires chart-rendered backend_drain via loadBalancer.pressureReadiness.enabled=true or rollout.main.drain.enabled=true with configSource=overlay" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 HAProxy container spec (shared between native sidecar and regular container paths).
 Caller passes context via dict with "root" (top-level context) and "nativeSidecar" (bool).
 */}}
@@ -1064,6 +1081,24 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
 {{- $readinessType := (dig "probes" "readiness" "type" "http" $root.Values.haproxy) | toString | lower -}}
 {{- $readinessPort := dig "probes" "readiness" "port" 13135 $root.Values.haproxy -}}
 {{- $readinessPath := dig "probes" "readiness" "path" "/ready" $root.Values.haproxy -}}
+{{- $localBackendHealthcheck := $root.Values.haproxy.local_backend_healthcheck | default dict -}}
+{{- $lbPressureReadiness := $root.Values.loadBalancer.pressureReadiness | default dict -}}
+{{- $lbPressureReadinessUseForPodReadiness := true -}}
+{{- if hasKey $lbPressureReadiness "useForPodReadiness" -}}
+{{- $lbPressureReadinessUseForPodReadiness = $lbPressureReadiness.useForPodReadiness -}}
+{{- end -}}
+{{- $pressureKeepsPodReady := and $root.Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) (not $lbPressureReadinessUseForPodReadiness) -}}
+{{- if or ($localBackendHealthcheck.enabled | default false) $pressureKeepsPodReady -}}
+{{- /* Keep HAProxy's Kubernetes readiness shallow when HAProxy owns fallback decisions. */ -}}
+{{- if eq $livenessType "tcp" -}}
+{{- $readinessType = "tcp" -}}
+{{- $readinessPort = $livenessPort -}}
+{{- else -}}
+{{- $readinessType = "http" -}}
+{{- $readinessPort = $livenessPort -}}
+{{- $readinessPath = $livenessPath -}}
+{{- end -}}
+{{- end -}}
 {{- $defaultSecurityContext := dict "runAsNonRoot" true "runAsUser" 99 "runAsGroup" 99 -}}
 {{- $securityContext := mergeOverwrite (deepCopy $defaultSecurityContext) (default dict $root.Values.haproxy.securityContext) -}}
 {{- if not (or (eq $livenessType "http") (eq $livenessType "tcp")) -}}
