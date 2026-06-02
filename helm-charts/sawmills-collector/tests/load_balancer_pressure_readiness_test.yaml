@@ -222,6 +222,9 @@ tests:
           pattern: 'otelcol_\(receiver\|processor\)_refused_.*log_records'
       - matchRegex:
           path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_exporter_queue_[(]size[|]capacity[|]oldest_batch_age[)]'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
           pattern: 'otelcol_process_[(]cpu_seconds[(]_total[)][?][|]memory_rss'
       - matchRegex:
           path: data["telemetry-config.yaml"]
