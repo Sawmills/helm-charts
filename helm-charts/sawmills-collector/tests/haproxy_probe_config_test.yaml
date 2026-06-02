@@ -277,6 +277,36 @@ tests:
           path: spec.template.spec.containers[1].readinessProbe.httpGet.path
           value: /healthcheck
 
+  - it: should keep haproxy container readiness shallow when pressure readiness keeps pods ready
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.useForPodReadiness: false
+      haproxy.enabled: true
+      haproxy.probes.readiness.path: /ready
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 13135
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: main-collector
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13133
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /healthcheck
+
   - it: should keep haproxy liveness on healthcheck when forwarding health gates readiness
     template: load-balancer.yaml
     values:

@@ -2,9 +2,9 @@
 {{- $refusalFastFail := .Values.haproxy.refusal_fast_fail | default dict -}}
 {{- $healthcheck := .Values.haproxy.healthcheck | default dict -}}
 {{- $forwardingHealth := $healthcheck.forwarding_health | default dict -}}
-{{- $forwardingHealthEnabled := $forwardingHealth.enabled | default false -}}
 {{- $localBackendHealthcheck := .Values.haproxy.local_backend_healthcheck | default dict -}}
 {{- $localBackendHealthcheckEnabled := $localBackendHealthcheck.enabled | default false -}}
+{{- $forwardingHealthEnabled := or ($forwardingHealth.enabled | default false) $localBackendHealthcheckEnabled -}}
 {{- $localBackendHealthcheckPort := $localBackendHealthcheck.port | default 13137 -}}
 {{- $localBackendHealthcheckPath := $localBackendHealthcheck.path | default "/ready" -}}
 {{- $localBackendHealthcheckInterval := $localBackendHealthcheck.interval | default 3000 -}}

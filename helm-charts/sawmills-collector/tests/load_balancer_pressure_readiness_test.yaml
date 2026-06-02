@@ -92,7 +92,13 @@ tests:
     asserts:
       - matchRegex:
           path: data["config.yaml"]
+          pattern: '(?ms)^extensions:\n\s+forwarding_health:\n\s+endpoint: \$\{env:MY_POD_IP\}:13136\n\s+path: /forwarding-health\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics\n\s+backend_drain:\n'
+      - matchRegex:
+          path: data["config.yaml"]
           pattern: 'health_check_endpoint: http://\$\{env:MY_POD_IP\}:13136/forwarding-health'
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- backend_drain\n\s+- forwarding_health\n'
 
   - it: preserves explicit forwarding_health endpoint for pressure readiness
     template: load-balancer-readiness-configmap.yaml

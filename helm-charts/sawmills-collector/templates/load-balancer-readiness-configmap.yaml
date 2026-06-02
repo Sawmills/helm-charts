@@ -16,6 +16,11 @@
 {{- $localBackendHealthcheck := .Values.haproxy.local_backend_healthcheck | default dict }}
 {{- $localBackendHealthcheckEnabled := $localBackendHealthcheck.enabled | default false }}
 {{- $forwardingHealth := dig "healthcheck" "forwarding_health" (dict) .Values.haproxy }}
+{{- $forwardingHealthEnabled := or ($forwardingHealth.enabled | default false) $localBackendHealthcheckEnabled }}
+{{- $forwardingHealthMetricsEndpoint := default $pressureMetricsEndpoint (get $forwardingHealth "metricsEndpoint") }}
+{{- if hasKey $forwardingHealth "metrics_endpoint" }}
+{{- $forwardingHealthMetricsEndpoint = get $forwardingHealth "metrics_endpoint" }}
+{{- end }}
 {{- $lbConfig := default dict .Values.loadBalancer.otelCollectorConfig }}
 {{- $serviceExtensions := list }}
 {{- if and (kindIs "map" $lbConfig) (hasKey $lbConfig "service") (kindIs "map" $lbConfig.service) (hasKey $lbConfig.service "extensions") }}
@@ -32,8 +37,11 @@
 {{- if not (has "backend_drain" $filteredServiceExtensions) }}
 {{- $filteredServiceExtensions = append $filteredServiceExtensions "backend_drain" }}
 {{- end }}
+{{- if and $forwardingHealthEnabled (not (has "forwarding_health" $filteredServiceExtensions)) }}
+{{- $filteredServiceExtensions = append $filteredServiceExtensions "forwarding_health" }}
+{{- end }}
 {{- $healthCheckEndpoint := default "http://${env:MY_POD_IP}:13133/healthcheck" $lbPressure.healthCheckEndpoint }}
-{{- if and .Values.haproxy.enabled $localBackendHealthcheckEnabled (not $lbPressure.healthCheckEndpoint) }}
+{{- if and .Values.haproxy.enabled $localBackendHealthcheckEnabled $forwardingHealthEnabled (not $lbPressure.healthCheckEndpoint) }}
 {{- $healthCheckEndpoint = printf "http://${env:MY_POD_IP}:%v%v" (default 13136 $forwardingHealth.port) (default "/forwarding-health" $forwardingHealth.path) }}
 {{- else if and .Values.haproxy.enabled (eq ((dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower) "http") (not $lbPressure.healthCheckEndpoint) }}
 {{- $healthCheckEndpoint = printf "http://${env:MY_POD_IP}:%v%v" (dig "probes" "readiness" "port" 13135 .Values.haproxy) (dig "probes" "readiness" "path" "/ready" .Values.haproxy) }}
@@ -58,6 +66,12 @@ metadata:
 data:
   config.yaml: |
     extensions:
+      {{- if $forwardingHealthEnabled }}
+      forwarding_health:
+        endpoint: ${env:MY_POD_IP}:{{ default 13136 $forwardingHealth.port }}
+        path: {{ default "/forwarding-health" $forwardingHealth.path }}
+        metrics_endpoint: {{ $forwardingHealthMetricsEndpoint }}
+      {{- end }}
       backend_drain:
         endpoint: ${env:MY_POD_IP}:{{ default 13137 $lbPressure.port }}
         readiness_path: {{ default "/ready" $lbPressure.readinessPath }}

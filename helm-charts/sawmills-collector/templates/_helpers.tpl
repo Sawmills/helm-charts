@@ -1065,7 +1065,14 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
 {{- $readinessPort := dig "probes" "readiness" "port" 13135 $root.Values.haproxy -}}
 {{- $readinessPath := dig "probes" "readiness" "path" "/ready" $root.Values.haproxy -}}
 {{- $localBackendHealthcheck := $root.Values.haproxy.local_backend_healthcheck | default dict -}}
-{{- if ($localBackendHealthcheck.enabled | default false) -}}
+{{- $lbPressureReadiness := $root.Values.loadBalancer.pressureReadiness | default dict -}}
+{{- $lbPressureReadinessUseForPodReadiness := true -}}
+{{- if hasKey $lbPressureReadiness "useForPodReadiness" -}}
+{{- $lbPressureReadinessUseForPodReadiness = $lbPressureReadiness.useForPodReadiness -}}
+{{- end -}}
+{{- $pressureKeepsPodReady := and $root.Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) (not $lbPressureReadinessUseForPodReadiness) -}}
+{{- if or ($localBackendHealthcheck.enabled | default false) $pressureKeepsPodReady -}}
+{{- /* Keep HAProxy's Kubernetes readiness shallow when HAProxy owns fallback decisions. */ -}}
 {{- $readinessType = "http" -}}
 {{- if eq $livenessType "http" -}}
 {{- $readinessPort = $livenessPort -}}
