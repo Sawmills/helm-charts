@@ -1064,6 +1064,17 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
 {{- $readinessType := (dig "probes" "readiness" "type" "http" $root.Values.haproxy) | toString | lower -}}
 {{- $readinessPort := dig "probes" "readiness" "port" 13135 $root.Values.haproxy -}}
 {{- $readinessPath := dig "probes" "readiness" "path" "/ready" $root.Values.haproxy -}}
+{{- $localBackendHealthcheck := $root.Values.haproxy.local_backend_healthcheck | default dict -}}
+{{- if ($localBackendHealthcheck.enabled | default false) -}}
+{{- $readinessType = "http" -}}
+{{- if eq $livenessType "http" -}}
+{{- $readinessPort = $livenessPort -}}
+{{- $readinessPath = $livenessPath -}}
+{{- else -}}
+{{- $readinessPort = ($root.Values.haproxy.healthcheck.port | default 13135) -}}
+{{- $readinessPath = "/healthcheck" -}}
+{{- end -}}
+{{- end -}}
 {{- $defaultSecurityContext := dict "runAsNonRoot" true "runAsUser" 99 "runAsGroup" 99 -}}
 {{- $securityContext := mergeOverwrite (deepCopy $defaultSecurityContext) (default dict $root.Values.haproxy.securityContext) -}}
 {{- if not (or (eq $livenessType "http") (eq $livenessType "tcp")) -}}

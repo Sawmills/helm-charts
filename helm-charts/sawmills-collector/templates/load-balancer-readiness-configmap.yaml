@@ -13,6 +13,9 @@
 {{- if and $hasSharedTelemetryBase (not $lbTelemetryOtelS3Path) (or (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:19465/metrics") (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:8888/metrics") (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:${env:PROMETHEUS_PORT}/metrics")) }}
 {{- $pressureMetricsEndpoint = $defaultPressureMetricsEndpoint }}
 {{- end }}
+{{- $localBackendHealthcheck := .Values.haproxy.local_backend_healthcheck | default dict }}
+{{- $localBackendHealthcheckEnabled := $localBackendHealthcheck.enabled | default false }}
+{{- $forwardingHealth := dig "healthcheck" "forwarding_health" (dict) .Values.haproxy }}
 {{- $lbConfig := default dict .Values.loadBalancer.otelCollectorConfig }}
 {{- $serviceExtensions := list }}
 {{- if and (kindIs "map" $lbConfig) (hasKey $lbConfig "service") (kindIs "map" $lbConfig.service) (hasKey $lbConfig.service "extensions") }}
@@ -30,7 +33,9 @@
 {{- $filteredServiceExtensions = append $filteredServiceExtensions "backend_drain" }}
 {{- end }}
 {{- $healthCheckEndpoint := default "http://${env:MY_POD_IP}:13133/healthcheck" $lbPressure.healthCheckEndpoint }}
-{{- if and .Values.haproxy.enabled (eq ((dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower) "http") (not $lbPressure.healthCheckEndpoint) }}
+{{- if and .Values.haproxy.enabled $localBackendHealthcheckEnabled (not $lbPressure.healthCheckEndpoint) }}
+{{- $healthCheckEndpoint = printf "http://${env:MY_POD_IP}:%v%v" (default 13136 $forwardingHealth.port) (default "/forwarding-health" $forwardingHealth.path) }}
+{{- else if and .Values.haproxy.enabled (eq ((dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower) "http") (not $lbPressure.healthCheckEndpoint) }}
 {{- $healthCheckEndpoint = printf "http://${env:MY_POD_IP}:%v%v" (dig "probes" "readiness" "port" 13135 .Values.haproxy) (dig "probes" "readiness" "path" "/ready" .Values.haproxy) }}
 {{- end }}
 {{- $memoryLimitBytes := "" }}

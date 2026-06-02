@@ -3,6 +3,13 @@
 {{- $healthcheck := .Values.haproxy.healthcheck | default dict -}}
 {{- $forwardingHealth := $healthcheck.forwarding_health | default dict -}}
 {{- $forwardingHealthEnabled := $forwardingHealth.enabled | default false -}}
+{{- $localBackendHealthcheck := .Values.haproxy.local_backend_healthcheck | default dict -}}
+{{- $localBackendHealthcheckEnabled := $localBackendHealthcheck.enabled | default false -}}
+{{- $localBackendHealthcheckPort := $localBackendHealthcheck.port | default 13137 -}}
+{{- $localBackendHealthcheckPath := $localBackendHealthcheck.path | default "/ready" -}}
+{{- $localBackendHealthcheckInterval := $localBackendHealthcheck.interval | default 3000 -}}
+{{- $localBackendHealthcheckRise := $localBackendHealthcheck.rise | default 2 -}}
+{{- $localBackendHealthcheckFall := $localBackendHealthcheck.fall | default 2 -}}
 {{- $readinessPath := dig "probes" "readiness" "path" "/ready" .Values.haproxy -}}
 
 global
@@ -192,13 +199,16 @@ frontend logs_http_frontend_{{ $config.from }}
 
 backend logs_http_{{ $config.from }}
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
+  {{- $localBackendHealthcheckApplies := and $localBackendHealthcheckEnabled (ne $mode "tcp") }}
   {{- if and ($refusalFastFail.enabled | default false) $siblingEnabled (ne $mode "tcp") }}
   retry-on 503
   {{- end }}
   {{- range $option := $config.backend_options }}
   option {{ $option }}
   {{- end }}
-  {{- if not $config.backend_options }}
+  {{- if $localBackendHealthcheckApplies }}
+  option httpchk GET {{ $localBackendHealthcheckPath }}
+  {{- else if not $config.backend_options }}
   {{- if not (eq $mode "grpc") }}
   option httpchk GET /healthcheck
   {{- end }}
@@ -226,7 +236,11 @@ backend logs_http_{{ $config.from }}
   # Tag request as sibling-forwarded before sending to sibling tier
   http-request set-header X-Sibling-Hop 1
   {{- end }}
+  {{- if $localBackendHealthcheckApplies }}
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port {{ $localBackendHealthcheckPort }} inter {{ $localBackendHealthcheckInterval }} rise {{ $localBackendHealthcheckRise }} fall {{ $localBackendHealthcheckFall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $errorLimit }} on-error mark-down{{ if ne $slowstart "" }} slowstart {{ $slowstart }}{{ end }}
+  {{- else }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $errorLimit }} on-error mark-down{{ if ne $slowstart "" }} slowstart {{ $slowstart }}{{ end }}
+  {{- end }}
   {{- if $siblingEnabled }}
   {{- $sf := $.Values.haproxy.sibling_fallback }}
   # Sibling tier: round-robin across other LB pods via headless service DNS
@@ -242,7 +256,11 @@ backend logs_http_{{ $config.from }}
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
   {{- end }}
   {{- else }}
+  {{- if $localBackendHealthcheckApplies }}
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port {{ $localBackendHealthcheckPort }} inter {{ $localBackendHealthcheckInterval }} rise {{ $localBackendHealthcheckRise }} fall {{ $localBackendHealthcheckFall }}
+  {{- else }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check {{ if not (eq $mode "grpc") }}port 13133{{ end }}
+  {{- end }}
   {{- end }}
 
 {{- if and $to.metrics_proxy_endpoint (ne $mode "tcp") }}
@@ -259,7 +277,9 @@ backend logs_http_{{ $config.from }}_direct
   {{- range $option := $config.backend_options }}
   option {{ $option }}
   {{- end }}
-  {{- if not $config.backend_options }}
+  {{- if $localBackendHealthcheckApplies }}
+  option httpchk GET {{ $localBackendHealthcheckPath }}
+  {{- else if not $config.backend_options }}
   {{- if not (eq $mode "grpc") }}
   option httpchk GET /healthcheck
   {{- end }}
@@ -283,7 +303,11 @@ backend logs_http_{{ $config.from }}_direct
   {{- $directErrorLimit = ($refusalFastFail.error_limit | default 20) }}
   {{- $directSlowstart = ($refusalFastFail.slowstart | default "") }}
   {{- end }}
+  {{- if $localBackendHealthcheckApplies }}
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port {{ $localBackendHealthcheckPort }} inter {{ $localBackendHealthcheckInterval }} rise {{ $localBackendHealthcheckRise }} fall {{ $localBackendHealthcheckFall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $directErrorLimit }} on-error mark-down{{ if ne $directSlowstart "" }} slowstart {{ $directSlowstart }}{{ end }}
+  {{- else }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $directErrorLimit }} on-error mark-down{{ if ne $directSlowstart "" }} slowstart {{ $directSlowstart }}{{ end }}
+  {{- end }}
   {{- if and $externalFallbackEnabled $to.fallback_endpoint }}
   server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
   {{- end }}

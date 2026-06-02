@@ -836,6 +836,18 @@ haproxy:
       rise: 2
       fall: 2
 
+  # Optional local backend health check for HAProxy's in-pod otel server.
+  # When enabled, HAProxy marks the local collector backend DOWN by probing the
+  # collector's backend_drain readiness endpoint instead of plain health_check.
+  # This lets HAProxy fallback activate while the Kubernetes LB pod stays Ready.
+  local_backend_healthcheck:
+    enabled: false
+    port: 13137
+    path: /ready
+    interval: 3000
+    rise: 2
+    fall: 2
+
   # Sibling fallback configuration
   # When enabled, HAProxy routes to sibling LB pods (round-robin) before falling back
   # to the external vendor endpoint. This reduces unnecessary external egress during
@@ -1319,6 +1331,10 @@ loadBalancer:
   # stays on the collector health_check endpoint.
   pressureReadiness:
     enabled: false
+    # When true, Kubernetes readiness probes the backend_drain endpoint. Set
+    # false to keep the LB pod Ready via collector health_check while HAProxy
+    # uses backend_drain readiness for fallback decisions.
+    useForPodReadiness: true
     port: 13137
     readinessPath: /ready
     drainPath: /drain

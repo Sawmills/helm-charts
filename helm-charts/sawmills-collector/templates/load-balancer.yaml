@@ -10,6 +10,10 @@
 {{- $lbStartupProbe := .Values.rollout.loadBalancer.probes.startup | default dict }}
 {{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict }}
 {{- $lbPressureReadinessEnabled := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) }}
+{{- $lbPressureReadinessUseForPodReadiness := true }}
+{{- if hasKey $lbPressureReadiness "useForPodReadiness" }}
+{{- $lbPressureReadinessUseForPodReadiness = $lbPressureReadiness.useForPodReadiness }}
+{{- end }}
 {{- $haproxyReadinessType := (dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower }}
 {{- $haproxyReadinessPath := dig "probes" "readiness" "path" "/ready" .Values.haproxy }}
 {{- $haproxyReadinessPort := dig "probes" "readiness" "port" 13135 .Values.haproxy }}
@@ -190,7 +194,10 @@ spec:
             failureThreshold: {{ .Values.rollout.loadBalancer.probes.liveness.failureThreshold }}
           readinessProbe:
             httpGet:
-              {{- if $lbPressureReadinessEnabled }}
+              {{- if and $lbPressureReadinessEnabled (not $lbPressureReadinessUseForPodReadiness) }}
+              path: /healthcheck
+              port: 13133
+              {{- else if $lbPressureReadinessEnabled }}
               path: {{ default "/ready" $lbPressureReadiness.readinessPath }}
               port: {{ default 13137 $lbPressureReadiness.port }}
               {{- else if .Values.haproxy.enabled }}

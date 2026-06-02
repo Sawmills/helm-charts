@@ -41,6 +41,26 @@ tests:
           path: spec.template.spec.volumes[1].name
           value: sawmills-load-balancer-readiness-config
 
+  - it: keeps Kubernetes pod readiness on collector health when pressure readiness is not used for pod readiness
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.useForPodReadiness: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].readinessProbe.httpGet.port
+          value: 13133
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].readinessProbe.httpGet.path
+          value: /healthcheck
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].args[1]
+          value: --config=file:/etc/otel/load-balancer-readiness-config.yaml
+
   - it: renders pressure_check config with queue and memory thresholds
     template: load-balancer-readiness-configmap.yaml
     values:
@@ -58,6 +78,34 @@ tests:
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- backend_drain\n'
+
+  - it: points backend_drain health checks at forwarding_health when HAProxy local backend checks are enabled
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.useForPodReadiness: false
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'health_check_endpoint: http://\$\{env:MY_POD_IP\}:13136/forwarding-health'
+
+  - it: preserves explicit forwarding_health endpoint for pressure readiness
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.healthCheckEndpoint: http://${env:MY_POD_IP}:13136/forwarding-health
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'health_check_endpoint: http://\$\{env:MY_POD_IP\}:13136/forwarding-health'
 
   - it: normalizes legacy explicit pressure metrics endpoints to the small pressure endpoint
     template: load-balancer-readiness-configmap.yaml
