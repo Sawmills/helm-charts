@@ -215,6 +215,7 @@ tests:
   - it: should use local backend readiness checks when local_backend_healthcheck is enabled
     template: haproxy-configmap.yaml
     set:
+      loadBalancer.pressureReadiness.enabled: true
       haproxy.sibling_fallback.enabled: true
       haproxy.local_backend_healthcheck.enabled: true
       haproxy.mapping:
@@ -240,6 +241,7 @@ tests:
   - it: should enable forwarding health readiness when local_backend_healthcheck is enabled
     template: haproxy-configmap.yaml
     set:
+      loadBalancer.pressureReadiness.enabled: true
       haproxy.sibling_fallback.enabled: true
       haproxy.local_backend_healthcheck.enabled: true
       haproxy.mapping:
@@ -262,6 +264,7 @@ tests:
   - it: should use custom local backend readiness check settings
     template: haproxy-configmap.yaml
     set:
+      loadBalancer.pressureReadiness.enabled: true
       haproxy.sibling_fallback.enabled: true
       haproxy.local_backend_healthcheck.enabled: true
       haproxy.local_backend_healthcheck.port: 13138
@@ -278,10 +281,26 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "option httpchk GET /local-ready"
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+option httpchk GET /local-ready"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server otel \"\\$MY_POD_IP\":4318.*check port 13138 inter 5000 rise 3 fall 4"
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel \"\\$MY_POD_IP\":4318.*check port 13138 inter 5000 rise 3 fall 4"
+
+  - it: should fail local backend checks without chart-rendered backend_drain
+    template: haproxy-configmap.yaml
+    set:
+      rollout.main.drain.enabled: false
+      haproxy.sibling_fallback.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.local_backend_healthcheck.enabled requires chart-rendered backend_drain via loadBalancer.pressureReadiness.enabled=true or rollout.main.drain.enabled=true with configSource=overlay"
 
   - it: should use custom max_servers for server-template
     template: haproxy-configmap.yaml
@@ -509,6 +528,30 @@ tests:
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4317_direct"
+
+  - it: should not use local backend readiness checks for gRPC mode
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.mapping:
+        grpc_4317:
+          from: 4317
+          to:
+            port: 4317
+            mode: grpc
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "option httpchk GET /ready"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "check port 13137"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server otel \"\\$MY_POD_IP\":4317 proto h2 check port 13133"
 
   # ============================================================
   # 8. No fallback endpoint - sibling/external fallback matrix

@@ -163,6 +163,43 @@ tests:
           path: spec.template.spec.containers[1].readinessProbe.httpGet.path
           value: /ready
 
+  - it: should preserve tcp haproxy readiness when pressure readiness keeps pods ready
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.useForPodReadiness: false
+      haproxy.enabled: true
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: TCP
+      haproxy.probes.liveness.type: tcp
+      haproxy.probes.liveness.port: 10000
+      haproxy.probes.readiness.type: tcp
+      haproxy.probes.readiness.port: 10000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: 10000
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.tcpSocket.port
+          value: 10000
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: main-collector
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.port
+          value: 13133
+      - equal:
+          path: spec.template.spec.containers[1].readinessProbe.httpGet.path
+          value: /healthcheck
+
   - it: should route load balancer main collector readiness through custom haproxy healthcheck port with tcp haproxy probes
     template: load-balancer.yaml
     values:

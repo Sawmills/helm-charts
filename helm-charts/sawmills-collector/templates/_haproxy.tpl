@@ -199,7 +199,7 @@ frontend logs_http_frontend_{{ $config.from }}
 
 backend logs_http_{{ $config.from }}
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
-  {{- $localBackendHealthcheckApplies := and $localBackendHealthcheckEnabled (ne $mode "tcp") }}
+  {{- $localBackendHealthcheckApplies := and $localBackendHealthcheckEnabled (eq $mode "http") }}
   {{- if and ($refusalFastFail.enabled | default false) $siblingEnabled (ne $mode "tcp") }}
   retry-on 503
   {{- end }}
