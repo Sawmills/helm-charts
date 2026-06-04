@@ -13,7 +13,7 @@ The Sawmills Collector is a production-ready OpenTelemetry Collector distributio
 * **Multiple Deployment Modes**: Supports both Deployment and DaemonSet modes
 * **Autoscaling**: Built-in support for Kubernetes HPA and KEDA-based autoscaling
 * **Load Balancing**: Optional HAProxy integration for advanced load balancing
-* **High Availability**: Configurable pod anti-affinity and topology spread constraints
+* **High Availability**: Optional pod anti-affinity (disabled by default) and topology spread constraints
 * **Telemetry Collection**: Dedicated telemetry collector for internal metrics
 * **Proxy Support**: HTTP/HTTPS proxy configuration for outbound traffic
 * **Flexible Configuration**: S3-based or direct YAML configuration
@@ -109,7 +109,7 @@ Set `resourceBaseName` when the Helm release name is owned by a parent chart but
 
 Changing `resourceBaseName` on an existing release changes rendered resource names. Use it for fresh installs, or plan a rename migration when adopting it on an already-installed release.
 
-When overriding `affinity` or `loadBalancer.affinity` with `resourceBaseName` set, use the selector label values rendered by the chart: `<resourceBaseName>` for the collector and `<resourceBaseName>-lb` for the load balancer. The default affinity blocks are rewritten automatically; arbitrary custom selector values are not.
+When setting `affinity` or `loadBalancer.affinity` with `resourceBaseName` set, use the selector label values rendered by the chart: `<resourceBaseName>` for the collector and `<resourceBaseName>-lb` for the load balancer. The chart's built-in selector values (`sawmills-collector-chart` / `sawmills-collector-chart-lb`) are rewritten automatically; arbitrary custom selector values are not.
 
 ### Telemetry Sidecar Pprof
 
@@ -488,7 +488,7 @@ tolerations:
     value: "value1"
     effect: "NoSchedule"
 
-# Pod anti-affinity (default spreads pods across nodes)
+# Pod anti-affinity (opt-in; disabled by default) to spread pods across nodes
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:

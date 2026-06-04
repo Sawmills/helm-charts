@@ -274,23 +274,27 @@ podAnnotations: {}
 #   prometheus.io/scrape: "true"
 podLabels: {}
 
-# Node affinity settings for the Sawmills collector pods
-# Default configuration spreads pods across nodes to ensure high availability
-# If resourceBaseName is set and you override this block, use the selector label
-# value rendered by sawmills-collector.selectorName. The default value below is
-# automatically rewritten to resourceBaseName; unrelated custom values are not.
-affinity:
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - sawmills-collector-chart
-          topologyKey: kubernetes.io/hostname
+# Node affinity / pod anti-affinity settings for the Sawmills collector pods.
+# Disabled by default so the scheduler can bin-pack collector pods rather than
+# spreading them (avoids fighting node consolidation, e.g. Karpenter).
+# To spread pods across nodes for higher availability, replace the empty default
+# below with a block such as:
+#   podAntiAffinity:
+#     preferredDuringSchedulingIgnoredDuringExecution:
+#       - weight: 100
+#         podAffinityTerm:
+#           labelSelector:
+#             matchExpressions:
+#               - key: app.kubernetes.io/name
+#                 operator: In
+#                 values:
+#                   - sawmills-collector-chart
+#           topologyKey: kubernetes.io/hostname
+# If resourceBaseName is set, use the selector label value rendered by
+# sawmills-collector.selectorName. The chart's built-in default selector value
+# (sawmills-collector-chart) is automatically rewritten to resourceBaseName;
+# unrelated custom values are not.
+affinity: {}
 
 # Topology spread constraints for the Sawmills collector pods
 # Example:
@@ -1258,23 +1262,26 @@ loadBalancer:
   terminationGracePeriodSeconds: 60
   nodeSelector: {}
   tolerations: []
-  # Default configuration spreads LB pods across nodes to ensure high availability
-  # If resourceBaseName is set and you override this block, use the selector
-  # label value rendered by sawmills-collector.loadBalancerSelectorName.
-  # The default value below is automatically rewritten to <resourceBaseName>-lb;
-  # unrelated custom values are not.
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/name
-                  operator: In
-                  values:
-                    - sawmills-collector-chart-lb
-            topologyKey: kubernetes.io/hostname
+  # Pod anti-affinity for the LB pods. Disabled by default so the scheduler can
+  # bin-pack LB pods rather than spreading them.
+  # To spread LB pods across nodes for higher availability, replace the empty
+  # default below with a block such as:
+  #   podAntiAffinity:
+  #     preferredDuringSchedulingIgnoredDuringExecution:
+  #       - weight: 100
+  #         podAffinityTerm:
+  #           labelSelector:
+  #             matchExpressions:
+  #               - key: app.kubernetes.io/name
+  #                 operator: In
+  #                 values:
+  #                   - sawmills-collector-chart-lb
+  #           topologyKey: kubernetes.io/hostname
+  # If resourceBaseName is set, use the selector label value rendered by
+  # sawmills-collector.loadBalancerSelectorName. The chart's built-in default
+  # selector value (sawmills-collector-chart-lb) is automatically rewritten to
+  # <resourceBaseName>-lb; unrelated custom values are not.
+  affinity: {}
   priorityClassName: ""
   topologySpreadConstraints: []
   additionalContainers: {}
