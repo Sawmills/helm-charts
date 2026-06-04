@@ -136,6 +136,13 @@ rollout:
       readiness:
         initialDelaySeconds: 5
         periodSeconds: 5
+    # Sleep-based preStop on the telemetry-collector sidecar. Without this,
+    # during HPA scale-down / rollout the sidecar keeps pushing to
+    # 127.0.0.1:<main-collector OTLP port> while the main-collector closes
+    # its receivers in parallel, surfacing as "connection refused" errors
+    # in customer environments. Keep <= rollout.terminationGracePeriodSeconds.
+    # Set to 0 to disable.
+    preStopSleepSeconds: 10
 
   # HAProxy specific settings
   haproxy:
@@ -330,6 +337,18 @@ telemetry:
   # Prometheus port for the telemetry collector, can be used by customers to scrape metrics
   prometheus:
     port: 19465
+  # Optional pprof endpoint for the telemetry sidecar. Uses a different port
+  # than the main collector pprof endpoint because containers in a pod share
+  # the same network namespace.
+  pprof:
+    enabled: false
+    port: 1778
+    # chart: Helm injects pprof into inline telemetry configs.
+    # external: every rendered telemetry sidecar uses S3 config that already contains pprof.
+    configSource: chart
+  # Small Prometheus endpoint used by LB backend_drain pressure readiness.
+  pressurePrometheus:
+    port: 19466
   # OTLP/HTTP ingest port on the telemetry collector for remote-operator metrics
   remoteOperatorOtlpHttpPort: 14319
 
@@ -821,6 +840,18 @@ haproxy:
       rise: 2
       fall: 2
 
+  # Optional local backend health check for HAProxy's in-pod otel server.
+  # When enabled, HAProxy marks the local collector backend DOWN by probing the
+  # collector's backend_drain readiness endpoint instead of plain health_check.
+  # This lets HAProxy fallback activate while the Kubernetes LB pod stays Ready.
+  local_backend_healthcheck:
+    enabled: false
+    port: 13137
+    path: /ready
+    interval: 3000
+    rise: 2
+    fall: 2
+
   # Sibling fallback configuration
   # When enabled, HAProxy routes to sibling LB pods (round-robin) before falling back
   # to the external vendor endpoint. This reduces unnecessary external egress during
@@ -905,7 +936,6 @@ telemetryExternalConfig:
       pipelines:
         metrics/external/prometheusremotewrite:
           receivers: [forward]
-          processors: [transform/external_labels]
           exporters: [prometheusremotewrite]
   arrowConfig:
     service:
@@ -1018,7 +1048,7 @@ telemetryConfig:
         - context: metric
           statement: route() where not IsMatch(name, "otelcol_processor_central_thp|otelcol_processor_thp|otelcol_processor_qmp")
           pipelines: [metrics/system]
-    forward:
+    forward: {}
 
   service:
     extensions: [health_check, cgroup_runtime]
@@ -1261,6 +1291,16 @@ loadBalancer:
   telemetryOtelConfig:
     s3path: ""
     encryptionKey: ""
+  # Optional inline telemetry config for the LB telemetry sidecar. Defaults to
+  # telemetryConfig when unset.
+  #
+  # When inline LB telemetry inherits the shared prometheus external config, the
+  # template narrows only the LB prometheusremotewrite path: it keeps local
+  # debug/pressure metrics available, exports a slim allowlist remotely, moves
+  # static labels to exporter external_labels, and uses lower-concurrency queue
+  # tuning because readiness/KEDA use the separate pressure endpoint. Explicit
+  # inline LB prometheusremotewrite pipeline or exporter overrides are preserved.
+  telemetryConfig: null
   # Direct LB OTel config. Queue compression options are configured under
   # otelCollectorConfig.exporters.<loadbalancing-exporter>.sending_queue:
   #   payload_compression: snappy|zstd|none
@@ -1298,6 +1338,10 @@ loadBalancer:
   # stays on the collector health_check endpoint.
   pressureReadiness:
     enabled: false
+    # When true, Kubernetes readiness probes the backend_drain endpoint. Set
+    # false to keep the LB pod Ready via collector health_check while HAProxy
+    # uses backend_drain readiness for fallback decisions.
+    useForPodReadiness: true
     port: 13137
     readinessPath: /ready
     drainPath: /drain
@@ -1305,7 +1349,10 @@ loadBalancer:
     # Defaults to HAProxy /ready when HAProxy HTTP readiness is enabled,
     # otherwise to collector health_check.
     healthCheckEndpoint: ""
-    metricsEndpoint: http://${env:MY_POD_IP}:19465/metrics
+    # Defaults to the small pressure endpoint when the chart renders inline LB
+    # telemetry config. Defaults to the regular telemetry endpoint for S3-backed
+    # LB telemetry unless an explicit value is provided.
+    metricsEndpoint: ""
     queueSaturationFailThreshold: 0.85
     queueSaturationRecoverThreshold: 0.60
     inflightSaturationFailThreshold: 0.85
@@ -1315,6 +1362,7 @@ loadBalancer:
     capacityWarningThreshold: 0.60
     failChecks: 2
     recoverChecks: 3
+    checkInterval: 1s
     rejectedQuietDuration: 1m
     oldestItemAgeFailThreshold: 1m
     # When unset, derived from loadBalancer.resources.limits.memory. Set 0 to
@@ -1381,6 +1429,14 @@ loadBalancer:
           serverAddress: ""
           query: ""
           threshold: ""
+      external:
+        enabled: false
+        metricType: AverageValue
+        loadBalancerTriggerType: external
+        metadata:
+          scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
+          query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+          targetValue: "10485760"
       cpu:
         enabled: true
         targetUtilization: 80

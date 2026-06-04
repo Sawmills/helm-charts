@@ -111,6 +111,23 @@ Changing `resourceBaseName` on an existing release changes rendered resource nam
 
 When setting `affinity` or `loadBalancer.affinity` with `resourceBaseName` set, use the selector label values rendered by the chart: `<resourceBaseName>` for the collector and `<resourceBaseName>-lb` for the load balancer. The chart's built-in selector values (`sawmills-collector-chart` / `sawmills-collector-chart-lb`) are rewritten automatically; arbitrary custom selector values are not.
 
+### Telemetry Sidecar Pprof
+
+The main collector uses pprof port `1777`. When telemetry sidecar profiling is
+needed, enable a separate pod-local pprof endpoint on port `1778`:
+
+```yaml
+telemetry:
+  pprof:
+    enabled: true
+    port: 1778
+    configSource: chart
+```
+
+Use `configSource: chart` for inline telemetry configs. Use
+`configSource: external` only when both the main and LB telemetry configs are
+loaded from S3 and already contain the pprof extension.
+
 ### Pin Images By Digest
 
 Set `image.digest` to render the collector image as `repository@digest` instead of `repository:tag`:
@@ -289,6 +306,37 @@ keda:
 kedaScaler:
   enabled: true
 ```
+
+For load balancer pod autoscaling, prefer `loadBalancer.keda.scaling.external` with the bundled Sawmills KEDA scaler. This mode does not require a separate Prometheus or VictoriaMetrics deployment:
+
+```yaml
+loadBalancer:
+  enabled: true
+  keda:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 25
+    pollingInterval: 15
+    cooldownPeriod: 31
+    scaling:
+      cpu:
+        enabled: false
+      memory:
+        enabled: false
+      prometheus:
+        enabled: false
+      external:
+        enabled: true
+        metricType: AverageValue
+        metadata:
+          scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
+          query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+          targetValue: "10485760"
+kedaScaler:
+  enabled: true
+```
+
+Use `sum(otelcol_loadbalancer_central_queue_compressed_bytes)` with target `10485760` for byte-sized central queue scaling. The legacy item-sized fallback is `sum(otelcol_exporter_queue_size{exporter=~"loadbalancing/collector-loadbalancer.*"})` with target `300`. Custom metrics must be forwarded through collector telemetry and allowed by `kedaScaler.telemetryConfig`.
 
 ### HAProxy Load Balancing
 
@@ -756,7 +804,7 @@ loadBalancer:
     className: "standard"
 ```
 
-`loadBalancer.autoscaling` renders a Kubernetes `HorizontalPodAutoscaler` with CPU and memory resource metrics, so the cluster must provide `metrics.k8s.io` data. In Prometheus/Thanos-only environments, use `loadBalancer.keda.scaling.prometheus` instead:
+`loadBalancer.autoscaling` renders a Kubernetes `HorizontalPodAutoscaler` with CPU and memory resource metrics, so the cluster must provide `metrics.k8s.io` data. Prefer `loadBalancer.keda.scaling.external` with the bundled Sawmills KEDA scaler when resource metrics are not enough. `loadBalancer.keda.scaling.prometheus` remains available as an alternative configuration path:
 
 When `loadBalancer.keda.enabled: true`, set `loadBalancer.podDisruptionBudget.minAvailable` explicitly. The default is computed from static `loadBalancer.replicas`, which can be higher than the actual pod count after KEDA scales down and can block voluntary disruptions such as node drains or upgrades.
 
@@ -771,16 +819,24 @@ loadBalancer:
     maxReplicas: 25
     scaling:
       prometheus:
-        enabled: true
+        enabled: false
         metricType: Value
         metadata:
           serverAddress: http://thanos-operator-query-frontend.monitoring:9090
           query: "histogram_quantile(0.999, sum(rate(http_server_duration_bucket[1m])) by (le))"
           threshold: "8000"
+      external:
+        enabled: true
+        metricType: AverageValue
+        metadata:
+          query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+          targetValue: "10485760"
       cpu:
         enabled: false
       memory:
         enabled: false
+kedaScaler:
+  enabled: true
 ```
 
 #### Load Balancer Queue Compression Modes
@@ -844,7 +900,7 @@ loadBalancer:
   enabled: true
   pressureReadiness:
     enabled: true
-    metricsEndpoint: http://${env:MY_POD_IP}:19465/metrics
+    metricsEndpoint: http://${env:MY_POD_IP}:${env:PRESSURE_PROMETHEUS_PORT}/metrics
     queueSaturationFailThreshold: 0.85
     queueSaturationRecoverThreshold: 0.60
     inflightSaturationFailThreshold: 0.85
@@ -852,11 +908,14 @@ loadBalancer:
     memorySaturationFailThreshold: 0.85
     memorySaturationRecoverThreshold: 0.70
     capacityWarningThreshold: 0.60
+    checkInterval: 1s
     rejectedQuietDuration: 1m
     oldestItemAgeFailThreshold: 1m
 ```
 
 When `memoryLimitBytes` is unset, the chart derives it from `loadBalancer.resources.limits.memory`; set `memoryLimitBytes: 0` to disable memory pressure gating for pods without memory limits. The rendered `backend_drain` config preserves configured LB `service.extensions` and appends `backend_drain`.
+
+By default, pressure readiness scrapes a small LB telemetry collector Prometheus endpoint on `telemetry.pressurePrometheus.port` (`19466`) instead of the full telemetry Prometheus endpoint. That endpoint keeps only the queue, inflight, memory, rejected/refused, and queue-age metrics needed by `backend_drain`. For S3-backed LB telemetry configs or standalone custom LB telemetry configs without the shared telemetry base, the chart defaults readiness to the regular telemetry endpoint unless `metricsEndpoint` is explicitly set, because the custom config must include the matching pressure exporter.
 
 Pressure readiness is observable through the collector's own metrics. Use `otelcol_backend_drain_pressure_warning{reason="..."}` for the warning band between `capacityWarningThreshold` and fail thresholds, `otelcol_backend_drain_pressure_ready{reason="..."}` for the current pressure readiness state, and `otelcol_backend_drain_pressure_transitions_total{state="...",reason="..."}` for ready/not-ready transitions. Reason labels are stable categories such as `queue_compressed_warning`, `queue_compressed_saturated`, `inflight_uncompressed_saturated`, `memory_saturated`, `queue_age_saturated`, `rejected_or_refused_records_increased`, and `metrics_scrape_failed`.
 

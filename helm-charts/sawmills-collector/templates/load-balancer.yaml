@@ -6,9 +6,14 @@
 {{- $lbTelemetryOtelConfig := default (dict) .Values.loadBalancer.telemetryOtelConfig }}
 {{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
 {{- $lbTelemetryOtelEncryptionKey := default "" $lbTelemetryOtelConfig.encryptionKey }}
+{{- include "sawmills-collector.validateTelemetryPprof" . }}
 {{- $lbStartupProbe := .Values.rollout.loadBalancer.probes.startup | default dict }}
 {{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict }}
 {{- $lbPressureReadinessEnabled := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) }}
+{{- $lbPressureReadinessUseForPodReadiness := true }}
+{{- if hasKey $lbPressureReadiness "useForPodReadiness" }}
+{{- $lbPressureReadinessUseForPodReadiness = $lbPressureReadiness.useForPodReadiness }}
+{{- end }}
 {{- $haproxyReadinessType := (dig "probes" "readiness" "type" "http" .Values.haproxy) | toString | lower }}
 {{- $haproxyReadinessPath := dig "probes" "readiness" "path" "/ready" .Values.haproxy }}
 {{- $haproxyReadinessPort := dig "probes" "readiness" "port" 13135 .Values.haproxy }}
@@ -142,6 +147,12 @@ spec:
           {{- end }}
           env:
             {{- include "sawmills-collector.runtimeConfigEnv" . | nindent 12 }}
+            {{- if $lbPressureReadinessEnabled }}
+            - name: PRESSURE_PROMETHEUS_PORT
+              value: {{ .Values.telemetry.pressurePrometheus.port | default 19466 | quote }}
+            - name: PROMETHEUS_PORT
+              value: {{ .Values.telemetry.prometheus.port | quote }}
+            {{- end }}
             {{- if and (not .Values.loadBalancer.resources.disableLimits) .Values.loadBalancer.resources.limits .Values.loadBalancer.resources.limits.memory }}
             {{- $memLimit := .Values.loadBalancer.resources.limits.memory | toString }}
             - name: GOMEMLIMIT
@@ -183,7 +194,10 @@ spec:
             failureThreshold: {{ .Values.rollout.loadBalancer.probes.liveness.failureThreshold }}
           readinessProbe:
             httpGet:
-              {{- if $lbPressureReadinessEnabled }}
+              {{- if and $lbPressureReadinessEnabled (not $lbPressureReadinessUseForPodReadiness) }}
+              path: /healthcheck
+              port: 13133
+              {{- else if $lbPressureReadinessEnabled }}
               path: {{ default "/ready" $lbPressureReadiness.readinessPath }}
               port: {{ default 13137 $lbPressureReadiness.port }}
               {{- else if .Values.haproxy.enabled }}
@@ -284,6 +298,14 @@ spec:
               value: {{ .Values.collectorId }}
             - name: PROMETHEUS_PORT
               value: {{ .Values.telemetry.prometheus.port | quote }}
+            {{- if .Values.telemetry.pprof.enabled }}
+            - name: TELEMETRY_PPROF_PORT
+              value: {{ .Values.telemetry.pprof.port | default 1778 | quote }}
+            {{- end }}
+            {{- if $lbPressureReadinessEnabled }}
+            - name: PRESSURE_PROMETHEUS_PORT
+              value: {{ .Values.telemetry.pressurePrometheus.port | default 19466 | quote }}
+            {{- end }}
             - name: PROMETHEUS_REMOTE_WRITE_ENDPOINT
               value: {{ .Values.prometheusremotewrite.endpoint }}
             - name: PROMETHEUS_REMOTE_WRITE_API_KEY
@@ -321,6 +343,16 @@ spec:
             - name: prometheus
               containerPort: {{ .Values.telemetry.prometheus.port }}
               protocol: TCP
+            {{- if .Values.telemetry.pprof.enabled }}
+            - name: telemetry-pprof
+              containerPort: {{ .Values.telemetry.pprof.port | default 1778 }}
+              protocol: TCP
+            {{- end }}
+            {{- if $lbPressureReadinessEnabled }}
+            - name: pressure-prom
+              containerPort: {{ .Values.telemetry.pressurePrometheus.port | default 19466 }}
+              protocol: TCP
+            {{- end }}
             - name: ro-otlp-http
               containerPort: {{ .Values.telemetry.remoteOperatorOtlpHttpPort | default 14319 }}
               protocol: TCP

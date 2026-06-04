@@ -1,5 +1,6 @@
 suite: test telemetry exporter resilience - self-monitoring must never destabilize the collector
 templates:
+  - deployment.yaml
   - telemetry-configmap.yaml
   - load-balancer-telemetry-configmap.yaml
 tests:
@@ -94,7 +95,10 @@ tests:
           pattern: 'num_consumers: 20'
 
   # =========================================================================
-  # Verify LB telemetry-collector gets the same protection
+  # Verify LB telemetry-collector keeps bounded retries while using its
+  # slimmer remote-write tuning. The LB path is intentionally slower/lower
+  # concurrency than the default collector telemetry path because readiness
+  # and KEDA use a separate pressure endpoint.
   # =========================================================================
 
   - it: "NEW CONFIG: LB telemetry-collector also has bounded retries"
@@ -107,7 +111,7 @@ tests:
           path: data["telemetry-config.yaml"]
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'timeout: 10s'
+          pattern: 'timeout: 30s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'max_elapsed_time: 5s'
@@ -116,10 +120,301 @@ tests:
           pattern: 'max_interval: 5s'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'queue_size: 2000'
+          pattern: 'queue_size: 500'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'num_consumers: 20'
+          pattern: 'num_consumers: 4'
+
+  - it: "NEW CONFIG: telemetry sidecar pprof is opt-in on a non-conflicting port"
+    template: telemetry-configmap.yaml
+    set:
+      telemetry.pprof.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^extensions:\n(?:.*\n)*?\s+pprof:\n\s+endpoint: 0\.0\.0\.0:\$\{env:TELEMETRY_PPROF_PORT\}\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- pprof\n'
+
+  - it: "NEW CONFIG: chart-managed telemetry pprof wires the telemetry sidecar pod port"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].env
+          content:
+            name: TELEMETRY_PPROF_PORT
+            value: "1778"
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
+          content:
+            name: telemetry-pprof
+            containerPort: 1778
+            protocol: TCP
+
+  - it: "NEW CONFIG: telemetry sidecar pprof overrides stale inline endpoint"
+    template: telemetry-configmap.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetryConfig.extensions.pprof.endpoint: 0.0.0.0:1777
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'endpoint: 0\.0\.0\.0:\$\{env:TELEMETRY_PPROF_PORT\}'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '0\.0\.0\.0:1777'
+
+  - it: "NEW CONFIG: telemetry sidecar pprof is absent by default"
+    template: telemetry-configmap.yaml
+    asserts:
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?m)^\s+pprof:'
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects invalid config source"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.configSource: invalid
+    asserts:
+      - failedTemplate:
+          errorMessage: 'telemetry.pprof.configSource must be one of: chart, external (got "invalid")'
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects explicit zero port"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 0
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port must be between 1 and 65535 (got 0)"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects boolean port"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: true
+    asserts:
+      - failedTemplate:
+          errorMessage: 'telemetry.pprof.port must be an integer between 1 and 65535 (got "true")'
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects fractional port"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 1.5
+    asserts:
+      - failedTemplate:
+          errorMessage: 'telemetry.pprof.port must be an integer between 1 and 65535 (got "1.5")'
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects port above tcp range"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 65536
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port must be between 1 and 65535 (got 65536)"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects prometheus port collision"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 19465
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 19465 conflicts with telemetry.prometheus.port"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects telemetry healthcheck port collision"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 13134
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 13134 conflicts with telemetry collector health_check port 13134"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects main healthcheck port collision"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 13133
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 13133 conflicts with main collector health_check port 13133"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects main pprof port collision"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 1777
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 1777 conflicts with main collector pprof port 1777"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects LiveTail control port collision"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 13138
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 13138 conflicts with main collector LiveTail control port 13138"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects customer receiver port collision"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      ports.otlp.port: 1778
+      ports.otlp.protocol: TCP
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 1778 conflicts with ports.otlp.port"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects service target port exposure"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      service.ports.debug.from: 1778
+      service.ports.debug.to.port: 1778
+      service.ports.debug.to.protocol: TCP
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 1778 conflicts with service.ports.debug.from"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects named service target port exposure"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      service.ports.debug.from: telemetry-pprof
+      service.ports.debug.to.port: 1779
+      service.ports.debug.to.protocol: TCP
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 1778 conflicts with service.ports.debug.from targetPort telemetry-pprof"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects HAProxy listener collision"
+    template: deployment.yaml
+    set:
+      haproxy.enabled: true
+      telemetry.pprof.enabled: true
+      haproxy.mapping.logs.from: 1778
+      haproxy.mapping.logs.to.port: 4318
+      haproxy.mapping.logs.to.protocol: TCP
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 1778 conflicts with haproxy.mapping.logs.from"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects HAProxy backend target collision"
+    template: deployment.yaml
+    set:
+      haproxy.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 4318
+      haproxy.mapping.logs.from: 10000
+      haproxy.mapping.logs.to.port: 4318
+      haproxy.mapping.logs.to.protocol: TCP
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 4318 conflicts with haproxy.mapping.logs.to.port"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects HAProxy prometheus port collision"
+    template: deployment.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.prometheus.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 8405
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 8405 conflicts with haproxy.prometheus.port"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects HAProxy stats port collision"
+    template: deployment.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.stats.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 8406
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 8406 conflicts with haproxy.stats.port"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects HAProxy healthcheck port collision"
+    template: deployment.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.healthcheck.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 13135
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 13135 conflicts with haproxy.healthcheck.port"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof rejects HAProxy forwarding health port collision"
+    template: deployment.yaml
+    set:
+      haproxy.enabled: true
+      haproxy.healthcheck.enabled: true
+      haproxy.healthcheck.forwarding_health.enabled: true
+      telemetry.pprof.enabled: true
+      telemetry.pprof.port: 13136
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.port 13136 conflicts with haproxy.healthcheck.forwarding_health.port"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof requires external config source for S3 telemetry config"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetryOtelConfig.s3path: s3://collector-bucket/telemetry.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.configSource must be external when telemetry pprof is enabled with S3-backed telemetry config; ensure the S3 telemetry config contains the pprof extension"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof external source requires S3 telemetry config"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.configSource: external
+    asserts:
+      - failedTemplate:
+          errorMessage: "telemetry.pprof.configSource=external requires telemetryOtelConfig.s3path because Helm will not inject pprof into inline telemetry config"
+
+  - it: "NEW CONFIG: telemetry sidecar pprof allows S3 telemetry config when externally injected"
+    template: deployment.yaml
+    set:
+      telemetry.pprof.enabled: true
+      telemetry.pprof.configSource: external
+      telemetryOtelConfig.s3path: s3://collector-bucket/telemetry.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].env
+          content:
+            name: TELEMETRY_PPROF_PORT
+            value: "1778"
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="telemetry-collector")].ports
+          content:
+            name: telemetry-pprof
+            containerPort: 1778
+            protocol: TCP
+
+  - it: "NEW CONFIG: LB telemetry sidecar pprof is opt-in on the same sidecar port"
+    template: load-balancer-telemetry-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+      telemetry.pprof.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^extensions:\n(?:.*\n)*?\s+pprof:\n\s+endpoint: 0\.0\.0\.0:\$\{env:TELEMETRY_PPROF_PORT\}\n'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- pprof\n'
 
   # =========================================================================
   # Guard: retry_on_failure must always be enabled (never accidentally disabled)
