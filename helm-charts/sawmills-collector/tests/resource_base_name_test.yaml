@@ -41,6 +41,18 @@ tests:
       namespace: customer-ns
     set:
       resourceBaseName: coinbase-logs
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - sawmills-collector-chart
+                topologyKey: kubernetes.io/hostname
     asserts:
       - equal:
           path: metadata.name
@@ -131,7 +143,20 @@ tests:
       namespace: customer-ns
     set:
       resourceBaseName: coinbase-logs
-      loadBalancer.enabled: true
+      loadBalancer:
+        enabled: true
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                      - key: app.kubernetes.io/name
+                        operator: In
+                        values:
+                          - sawmills-collector-chart-lb
+                  topologyKey: kubernetes.io/hostname
     asserts:
       - equal:
           path: metadata.name
@@ -265,6 +290,18 @@ tests:
     set:
       resourceBaseName: coinbase-logs
       kedaScaler.enabled: true
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - sawmills-collector-chart
+                topologyKey: kubernetes.io/hostname
     asserts:
       - equal:
           path: metadata.name
