@@ -1,6 +1,6 @@
 {{- $lbPressure := .Values.loadBalancer.pressureReadiness | default dict }}
 {{- if and .Values.loadBalancer.enabled ($lbPressure.enabled | default false) }}
-{{- $defaultPressureMetricsEndpoint := "http://${env:MY_POD_IP}:${env:PRESSURE_PROMETHEUS_PORT}/metrics" }}
+{{- $defaultPressureMetricsEndpoint := printf "http://${env:MY_POD_IP}:%v/metrics" (.Values.telemetry.pressurePrometheus.port | default 19466) }}
 {{- $defaultTelemetryMetricsEndpoint := "http://${env:MY_POD_IP}:${env:PROMETHEUS_PORT}/metrics" }}
 {{- $lbTelemetryOtelConfig := default dict .Values.loadBalancer.telemetryOtelConfig }}
 {{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
@@ -10,14 +10,14 @@
 {{- $defaultMetricsEndpoint = $defaultTelemetryMetricsEndpoint }}
 {{- end }}
 {{- $pressureMetricsEndpoint := default $defaultMetricsEndpoint $lbPressure.metricsEndpoint }}
-{{- if and $hasSharedTelemetryBase (not $lbTelemetryOtelS3Path) (or (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:19465/metrics") (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:8888/metrics") (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:${env:PROMETHEUS_PORT}/metrics")) }}
+{{- if and $hasSharedTelemetryBase (not $lbTelemetryOtelS3Path) (or (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:19465/metrics") (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:8888/metrics") (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:${env:PROMETHEUS_PORT}/metrics") (eq $pressureMetricsEndpoint "http://${env:MY_POD_IP}:${env:PRESSURE_PROMETHEUS_PORT}/metrics")) }}
 {{- $pressureMetricsEndpoint = $defaultPressureMetricsEndpoint }}
 {{- end }}
 {{- $localBackendHealthcheck := .Values.haproxy.local_backend_healthcheck | default dict }}
 {{- $localBackendHealthcheckEnabled := $localBackendHealthcheck.enabled | default false }}
 {{- $forwardingHealth := dig "healthcheck" "forwarding_health" (dict) .Values.haproxy }}
 {{- $forwardingHealthEnabled := or ($forwardingHealth.enabled | default false) $localBackendHealthcheckEnabled }}
-{{- $forwardingHealthMetricsEndpoint := default $pressureMetricsEndpoint (get $forwardingHealth "metricsEndpoint") }}
+{{- $forwardingHealthMetricsEndpoint := default $defaultTelemetryMetricsEndpoint (get $forwardingHealth "metricsEndpoint") }}
 {{- if hasKey $forwardingHealth "metrics_endpoint" }}
 {{- $forwardingHealthMetricsEndpoint = get $forwardingHealth "metrics_endpoint" }}
 {{- end }}

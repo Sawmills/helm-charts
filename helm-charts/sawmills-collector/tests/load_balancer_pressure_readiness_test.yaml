@@ -74,7 +74,7 @@ tests:
           count: 1
       - matchRegex:
           path: data["config.yaml"]
-          pattern: '(?ms)backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 15s\n\s+pressure_check:\n\s+enabled: true\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics\n\s+queue_saturation_fail_threshold: 0.85\n\s+queue_saturation_recover_threshold: 0.6\n\s+inflight_saturation_fail_threshold: 0.85\n\s+inflight_saturation_recover_threshold: 0.6\n\s+memory_saturation_fail_threshold: 0.85\n\s+memory_saturation_recover_threshold: 0.7\n\s+capacity_warning_threshold: 0.6\n\s+fail_checks: 2\n\s+recover_checks: 3\n\s+check_interval: 1s\n\s+rejected_quiet_duration: 1m\n\s+oldest_item_age_fail_threshold: 1m\n\s+memory_limit_bytes: 536870912\n'
+          pattern: '(?ms)backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 15s\n\s+pressure_check:\n\s+enabled: true\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:19466/metrics\n\s+queue_saturation_fail_threshold: 0.85\n\s+queue_saturation_recover_threshold: 0.6\n\s+inflight_saturation_fail_threshold: 0.85\n\s+inflight_saturation_recover_threshold: 0.6\n\s+memory_saturation_fail_threshold: 0.85\n\s+memory_saturation_recover_threshold: 0.7\n\s+capacity_warning_threshold: 0.6\n\s+fail_checks: 2\n\s+recover_checks: 3\n\s+check_interval: 1s\n\s+rejected_quiet_duration: 1m\n\s+oldest_item_age_fail_threshold: 1m\n\s+memory_limit_bytes: 536870912\n'
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- backend_drain\n'
@@ -92,7 +92,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["config.yaml"]
-          pattern: '(?ms)^extensions:\n\s+forwarding_health:\n\s+endpoint: \$\{env:MY_POD_IP\}:13136\n\s+path: /forwarding-health\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics\n\s+backend_drain:\n'
+          pattern: '(?ms)^extensions:\n\s+forwarding_health:\n\s+endpoint: \$\{env:MY_POD_IP\}:13136\n\s+path: /forwarding-health\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PROMETHEUS_PORT\}/metrics\n\s+backend_drain:\n'
       - matchRegex:
           path: data["config.yaml"]
           pattern: 'health_check_endpoint: http://\$\{env:MY_POD_IP\}:13136/forwarding-health'
@@ -100,7 +100,7 @@ tests:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- backend_drain\n\s+- forwarding_health\n'
 
-  - it: points backend_drain health checks at forwarding_health when HAProxy forwarding health is enabled
+  - it: keeps forwarding_health on regular telemetry metrics when HAProxy forwarding health is enabled
     template: load-balancer-readiness-configmap.yaml
     values:
       - ../values.yaml
@@ -112,13 +112,28 @@ tests:
     asserts:
       - matchRegex:
           path: data["config.yaml"]
-          pattern: '(?ms)^extensions:\n\s+forwarding_health:\n\s+endpoint: \$\{env:MY_POD_IP\}:13136\n\s+path: /forwarding-health\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics\n\s+backend_drain:\n'
+          pattern: '(?ms)^extensions:\n\s+forwarding_health:\n\s+endpoint: \$\{env:MY_POD_IP\}:13136\n\s+path: /forwarding-health\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PROMETHEUS_PORT\}/metrics\n\s+backend_drain:\n'
       - matchRegex:
           path: data["config.yaml"]
           pattern: 'health_check_endpoint: http://\$\{env:MY_POD_IP\}:13136/forwarding-health'
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- backend_drain\n\s+- forwarding_health\n'
+
+  - it: preserves explicit forwarding_health metrics endpoint
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.healthcheck.forwarding_health.enabled: true
+      haproxy.healthcheck.forwarding_health.metricsEndpoint: http://${env:MY_POD_IP}:18000/metrics
+      loadBalancer.pressureReadiness.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?ms)^extensions:\n\s+forwarding_health:\n\s+endpoint: \$\{env:MY_POD_IP\}:13136\n\s+path: /forwarding-health\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:18000/metrics\n\s+backend_drain:\n'
 
   - it: preserves explicit forwarding_health endpoint for pressure readiness
     template: load-balancer-readiness-configmap.yaml
@@ -144,10 +159,26 @@ tests:
     asserts:
       - matchRegex:
           path: data["config.yaml"]
-          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics'
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:19466/metrics'
       - notMatchRegex:
           path: data["config.yaml"]
           pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:19465/metrics'
+
+  - it: uses telemetry.pressurePrometheus.port for backend_drain metrics endpoint
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      telemetry.pressurePrometheus.port: 29466
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:29466/metrics'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:19466/metrics'
 
   - it: keeps S3-backed telemetry readiness on the regular metrics endpoint by default
     template: load-balancer-readiness-configmap.yaml
@@ -163,9 +194,26 @@ tests:
           pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PROMETHEUS_PORT\}/metrics'
       - notMatchRegex:
           path: data["config.yaml"]
-          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics'
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:19466/metrics'
 
-  - it: defines the regular telemetry port env when S3-backed readiness uses it
+  - it: preserves explicit S3-backed pressure metrics endpoint
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.telemetryOtelConfig.s3path: s3://bucket/lb-telemetry.yaml
+      loadBalancer.pressureReadiness.metricsEndpoint: http://${env:MY_POD_IP}:${env:PRESSURE_PROMETHEUS_PORT}/metrics
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:19466/metrics'
+
+  - it: defines regular telemetry port when S3-backed readiness uses it
     template: load-balancer.yaml
     values:
       - ../values.yaml
@@ -190,13 +238,29 @@ tests:
     asserts:
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: '(?ms)^\s*prometheus/pressure_readiness:\n\s+endpoint: \$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}\n\s+metric_expiration: 1m\n'
+          pattern: '(?ms)^\s*prometheus/pressure_readiness:\n\s+endpoint: \$\{env:MY_POD_IP\}:19466\n\s+metric_expiration: 1m\n'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: '(?ms)^\s*filter/pressure_readiness:\n\s+error_mode: ignore\n\s+metrics:\n\s+metric:\n\s+- not IsMatch\(name, ".*otelcol_loadbalancer_central_queue_compressed_bytes.*otelcol_loadbalancer_central_queue_oldest_item_age.*otelcol_process_memory_rss.*otelcol_receiver_refused_log_records.*otelcol_receiver_refused_log_records_total.*otelcol_receiver_refused_metric_points.*otelcol_receiver_refused_metric_points_total.*otelcol_receiver_refused_spans.*otelcol_receiver_refused_spans_total.*otelcol_processor_refused_log_records.*otelcol_processor_refused_log_records_total.*otelcol_processor_refused_metric_points.*otelcol_processor_refused_metric_points_total.*otelcol_processor_refused_spans.*otelcol_processor_refused_spans_total.*"\)\n'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: '(?ms)^\s*metrics/pressure_readiness:\n\s+exporters:\n\s+- prometheus/pressure_readiness\n\s+processors:\n\s+- filter/pressure_readiness\n\s+receivers:\n\s+- forward\n'
+
+  - it: uses telemetry.pressurePrometheus.port for the pressure exporter
+    template: load-balancer-telemetry-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      telemetry.pressurePrometheus.port: 29466
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)^\s*prometheus/pressure_readiness:\n\s+endpoint: \$\{env:MY_POD_IP\}:29466\n\s+metric_expiration: 1m\n'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'endpoint: \$\{env:MY_POD_IP\}:19466'
 
   - it: renders slim LB remote-write telemetry path by default
     template: load-balancer-telemetry-configmap.yaml
@@ -560,6 +624,9 @@ tests:
       - notMatchRegex:
           path: data["config.yaml"]
           pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:\$\{env:PRESSURE_PROMETHEUS_PORT\}/metrics'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: 'metrics_endpoint: http://\$\{env:MY_POD_IP\}:19466/metrics'
 
   - it: does not render pressure exporter for standalone custom LB telemetry
     template: load-balancer-telemetry-configmap.yaml
