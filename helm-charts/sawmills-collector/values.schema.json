@@ -30,6 +30,22 @@
       },
       "additionalProperties": true
     },
+    "loadBalancer": {
+      "type": "object",
+      "properties": {
+        "autoscaling": {
+          "type": "object",
+          "properties": {
+            "targetMemoryAverageValue": {
+              "type": "string",
+              "description": "Optional absolute per-pod memory target for the load balancer HPA Resource/AverageValue metric, e.g. 512Mi."
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
     "proxy": {
       "type": "object",
       "properties": {

@@ -784,6 +784,9 @@ loadBalancer:
     # Resource/AverageValue instead of CPU utilization.
     targetCPUAverageValue: ""
     targetCPUUtilizationPercentage: 80
+    # Optional absolute per-pod memory target, e.g. 512Mi. When set, the HPA uses
+    # Resource/AverageValue instead of memory utilization.
+    targetMemoryAverageValue: ""
     targetMemoryUtilizationPercentage: 80
   minReadySeconds: 15
   strategy:
