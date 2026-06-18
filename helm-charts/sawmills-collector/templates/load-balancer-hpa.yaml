@@ -16,7 +16,7 @@ spec:
     name: {{ include "sawmills-collector.fullname" . }}-lb
   minReplicas: {{ .Values.loadBalancer.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.loadBalancer.autoscaling.maxReplicas }}
-  {{- if or .Values.loadBalancer.autoscaling.targetCPUAverageValue .Values.loadBalancer.autoscaling.targetCPUUtilizationPercentage .Values.loadBalancer.autoscaling.targetMemoryUtilizationPercentage }}
+  {{- if or .Values.loadBalancer.autoscaling.targetCPUAverageValue .Values.loadBalancer.autoscaling.targetCPUUtilizationPercentage .Values.loadBalancer.autoscaling.targetMemoryAverageValue .Values.loadBalancer.autoscaling.targetMemoryUtilizationPercentage }}
   metrics:
   {{- if .Values.loadBalancer.autoscaling.targetCPUAverageValue }}
     - type: Resource
@@ -33,7 +33,14 @@ spec:
           type: Utilization
           averageUtilization: {{ .Values.loadBalancer.autoscaling.targetCPUUtilizationPercentage }}
   {{- end }}
-  {{- if .Values.loadBalancer.autoscaling.targetMemoryUtilizationPercentage }}
+  {{- if .Values.loadBalancer.autoscaling.targetMemoryAverageValue }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: AverageValue
+          averageValue: {{ .Values.loadBalancer.autoscaling.targetMemoryAverageValue }}
+  {{- else if .Values.loadBalancer.autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
