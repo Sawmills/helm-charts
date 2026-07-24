@@ -16,7 +16,14 @@ spec:
       {{- toYaml $selectorLabels | nindent 6 }}
   template:
     metadata:
-    {{- with .Values.podAnnotations }}
+    {{- $scalerAnnotations := dict }}
+    {{- range $k, $v := .Values.podAnnotations }}
+    {{- $_ := set $scalerAnnotations $k $v }}
+    {{- end }}
+    {{- if .Values.kedaScaler.doNotDisrupt }}
+    {{- $_ := set $scalerAnnotations "karpenter.sh/do-not-disrupt" "true" }}
+    {{- end }}
+    {{- with $scalerAnnotations }}
       annotations:
       {{- toYaml . | nindent 8 }}
     {{- end }}

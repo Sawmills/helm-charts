@@ -1,4 +1,5 @@
 {{- $pdb := .Values.podDisruptionBudget | default dict }}
+{{- $workerAutoscaled := or (and .Values.keda (.Values.keda.enabled | default false)) (and .Values.autoscaling (.Values.autoscaling.enabled | default false)) }}
 {{- if and ($pdb.enabled | default false) (eq .Values.mode "deployment") }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -15,12 +16,15 @@ spec:
   minAvailable: {{ $pdb.minAvailable }}
   {{- else if and $pdb (hasKey $pdb "maxUnavailable") (not (kindIs "invalid" $pdb.maxUnavailable)) }}
   maxUnavailable: {{ $pdb.maxUnavailable }}
+  {{- else if $workerAutoscaled }}
+  maxUnavailable: {{ $pdb.autoscaledMaxUnavailable | default "10%" }}
   {{- else }}
   minAvailable: {{ include "sawmills-collector.defaultPdbMinAvailable" . }}
   {{- end }}
 {{- end }}
 ---
 {{- $lbPdb := .Values.loadBalancer.podDisruptionBudget | default dict }}
+{{- $lbAutoscaled := or (and .Values.loadBalancer.keda (.Values.loadBalancer.keda.enabled | default false)) (and .Values.loadBalancer.autoscaling (.Values.loadBalancer.autoscaling.enabled | default false)) }}
 {{- if and .Values.loadBalancer.enabled ($lbPdb.enabled | default false) }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -37,6 +41,8 @@ spec:
   minAvailable: {{ $lbPdb.minAvailable }}
   {{- else if and $lbPdb (hasKey $lbPdb "maxUnavailable") (not (kindIs "invalid" $lbPdb.maxUnavailable)) }}
   maxUnavailable: {{ $lbPdb.maxUnavailable }}
+  {{- else if $lbAutoscaled }}
+  maxUnavailable: {{ $lbPdb.autoscaledMaxUnavailable | default "10%" }}
   {{- else }}
   minAvailable: {{ include "sawmills-collector.defaultLbPdbMinAvailable" . }}
   {{- end }}

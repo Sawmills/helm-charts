@@ -1,0 +1,105 @@
+suite: pod disruption budget
+templates:
+  - templates/poddisruptionbudget.yaml
+tests:
+  - it: keeps the static replica-derived default when not autoscaled
+    release:
+      name: sawmills-collector
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: spec.minAvailable
+          value: 8
+      - notExists:
+          path: spec.maxUnavailable
+
+  - it: defaults to percentage maxUnavailable when keda autoscales the collector
+    release:
+      name: sawmills-collector
+    set:
+      keda:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 10%
+      - notExists:
+          path: spec.minAvailable
+
+  - it: defaults to percentage maxUnavailable when native HPA autoscales the collector
+    release:
+      name: sawmills-collector
+    set:
+      autoscaling:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 10%
+      - notExists:
+          path: spec.minAvailable
+
+  - it: lets explicit minAvailable win over the autoscaled default
+    release:
+      name: sawmills-collector
+    set:
+      keda:
+        enabled: true
+      podDisruptionBudget:
+        minAvailable: 350
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 350
+      - notExists:
+          path: spec.maxUnavailable
+
+  - it: honors a custom autoscaled percentage
+    release:
+      name: sawmills-collector
+    set:
+      keda:
+        enabled: true
+      podDisruptionBudget:
+        autoscaledMaxUnavailable: 5%
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 5%
+
+  - it: defaults LB budget to percentage maxUnavailable when LB keda is enabled
+    release:
+      name: sawmills-collector
+    set:
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: spec.maxUnavailable
+          value: 10%
+        documentIndex: 1
+      - notExists:
+          path: spec.minAvailable
+        documentIndex: 1
+
+  - it: keeps the static LB default when LB is not autoscaled
+    release:
+      name: sawmills-collector
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 6
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: spec.minAvailable
+          value: 4
+        documentIndex: 1

@@ -43,3 +43,43 @@ tests:
       - equal:
           path: spec.replicas
           value: 1
+
+  - it: shields the scaler pod from karpenter disruption by default
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["karpenter.sh/do-not-disrupt"]
+          value: "true"
+
+  - it: omits the disruption shield when opted out
+    set:
+      kedaScaler:
+        enabled: true
+        doNotDisrupt: false
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations
+
+  - it: keeps user pod annotations alongside the disruption shield
+    set:
+      kedaScaler.enabled: true
+      podAnnotations:
+        example.com/team: platform
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["karpenter.sh/do-not-disrupt"]
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations["example.com/team"]
+          value: platform
+
+  - it: keeps the disruption shield when generic pod annotations conflict
+    set:
+      kedaScaler.enabled: true
+      podAnnotations:
+        karpenter.sh/do-not-disrupt: "false"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["karpenter.sh/do-not-disrupt"]
+          value: "true"

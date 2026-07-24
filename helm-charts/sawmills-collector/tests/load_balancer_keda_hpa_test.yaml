@@ -111,6 +111,9 @@ tests:
       - equal:
           path: spec.triggers[0].type
           value: metrics-api
+      - equal:
+          path: spec.triggers[0].useCachedMetrics
+          value: true
       - notExists:
           path: spec.triggers[0].metricType
       - equal:
@@ -125,6 +128,28 @@ tests:
       - equal:
           path: spec.triggers[0].metadata.targetValue
           value: "10485760"
+
+  - it: can disable metrics-api caching for load balancer KEDA scaling
+    template: templates/load-balancer-keda-hpa.yaml
+    set:
+      kedaScaler:
+        enabled: true
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+          scaling:
+            external:
+              enabled: true
+              loadBalancerTriggerType: metrics-api
+              useCachedMetrics: false
+            cpu:
+              enabled: false
+            memory:
+              enabled: false
+    asserts:
+      - notExists:
+          path: spec.triggers[0].useCachedMetrics
 
   - it: renders Prometheus trigger for load balancer KEDA scaling
     template: templates/load-balancer-keda-hpa.yaml

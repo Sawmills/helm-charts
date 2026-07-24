@@ -161,6 +161,19 @@ tests:
           path: spec.fallback.replicas
           value: 10
 
+  - it: rejects fallback replicas below the minimum replica count
+    set:
+      keda:
+        enabled: true
+        minReplicas: 65
+        fallback:
+          enabled: true
+          failureThreshold: 3
+          replicas: 10
+    asserts:
+      - failedTemplate:
+          errorMessage: keda.fallback.replicas must be greater than or equal to keda.minReplicas when fallback is enabled
+
   - it: requires keda scaler when rendering LB metrics-api queue scaler
     set:
       loadBalancer:
@@ -267,3 +280,67 @@ tests:
       - equal:
           path: spec.triggers[1].metadata.value
           value: "75"
+
+  - it: caches metrics-api values so a brief scaler outage keeps the HPA fed
+    release:
+      name: sawmills-collector
+      namespace: sample-namespace
+    set:
+      loadBalancer:
+        enabled: true
+      kedaScaler:
+        enabled: true
+      keda:
+        enabled: true
+        scaling:
+          external:
+            enabled: true
+            loadBalancerTriggerType: metrics-api
+            loadBalancerMetadata:
+              query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+              targetValue: "10485760"
+    asserts:
+      - equal:
+          path: spec.triggers[0].useCachedMetrics
+          value: true
+
+  - it: can disable metrics-api caching
+    release:
+      name: sawmills-collector
+      namespace: sample-namespace
+    set:
+      loadBalancer:
+        enabled: true
+      kedaScaler:
+        enabled: true
+      keda:
+        enabled: true
+        scaling:
+          external:
+            enabled: true
+            loadBalancerTriggerType: metrics-api
+            useCachedMetrics: false
+            loadBalancerMetadata:
+              query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
+              targetValue: "10485760"
+    asserts:
+      - notExists:
+          path: spec.triggers[0].useCachedMetrics
+
+  - it: does not cache metrics for the external scaler trigger type
+    release:
+      name: sawmills-collector
+      namespace: sample-namespace
+    set:
+      loadBalancer:
+        enabled: true
+      kedaScaler:
+        enabled: true
+      keda:
+        enabled: true
+        scaling:
+          external:
+            enabled: true
+    asserts:
+      - notExists:
+          path: spec.triggers[0].useCachedMetrics
