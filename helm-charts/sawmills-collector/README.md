@@ -703,7 +703,7 @@ podDisruptionBudget:
 
 When the collector (or the LB) is autoscaled — `keda.enabled`, `autoscaling.enabled`, `loadBalancer.keda.enabled`, or `loadBalancer.autoscaling.enabled` — the static replica-derived default is meaningless: the real pod count is set by the autoscaler, not `replicaCount`. In that case the chart defaults to percentage-based `maxUnavailable` (`autoscaledMaxUnavailable`, `10%`), which Kubernetes evaluates against the current scale, so a node drain can never take a large fleet at once. Explicit `minAvailable`/`maxUnavailable` values always win over the default. Percentages round up, so a fleet scaled down to a single pod still permits eviction of that pod — the same tradeoff as the chart's static single-replica default, chosen so a PDB never blocks node upgrades outright; set `minAvailable` explicitly when a scale-to-1 fleet must block voluntary disruption instead.
 
-When `kedaScaler.enabled: true`, the chart also protects the single-replica KEDA otel scaler: it gets its own PDB (`kedaScaler.podDisruptionBudget`, `minAvailable: 1`) and a `karpenter.sh/do-not-disrupt: "true"` pod annotation (`kedaScaler.doNotDisrupt`), because losing the scaler leaves the HPA without its external metric.
+When `kedaScaler.enabled: true`, the chart also protects the single-replica KEDA otel scaler: it gets its own PDB (`kedaScaler.podDisruptionBudget`, `minAvailable: 1`) and, by default, a `karpenter.sh/do-not-disrupt: "true"` pod annotation (`kedaScaler.doNotDisrupt: false` opts out), because losing the scaler leaves the HPA without its external metric. A `karpenter.sh/do-not-disrupt` key set in `podAnnotations` wins over the default.
 
 ## Examples
 

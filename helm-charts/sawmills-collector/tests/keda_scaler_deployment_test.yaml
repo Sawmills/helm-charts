@@ -73,3 +73,13 @@ tests:
       - equal:
           path: spec.template.metadata.annotations["example.com/team"]
           value: platform
+
+  - it: lets an explicit podAnnotations do-not-disrupt value win without duplicate keys
+    set:
+      kedaScaler.enabled: true
+      podAnnotations:
+        karpenter.sh/do-not-disrupt: "false"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["karpenter.sh/do-not-disrupt"]
+          value: "false"
