@@ -184,8 +184,12 @@ podDisruptionBudget:
   minAvailable: null
   # Default budget when the collector is autoscaled (keda.enabled or
   # autoscaling.enabled). Percentages track the actual scaled pod count, so a
-  # drain can never take the whole fleet at once. Explicit minAvailable /
+  # drain can never take a large fleet at once. Explicit minAvailable /
   # maxUnavailable still win over this default.
+  # Note: percentages round up, so a fleet scaled down to 1 pod still allows
+  # that pod to be evicted — same stance as the static 1-replica default,
+  # since blocking all voluntary disruption stalls node upgrades. Set
+  # minAvailable explicitly if a scale-to-1 fleet must block drains.
   autoscaledMaxUnavailable: "10%"
 
 
