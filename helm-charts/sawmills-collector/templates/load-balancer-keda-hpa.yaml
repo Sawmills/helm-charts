@@ -52,6 +52,9 @@ spec:
     {{- $lbTriggerType := default "external" $external.loadBalancerTriggerType }}
     - type: {{ $lbTriggerType }}
       {{- if eq $lbTriggerType "metrics-api" }}
+      {{- if ($external.useCachedMetrics | default false) }}
+      useCachedMetrics: true
+      {{- end }}
       metadata:
         url: {{ include "sawmills-collector.loadBalancerKedaMetricsAPIURL" (dict "root" . "query" $externalMetadata.query) | quote }}
         format: "json"

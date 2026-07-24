@@ -340,6 +340,8 @@ loadBalancer:
       external:
         enabled: true
         metricType: AverageValue
+        loadBalancerTriggerType: metrics-api
+        useCachedMetrics: true # metrics-api only; requires KEDA >= 2.11.
         metadata:
           scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
           query: sum(otelcol_loadbalancer_central_queue_compressed_bytes)
