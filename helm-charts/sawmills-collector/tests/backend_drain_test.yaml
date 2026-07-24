@@ -39,6 +39,12 @@ tests:
           path: spec.template.spec.containers[1].startupProbe.httpGet.path
           value: /healthcheck
       - equal:
+          path: spec.template.spec.containers[1].startupProbe.periodSeconds
+          value: 5
+      - equal:
+          path: spec.template.spec.containers[1].startupProbe.failureThreshold
+          value: 24
+      - equal:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[0]
           value: /bin/sh
       - equal:
