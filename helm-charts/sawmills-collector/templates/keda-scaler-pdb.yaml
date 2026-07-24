@@ -1,0 +1,18 @@
+{{- $scalerPdb := .Values.kedaScaler.podDisruptionBudget | default dict }}
+{{- if and .Values.kedaScaler.enabled ($scalerPdb.enabled | default false) }}
+{{- $deploymentName := include "sawmills-collector.kedaScalerName" . }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $deploymentName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sawmills-collector.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- $selectorLabels := include "sawmills-collector.selectorLabels" . | fromYaml }}
+      {{- $selectorResult := set $selectorLabels "app.kubernetes.io/name" $deploymentName }}
+      {{- toYaml $selectorLabels | nindent 6 }}
+  minAvailable: {{ $scalerPdb.minAvailable | default 1 }}
+{{- end }}

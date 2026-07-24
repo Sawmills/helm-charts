@@ -178,7 +178,15 @@ rollout:
 podDisruptionBudget:
   enabled: true
   # Defaults based on replicaCount (replicaCount-1 when ≤ 5, otherwise ceil(0.8 * replicaCount)) when unset.
+  # Ignored when autoscaling (keda or autoscaling.enabled) is active — static
+  # replicaCount no longer reflects the real pod count, so the default switches
+  # to percentage-based maxUnavailable (see autoscaledMaxUnavailable).
   minAvailable: null
+  # Default budget when the collector is autoscaled (keda.enabled or
+  # autoscaling.enabled). Percentages track the actual scaled pod count, so a
+  # drain can never take the whole fleet at once. Explicit minAvailable /
+  # maxUnavailable still win over this default.
+  autoscaledMaxUnavailable: "10%"
 
 
 # Configuration for the Sawmills collector
@@ -441,6 +449,11 @@ keda:
       # LB trigger implementation. Defaults to external for backward compatibility.
       # Valid values: external, metrics-api.
       loadBalancerTriggerType: external
+      # metrics-api trigger only: serve the last successfully polled value when
+      # a poll fails, so a brief keda-otel-scaler outage (pod eviction, node
+      # churn) does not leave the HPA without a metric. Requires KEDA >= 2.11;
+      # older KEDA CRDs prune the field harmlessly.
+      useCachedMetrics: true
       loadBalancerMetricType: AverageValue
       metadata:
         scalerAddress: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:{{ .Values.kedaScaler.service.kedaExternalScalerPort }}'
@@ -1125,6 +1138,15 @@ serviceMonitor:
 kedaScaler:
   enabled: false
   imagePullPolicy: Always
+  # The scaler is a single replica holding the fleet's scaling metrics; losing
+  # it leaves the HPA blind (external metric <unknown>). Annotate it with
+  # karpenter.sh/do-not-disrupt so node consolidation never evicts it.
+  doNotDisrupt: true
+  # PDB blocking voluntary disruption of the single-replica scaler. Combined
+  # with doNotDisrupt this keeps the scaling brain alive through node drains.
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
   podSecurityContext: {}
   probes:
     liveness:
@@ -1380,10 +1402,13 @@ loadBalancer:
     #   1 replica  → 0 (avoids blocking voluntary disruptions like node drain)
     #   2-3 replicas → replicas - 1
     #   >3 replicas  → ceil(0.66 * replicas)
-    # When loadBalancer.keda is enabled, set minAvailable explicitly —
-    # the default is computed from loadBalancer.replicas which may exceed
-    # the actual pod count after KEDA scales down.
+    # Ignored when LB autoscaling (loadBalancer.keda or
+    # loadBalancer.autoscaling) is active — the default switches to
+    # percentage-based maxUnavailable (see autoscaledMaxUnavailable).
     minAvailable: null
+    # Default budget when the LB is autoscaled. Percentages track the actual
+    # scaled pod count. Explicit minAvailable / maxUnavailable still win.
+    autoscaledMaxUnavailable: "10%"
   resources:
     requests:
       memory: 128Mi

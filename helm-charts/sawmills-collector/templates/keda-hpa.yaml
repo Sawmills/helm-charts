@@ -51,6 +51,9 @@ spec:
     {{- if .Values.keda.scaling.external.enabled }}
     {{- $lbTriggerType := default "external" .Values.keda.scaling.external.loadBalancerTriggerType }}
     - type: {{ if .Values.loadBalancer.enabled }}{{ $lbTriggerType }}{{ else }}external{{ end }}
+      {{- if and .Values.loadBalancer.enabled (eq $lbTriggerType "metrics-api") (.Values.keda.scaling.external.useCachedMetrics | default false) }}
+      useCachedMetrics: true
+      {{- end }}
       {{- if .Values.loadBalancer.enabled }}
       metricType: {{ .Values.keda.scaling.external.loadBalancerMetricType | default .Values.keda.scaling.external.metricType }}
       {{- else }}

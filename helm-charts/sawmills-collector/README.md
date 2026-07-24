@@ -698,7 +698,12 @@ Keep `rollout.main.drain.duration + rollout.main.drain.shutdownReserve` below `r
 podDisruptionBudget:
   enabled: true
   minAvailable: null  # defaults to replicaCount-1 when ≤ 5, otherwise ceil(0.8 * replicaCount)
+  autoscaledMaxUnavailable: "10%"  # default budget when keda or autoscaling is enabled
 ```
+
+When the collector (or the LB) is autoscaled — `keda.enabled`, `autoscaling.enabled`, `loadBalancer.keda.enabled`, or `loadBalancer.autoscaling.enabled` — the static replica-derived default is meaningless: the real pod count is set by the autoscaler, not `replicaCount`. In that case the chart defaults to percentage-based `maxUnavailable` (`autoscaledMaxUnavailable`, `10%`), which Kubernetes evaluates against the current scale, so a node drain can never take the whole fleet at once. Explicit `minAvailable`/`maxUnavailable` values always win over the default.
+
+When `kedaScaler.enabled: true`, the chart also protects the single-replica KEDA otel scaler: it gets its own PDB (`kedaScaler.podDisruptionBudget`, `minAvailable: 1`) and a `karpenter.sh/do-not-disrupt: "true"` pod annotation (`kedaScaler.doNotDisrupt`), because losing the scaler leaves the HPA without its external metric.
 
 ## Examples
 
@@ -809,7 +814,7 @@ loadBalancer:
 
 `loadBalancer.autoscaling` renders a Kubernetes `HorizontalPodAutoscaler` with CPU and memory resource metrics, so the cluster must provide `metrics.k8s.io` data. Prefer `loadBalancer.keda.scaling.external` with the bundled Sawmills KEDA scaler when resource metrics are not enough. `loadBalancer.keda.scaling.prometheus` remains available as an alternative configuration path:
 
-When `loadBalancer.keda.enabled: true`, set `loadBalancer.podDisruptionBudget.minAvailable` explicitly. The default is computed from static `loadBalancer.replicas`, which can be higher than the actual pod count after KEDA scales down and can block voluntary disruptions such as node drains or upgrades.
+When `loadBalancer.keda.enabled: true` (or `loadBalancer.autoscaling.enabled: true`), the LB PDB defaults to `maxUnavailable: 10%` (`loadBalancer.podDisruptionBudget.autoscaledMaxUnavailable`) instead of the static replica-derived `minAvailable`, since percentages track the actual scaled pod count. Set `minAvailable`/`maxUnavailable` explicitly to override.
 
 ```yaml
 loadBalancer:
