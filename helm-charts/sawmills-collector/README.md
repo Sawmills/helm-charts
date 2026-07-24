@@ -284,6 +284,12 @@ replica count so Helm does not reset an actively scaled collector while KEDA
 reconciles. Client-side renders, where the live Deployment is unavailable, leave
 `Deployment.spec.replicas` unset so GitOps workflows do not fight KEDA.
 
+Helm stores the preserved count in each release revision. A rollback can
+therefore briefly restore that revision's historical count, and changing from
+KEDA to the standard HPA can briefly default the Deployment to one replica while
+the new HPA reconciles. Treat either operation as a capacity-sensitive rollout:
+observe collector readiness and queue age until the autoscaler has converged.
+
 For central queue autoscaling, use KEDA's `metrics-api` scaler so KEDA can create the HPA from static trigger metadata and read queue values over the scaler pod's monitoring HTTP endpoint:
 
 ```yaml
