@@ -36,3 +36,14 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: preserves an explicit zero minAvailable
+    set:
+      kedaScaler:
+        enabled: true
+        podDisruptionBudget:
+          minAvailable: 0
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 0
