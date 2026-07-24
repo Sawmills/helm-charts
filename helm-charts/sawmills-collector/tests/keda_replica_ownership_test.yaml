@@ -74,6 +74,31 @@ tests:
           path: spec.replicas
           value: 0
 
+  - it: leaves replicas unset when the live Deployment has no replica field
+    kubernetesProvider:
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: sawmills-collector
+            namespace: sawmills-o11y
+          spec: {}
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: false
+      keda.enabled: true
+    asserts:
+      - notExists:
+          path: spec.replicas
+
   - it: omits static replicas when the standard HPA owns collector scaling
     set:
       mode: deployment
@@ -85,6 +110,33 @@ tests:
           count: 1
       - notExists:
           path: spec.replicas
+
+  - it: preserves live replicas during a KEDA to standard HPA handoff
+    kubernetesProvider:
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: sawmills-collector
+            namespace: sawmills-o11y
+          spec:
+            replicas: 7.0
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: true
+      keda.enabled: false
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 7
 
   - it: keeps static replicas when collector autoscaling is disabled
     set:
