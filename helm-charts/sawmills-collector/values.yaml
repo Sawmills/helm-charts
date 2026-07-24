@@ -94,7 +94,8 @@ rollout:
         enabled: true
         initialDelaySeconds: 0
         periodSeconds: 5
-        failureThreshold: 12
+        # 120s budget: twice the hotreload processor's 60s fail-closed startup scan.
+        failureThreshold: 24
     # Sleep-based fallback used when backend drain mode is disabled or the
     # deployment is not using the loadBalancer topology.
     preStopSleepSeconds: 15
@@ -171,7 +172,8 @@ rollout:
         enabled: true
         initialDelaySeconds: 0
         periodSeconds: 5
-        failureThreshold: 12
+        # 120s budget: twice the hotreload processor's 60s fail-closed startup scan.
+        failureThreshold: 24
     preStopSleepSeconds: 20
 
 # Pod disruption budget to keep collectors available during rollouts

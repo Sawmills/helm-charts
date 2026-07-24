@@ -1,0 +1,152 @@
+suite: KEDA Replica Ownership Tests
+templates:
+  - templates/deployment.yaml
+values:
+  - ../values.yaml
+release:
+  name: sawmills-collector
+  namespace: sawmills-o11y
+  upgrade: true
+tests:
+  - it: leaves replicas unset for offline KEDA renders
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: false
+      keda.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - notExists:
+          path: spec.replicas
+
+  - it: preserves the live KEDA-managed replica count during upgrades
+    kubernetesProvider:
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: sawmills-collector
+            namespace: sawmills-o11y
+          spec:
+            replicas: 7.0
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: false
+      keda.enabled: true
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 7
+
+  - it: preserves a live zero replica count during KEDA upgrades
+    kubernetesProvider:
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: sawmills-collector
+            namespace: sawmills-o11y
+          spec:
+            replicas: 0.0
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: false
+      keda.enabled: true
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
+  - it: leaves replicas unset when the live Deployment has no replica field
+    kubernetesProvider:
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: sawmills-collector
+            namespace: sawmills-o11y
+          spec: {}
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: false
+      keda.enabled: true
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: omits static replicas when the standard HPA owns collector scaling
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: true
+      keda.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - notExists:
+          path: spec.replicas
+
+  - it: preserves live replicas during a KEDA to standard HPA handoff
+    kubernetesProvider:
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: sawmills-collector
+            namespace: sawmills-o11y
+          spec:
+            replicas: 7.0
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: true
+      keda.enabled: false
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 7
+
+  - it: keeps static replicas when collector autoscaling is disabled
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: false
+      keda.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.replicas
+          value: 3

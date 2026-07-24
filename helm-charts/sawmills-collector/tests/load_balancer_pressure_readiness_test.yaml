@@ -29,6 +29,12 @@ tests:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.path
           value: /healthcheck
       - equal:
+          path: spec.template.spec.containers[0].startupProbe.periodSeconds
+          value: 5
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 24
+      - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.port
           value: 13137
       - equal:

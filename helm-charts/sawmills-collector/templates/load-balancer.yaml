@@ -19,22 +19,27 @@
 {{- $haproxyReadinessPort := dig "probes" "readiness" "port" 13135 .Values.haproxy }}
 {{- $lbAutoscalingEnabled := and .Values.loadBalancer.autoscaling (eq .Values.loadBalancer.autoscaling.enabled true) }}
 {{- $lbKedaEnabled := and .Values.loadBalancer.keda (eq .Values.loadBalancer.keda.enabled true) }}
+{{- $lbWorkloadKind := "Deployment" }}
+{{- if .Values.loadBalancer.storage.enabled }}
+{{- $lbWorkloadKind = "StatefulSet" }}
+{{- end }}
 {{- if eq $haproxyReadinessType "tcp" }}
 {{- $haproxyReadinessPort = (.Values.haproxy.healthcheck.port | default 13135) }}
 {{- end }}
 apiVersion: apps/v1
-{{- if .Values.loadBalancer.storage.enabled }}
-kind: StatefulSet
-{{- else }}
-kind: Deployment
-{{- end }}
+kind: {{ $lbWorkloadKind }}
 metadata:
   name: {{ include "sawmills-collector.fullname" . }}-lb
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
 spec:
-  {{- if not (or $lbAutoscalingEnabled $lbKedaEnabled) }}
+  {{- if or $lbAutoscalingEnabled $lbKedaEnabled }}
+  {{- $existingLoadBalancer := lookup "apps/v1" $lbWorkloadKind .Release.Namespace (printf "%s-lb" (include "sawmills-collector.fullname" .)) }}
+  {{- if and $existingLoadBalancer $existingLoadBalancer.spec (hasKey $existingLoadBalancer.spec "replicas") }}
+  replicas: {{ $existingLoadBalancer.spec.replicas }}
+  {{- end }}
+  {{- else }}
   replicas: {{ .Values.loadBalancer.replicas }}
   {{- end }}
   {{- $lbStrategy := default (dict) .Values.loadBalancer.strategy }}
@@ -216,7 +221,7 @@ spec:
               port: 13133
             initialDelaySeconds: {{ default 0 $lbStartupProbe.initialDelaySeconds }}
             periodSeconds: {{ default 5 $lbStartupProbe.periodSeconds }}
-            failureThreshold: {{ default 12 $lbStartupProbe.failureThreshold }}
+            failureThreshold: {{ default 24 $lbStartupProbe.failureThreshold }}
           {{- end }}
           {{- if .Values.rollout.loadBalancer.preStopSleepSeconds }}
           lifecycle:

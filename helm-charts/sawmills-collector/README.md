@@ -279,6 +279,18 @@ keda:
         targetValue: "300"
 ```
 
+When collector autoscaling is enabled, live Helm upgrades preserve the current
+Deployment replica count so Helm does not reset an actively scaled collector
+while KEDA or the standard HPA reconciles. Client-side renders, where the live
+Deployment is unavailable, leave `Deployment.spec.replicas` unset so GitOps
+workflows do not fight the autoscaler.
+
+Helm stores the preserved count in each release revision. A rollback can
+therefore briefly restore that revision's historical count; rollback to a
+pre-2.17.2 revision that omitted the field can briefly default the Deployment to
+one replica. Treat rollback as a capacity-sensitive rollout: observe collector
+readiness and queue age until the autoscaler has converged.
+
 For central queue autoscaling, use KEDA's `metrics-api` scaler so KEDA can create the HPA from static trigger metadata and read queue values over the scaler pod's monitoring HTTP endpoint:
 
 ```yaml
@@ -640,7 +652,7 @@ rollout:
       startup:
         enabled: true
         periodSeconds: 5
-        failureThreshold: 12
+        failureThreshold: 24  # 120s budget for the 60s fail-closed startup config scan
     drain:
       enabled: true
       configSource: overlay
@@ -813,6 +825,13 @@ loadBalancer:
 ```
 
 `loadBalancer.autoscaling` renders a Kubernetes `HorizontalPodAutoscaler` with CPU and memory resource metrics, so the cluster must provide `metrics.k8s.io` data. Prefer `loadBalancer.keda.scaling.external` with the bundled Sawmills KEDA scaler when resource metrics are not enough. `loadBalancer.keda.scaling.prometheus` remains available as an alternative configuration path:
+
+When load balancer autoscaling is enabled, live Helm upgrades preserve the
+current Deployment or StatefulSet replica count while the HPA or KEDA
+reconciles. Client-side renders leave `spec.replicas` unset. A rollback to a
+pre-2.17.3 chart can briefly default an autoscaled load balancer Deployment or
+StatefulSet to one replica, so observe load balancer readiness and queue age
+until the autoscaler has converged.
 
 When `loadBalancer.keda.enabled: true` (or `loadBalancer.autoscaling.enabled: true`), the LB PDB defaults to `maxUnavailable: 10%` (`loadBalancer.podDisruptionBudget.autoscaledMaxUnavailable`) instead of the static replica-derived `minAvailable`, since percentages track the actual scaled pod count. Set `minAvailable`/`maxUnavailable` explicitly to override.
 
