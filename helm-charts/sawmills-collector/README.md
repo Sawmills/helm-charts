@@ -821,6 +821,13 @@ loadBalancer:
 
 `loadBalancer.autoscaling` renders a Kubernetes `HorizontalPodAutoscaler` with CPU and memory resource metrics, so the cluster must provide `metrics.k8s.io` data. Prefer `loadBalancer.keda.scaling.external` with the bundled Sawmills KEDA scaler when resource metrics are not enough. `loadBalancer.keda.scaling.prometheus` remains available as an alternative configuration path:
 
+When load balancer autoscaling is enabled, live Helm upgrades preserve the
+current Deployment or StatefulSet replica count while the HPA or KEDA
+reconciles. Client-side renders leave `spec.replicas` unset. A rollback to a
+pre-2.17.3 chart can briefly default an autoscaled load balancer Deployment or
+StatefulSet to one replica, so observe load balancer readiness and queue age
+until the autoscaler has converged.
+
 When `loadBalancer.keda.enabled: true`, set `loadBalancer.podDisruptionBudget.minAvailable` explicitly. The default is computed from static `loadBalancer.replicas`, which can be higher than the actual pod count after KEDA scales down and can block voluntary disruptions such as node drains or upgrades.
 
 ```yaml
