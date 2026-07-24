@@ -1145,15 +1145,20 @@ serviceMonitor:
 kedaScaler:
   enabled: false
   imagePullPolicy: Always
-  # The scaler is a single replica holding the fleet's scaling metrics; losing
-  # it leaves the HPA blind (external metric <unknown>). Annotate it with
-  # karpenter.sh/do-not-disrupt so node consolidation never evicts it.
+  # The scaler is a single replica holding an in-memory view of the fleet's
+  # scaling metrics. Running multiple replicas would split OTLP streams between
+  # independent stores and undercount the fleet. Annotate the replica with
+  # karpenter.sh/do-not-disrupt so Karpenter consolidation does not evict it.
   doNotDisrupt: true
-  # PDB blocking voluntary disruption of the single-replica scaler. Combined
-  # with doNotDisrupt this keeps the scaling brain alive through node drains.
+  # Keep manual drains and node upgrades possible. The do-not-disrupt annotation
+  # protects against Karpenter-initiated voluntary disruption; this PDB permits
+  # an operator-controlled restart of the single stateful scaler.
   podDisruptionBudget:
     enabled: true
-    minAvailable: 1
+    maxUnavailable: 1
+    # Do not let an unhealthy scaler prevent an operator-controlled node drain.
+    # The chart omits this field automatically before Kubernetes 1.27.
+    unhealthyPodEvictionPolicy: AlwaysAllow
   podSecurityContext: {}
   probes:
     liveness:

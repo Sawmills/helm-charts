@@ -31,6 +31,8 @@ tests:
           count: 1
       - isKind:
           of: ScaledObject
+      - notExists:
+          path: metadata.annotations["helm.sh/revision"]
       - equal:
           path: metadata.name
           value: sawmills-collector-lb-keda-external-hpa

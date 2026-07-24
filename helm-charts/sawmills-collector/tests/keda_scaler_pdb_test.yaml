@@ -1,8 +1,11 @@
 suite: keda scaler pod disruption budget
 templates:
   - templates/keda-scaler-pdb.yaml
+capabilities:
+  majorVersion: 1
+  minorVersion: 27
 tests:
-  - it: protects the single-replica scaler by default
+  - it: keeps controlled disruption possible for the single-replica scaler
     release:
       name: sawmills-collector
     set:
@@ -16,8 +19,11 @@ tests:
           path: metadata.name
           value: sawmills-collector-keda-otel-scaler
       - equal:
-          path: spec.minAvailable
+          path: spec.maxUnavailable
           value: 1
+      - equal:
+          path: spec.unhealthyPodEvictionPolicy
+          value: AlwaysAllow
       - equal:
           path: spec.selector.matchLabels["app.kubernetes.io/name"]
           value: sawmills-collector-keda-otel-scaler
@@ -37,13 +43,46 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: preserves an explicit zero minAvailable
+  - it: preserves an explicit minAvailable
     set:
       kedaScaler:
         enabled: true
         podDisruptionBudget:
-          minAvailable: 0
+          minAvailable: 1
     asserts:
       - equal:
           path: spec.minAvailable
+          value: 1
+      - notExists:
+          path: spec.maxUnavailable
+
+  - it: preserves an explicit zero maxUnavailable
+    set:
+      kedaScaler:
+        enabled: true
+        podDisruptionBudget:
+          maxUnavailable: 0
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
           value: 0
+
+  - it: can omit the unhealthy pod eviction policy
+    set:
+      kedaScaler:
+        enabled: true
+        podDisruptionBudget:
+          unhealthyPodEvictionPolicy: ""
+    asserts:
+      - notExists:
+          path: spec.unhealthyPodEvictionPolicy
+
+  - it: omits the unhealthy pod eviction policy before Kubernetes 1.27
+    capabilities:
+      majorVersion: 1
+      minorVersion: 26
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - notExists:
+          path: spec.unhealthyPodEvictionPolicy

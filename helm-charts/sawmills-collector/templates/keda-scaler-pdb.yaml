@@ -14,9 +14,15 @@ spec:
       {{- $selectorLabels := include "sawmills-collector.selectorLabels" . | fromYaml }}
       {{- $selectorResult := set $selectorLabels "app.kubernetes.io/name" $deploymentName }}
       {{- toYaml $selectorLabels | nindent 6 }}
+  {{- $unhealthyPodEvictionPolicy := $scalerPdb.unhealthyPodEvictionPolicy | default "" }}
+  {{- if and $unhealthyPodEvictionPolicy (semverCompare ">=1.27-0" .Capabilities.KubeVersion.Version) }}
+  unhealthyPodEvictionPolicy: {{ $unhealthyPodEvictionPolicy }}
+  {{- end }}
   {{- if and (hasKey $scalerPdb "minAvailable") (not (kindIs "invalid" $scalerPdb.minAvailable)) }}
   minAvailable: {{ $scalerPdb.minAvailable }}
+  {{- else if and (hasKey $scalerPdb "maxUnavailable") (not (kindIs "invalid" $scalerPdb.maxUnavailable)) }}
+  maxUnavailable: {{ $scalerPdb.maxUnavailable }}
   {{- else }}
-  minAvailable: 1
+  maxUnavailable: 1
   {{- end }}
 {{- end }}
