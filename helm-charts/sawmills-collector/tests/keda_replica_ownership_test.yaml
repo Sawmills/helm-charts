@@ -16,6 +16,18 @@ tests:
       - notExists:
           path: spec.replicas
 
+  - it: omits static replicas when the standard HPA owns collector scaling
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: true
+      keda.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - notExists:
+          path: spec.replicas
+
   - it: keeps static replicas when collector autoscaling is disabled
     set:
       mode: deployment
