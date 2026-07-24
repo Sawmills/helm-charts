@@ -1,0 +1,42 @@
+suite: KEDA Replica Ownership Tests
+templates:
+  - templates/deployment.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: omits static replicas when KEDA owns collector scaling
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: false
+      keda.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - notExists:
+          path: spec.replicas
+
+  - it: omits static replicas when the standard HPA owns collector scaling
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: true
+      keda.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - notExists:
+          path: spec.replicas
+
+  - it: keeps static replicas when collector autoscaling is disabled
+    set:
+      mode: deployment
+      replicaCount: 3
+      autoscaling.enabled: false
+      keda.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.replicas
+          value: 3
