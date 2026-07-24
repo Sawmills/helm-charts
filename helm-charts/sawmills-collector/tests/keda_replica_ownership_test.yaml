@@ -4,7 +4,7 @@ templates:
 values:
   - ../values.yaml
 tests:
-  - it: omits static replicas when KEDA owns collector scaling
+  - it: leaves replicas unset for offline KEDA renders
     set:
       mode: deployment
       replicaCount: 3

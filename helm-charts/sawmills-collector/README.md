@@ -279,9 +279,10 @@ keda:
         targetValue: "300"
 ```
 
-When `keda.enabled: true`, the chart leaves `Deployment.spec.replicas` unset so
-the KEDA-owned HPA retains replica ownership during Helm upgrades. This avoids
-temporarily resetting an active deployment to the static `replicaCount`.
+When `keda.enabled: true`, live Helm upgrades preserve the current Deployment
+replica count so Helm does not reset an actively scaled collector while KEDA
+reconciles. Client-side renders, where the live Deployment is unavailable, leave
+`Deployment.spec.replicas` unset so GitOps workflows do not fight KEDA.
 
 For central queue autoscaling, use KEDA's `metrics-api` scaler so KEDA can create the HPA from static trigger metadata and read queue values over the scaler pod's monitoring HTTP endpoint:
 

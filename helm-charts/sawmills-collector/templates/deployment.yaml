@@ -37,7 +37,12 @@ metadata:
     {{- include "sawmills-collector.labels" . | nindent 4 }}
 spec:
   {{- if eq .Values.mode "deployment" }}
-  {{- if not (or .Values.autoscaling.enabled .Values.keda.enabled) }}
+  {{- if .Values.keda.enabled }}
+  {{- $existingDeployment := lookup "apps/v1" "Deployment" .Release.Namespace (include "sawmills-collector.fullname" .) }}
+  {{- if and $existingDeployment $existingDeployment.spec (hasKey $existingDeployment.spec "replicas") }}
+  replicas: {{ $existingDeployment.spec.replicas }}
+  {{- end }}
+  {{- else if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   strategy:
