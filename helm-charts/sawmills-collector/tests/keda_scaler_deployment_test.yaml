@@ -74,7 +74,7 @@ tests:
           path: spec.template.metadata.annotations["example.com/team"]
           value: platform
 
-  - it: lets an explicit podAnnotations do-not-disrupt value win without duplicate keys
+  - it: keeps the disruption shield when generic pod annotations conflict
     set:
       kedaScaler.enabled: true
       podAnnotations:
@@ -82,4 +82,4 @@ tests:
     asserts:
       - equal:
           path: spec.template.metadata.annotations["karpenter.sh/do-not-disrupt"]
-          value: "false"
+          value: "true"

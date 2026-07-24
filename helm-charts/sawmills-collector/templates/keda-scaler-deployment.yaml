@@ -17,11 +17,11 @@ spec:
   template:
     metadata:
     {{- $scalerAnnotations := dict }}
-    {{- if .Values.kedaScaler.doNotDisrupt }}
-    {{- $_ := set $scalerAnnotations "karpenter.sh/do-not-disrupt" "true" }}
-    {{- end }}
     {{- range $k, $v := .Values.podAnnotations }}
     {{- $_ := set $scalerAnnotations $k $v }}
+    {{- end }}
+    {{- if .Values.kedaScaler.doNotDisrupt }}
+    {{- $_ := set $scalerAnnotations "karpenter.sh/do-not-disrupt" "true" }}
     {{- end }}
     {{- with $scalerAnnotations }}
       annotations:
