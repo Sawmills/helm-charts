@@ -161,6 +161,19 @@ tests:
           path: spec.fallback.replicas
           value: 10
 
+  - it: rejects fallback replicas below the minimum replica count
+    set:
+      keda:
+        enabled: true
+        minReplicas: 65
+        fallback:
+          enabled: true
+          failureThreshold: 3
+          replicas: 10
+    asserts:
+      - failedTemplate:
+          errorMessage: keda.fallback.replicas must be greater than or equal to keda.minReplicas when fallback is enabled
+
   - it: requires keda scaler when rendering LB metrics-api queue scaler
     set:
       loadBalancer:

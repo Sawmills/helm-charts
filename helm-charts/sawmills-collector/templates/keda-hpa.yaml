@@ -1,5 +1,8 @@
 # KEDA HPA logic using the top-level 'keda' section 
 {{- if .Values.keda.enabled }}
+{{- if and .Values.keda.fallback .Values.keda.fallback.enabled (lt (int .Values.keda.fallback.replicas) (int .Values.keda.minReplicas)) }}
+{{- fail "keda.fallback.replicas must be greater than or equal to keda.minReplicas when fallback is enabled" }}
+{{- end }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:

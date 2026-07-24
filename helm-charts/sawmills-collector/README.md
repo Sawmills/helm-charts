@@ -232,7 +232,7 @@ keda:
   fallback:
     enabled: false
     failureThreshold: 3
-    replicas: 10
+    replicas: 10 # Must be greater than or equal to minReplicas.
   annotations: {}
   # For non-Helm-owned HPA ownership transfer:
   # annotations:

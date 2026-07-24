@@ -399,8 +399,9 @@ keda:
   maxReplicas: 100
   pollingInterval: 30
   cooldownPeriod: 0
-  # KEDA fallback keeps the target deployment above min replicas when scaler
-  # metrics fail repeatedly.
+  # KEDA fallback keeps the target deployment at or above minReplicas when
+  # scaler metrics fail repeatedly. Chart rendering fails if replicas is lower
+  # than minReplicas, preventing fallback from becoming a scale-down path.
   fallback:
     enabled: false
     failureThreshold: 3
