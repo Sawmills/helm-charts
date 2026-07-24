@@ -3,6 +3,10 @@ templates:
   - templates/load-balancer.yaml
 values:
   - ../values.yaml
+release:
+  name: sawmills-collector
+  namespace: sawmills-o11y
+  upgrade: true
 tests:
   - it: renders replicas when load balancer scaling is not controller-managed
     set:
@@ -31,6 +35,36 @@ tests:
       - notExists:
           path: spec.replicas
 
+  - it: preserves the live load balancer replica count during HPA upgrades
+    kubernetesProvider:
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: sawmills-collector-lb
+            namespace: sawmills-o11y
+          spec:
+            replicas: 7.0
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 4
+        autoscaling:
+          enabled: true
+        keda:
+          enabled: false
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 7
+
   - it: omits replicas when load balancer KEDA owns scaling
     set:
       loadBalancer:
@@ -44,7 +78,65 @@ tests:
       - notExists:
           path: spec.replicas
 
-  - it: omits replicas from StatefulSet when autoscaling owns scaling
+  - it: preserves a live zero replica count during KEDA upgrades
+    kubernetesProvider:
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: sawmills-collector-lb
+            namespace: sawmills-o11y
+          spec:
+            replicas: 0.0
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 4
+        autoscaling:
+          enabled: false
+        keda:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
+  - it: leaves replicas unset when the live load balancer has no replica field
+    kubernetesProvider:
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: sawmills-collector-lb
+            namespace: sawmills-o11y
+          spec: {}
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 4
+        autoscaling:
+          enabled: true
+        keda:
+          enabled: false
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: omits replicas from an offline StatefulSet when autoscaling owns scaling
     set:
       loadBalancer:
         enabled: true
@@ -58,3 +150,35 @@ tests:
           of: StatefulSet
       - notExists:
           path: spec.replicas
+
+  - it: preserves live StatefulSet replicas when autoscaling owns scaling
+    kubernetesProvider:
+      scheme:
+        "apps/v1/StatefulSet":
+          gvr:
+            group: apps
+            version: v1
+            resource: statefulsets
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: sawmills-collector-lb
+            namespace: sawmills-o11y
+          spec:
+            replicas: 6.0
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 4
+        storage:
+          enabled: true
+        autoscaling:
+          enabled: true
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.replicas
+          value: 6
