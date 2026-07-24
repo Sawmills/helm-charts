@@ -652,7 +652,7 @@ rollout:
       startup:
         enabled: true
         periodSeconds: 5
-        failureThreshold: 12
+        failureThreshold: 24  # 120s budget for the 60s fail-closed startup config scan
     drain:
       enabled: true
       configSource: overlay

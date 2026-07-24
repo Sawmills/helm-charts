@@ -353,7 +353,7 @@ spec:
               port: 13133
             initialDelaySeconds: {{ default 0 $mainStartupProbe.initialDelaySeconds }}
             periodSeconds: {{ default 5 $mainStartupProbe.periodSeconds }}
-            failureThreshold: {{ default 12 $mainStartupProbe.failureThreshold }}
+            failureThreshold: {{ default 24 $mainStartupProbe.failureThreshold }}
           {{- end }}
           {{- if $mainCollectorDrainEnabled }}
           lifecycle:
