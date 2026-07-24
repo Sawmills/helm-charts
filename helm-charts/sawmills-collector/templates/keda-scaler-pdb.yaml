@@ -18,9 +18,11 @@ spec:
   {{- if and $unhealthyPodEvictionPolicy (semverCompare ">=1.27-0" .Capabilities.KubeVersion.Version) }}
   unhealthyPodEvictionPolicy: {{ $unhealthyPodEvictionPolicy }}
   {{- end }}
-  {{- if and (hasKey $scalerPdb "minAvailable") (not (kindIs "invalid" $scalerPdb.minAvailable)) }}
+  {{- $minAvailableSet := and (hasKey $scalerPdb "minAvailable") (not (kindIs "invalid" $scalerPdb.minAvailable)) (not (and (kindIs "string" $scalerPdb.minAvailable) (eq (trim $scalerPdb.minAvailable) ""))) }}
+  {{- $maxUnavailableSet := and (hasKey $scalerPdb "maxUnavailable") (not (kindIs "invalid" $scalerPdb.maxUnavailable)) (not (and (kindIs "string" $scalerPdb.maxUnavailable) (eq (trim $scalerPdb.maxUnavailable) ""))) }}
+  {{- if $minAvailableSet }}
   minAvailable: {{ $scalerPdb.minAvailable }}
-  {{- else if and (hasKey $scalerPdb "maxUnavailable") (not (kindIs "invalid" $scalerPdb.maxUnavailable)) }}
+  {{- else if $maxUnavailableSet }}
   maxUnavailable: {{ $scalerPdb.maxUnavailable }}
   {{- else }}
   maxUnavailable: 1

@@ -67,6 +67,20 @@ tests:
           path: spec.maxUnavailable
           value: 0
 
+  - it: falls back when availability values are blank
+    set:
+      kedaScaler:
+        enabled: true
+        podDisruptionBudget:
+          minAvailable: " "
+          maxUnavailable: ""
+    asserts:
+      - notExists:
+          path: spec.minAvailable
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+
   - it: can omit the unhealthy pod eviction policy
     set:
       kedaScaler:
