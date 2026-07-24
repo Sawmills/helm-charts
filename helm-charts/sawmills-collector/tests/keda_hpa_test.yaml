@@ -18,6 +18,8 @@ tests:
           count: 1
       - isKind:
           of: ScaledObject
+      - notExists:
+          path: metadata.annotations["helm.sh/revision"]
       - equal:
           path: spec.scaleTargetRef.kind
           value: Deployment
@@ -208,6 +210,8 @@ tests:
       - equal:
           path: metadata.annotations["scaledobject.keda.sh/transfer-hpa-ownership"]
           value: "true"
+      - notExists:
+          path: metadata.annotations["helm.sh/revision"]
       - equal:
           path: spec.advanced.horizontalPodAutoscalerConfig.name
           value: sawmills-collector

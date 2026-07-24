@@ -8,8 +8,6 @@ kind: ScaledObject
 metadata:
   name: {{ include "sawmills-collector.loadBalancerKedaScaledObjectName" . }}
   namespace: {{ .Release.Namespace }}
-  annotations:
-    helm.sh/revision: {{ .Release.Revision | quote }}
   labels:
     {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
 spec:

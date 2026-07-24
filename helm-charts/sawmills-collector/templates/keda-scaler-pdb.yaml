@@ -14,9 +14,17 @@ spec:
       {{- $selectorLabels := include "sawmills-collector.selectorLabels" . | fromYaml }}
       {{- $selectorResult := set $selectorLabels "app.kubernetes.io/name" $deploymentName }}
       {{- toYaml $selectorLabels | nindent 6 }}
-  {{- if and (hasKey $scalerPdb "minAvailable") (not (kindIs "invalid" $scalerPdb.minAvailable)) }}
+  {{- $unhealthyPodEvictionPolicy := $scalerPdb.unhealthyPodEvictionPolicy | default "" }}
+  {{- if and $unhealthyPodEvictionPolicy (semverCompare ">=1.27-0" .Capabilities.KubeVersion.Version) }}
+  unhealthyPodEvictionPolicy: {{ $unhealthyPodEvictionPolicy }}
+  {{- end }}
+  {{- $minAvailableSet := and (hasKey $scalerPdb "minAvailable") (not (kindIs "invalid" $scalerPdb.minAvailable)) (not (and (kindIs "string" $scalerPdb.minAvailable) (eq (trim $scalerPdb.minAvailable) ""))) }}
+  {{- $maxUnavailableSet := and (hasKey $scalerPdb "maxUnavailable") (not (kindIs "invalid" $scalerPdb.maxUnavailable)) (not (and (kindIs "string" $scalerPdb.maxUnavailable) (eq (trim $scalerPdb.maxUnavailable) ""))) }}
+  {{- if $minAvailableSet }}
   minAvailable: {{ $scalerPdb.minAvailable }}
+  {{- else if $maxUnavailableSet }}
+  maxUnavailable: {{ $scalerPdb.maxUnavailable }}
   {{- else }}
-  minAvailable: 1
+  maxUnavailable: 1
   {{- end }}
 {{- end }}
