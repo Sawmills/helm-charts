@@ -617,6 +617,23 @@ tests:
       - failedTemplate:
           errorMessage: "haproxy.local_backend_healthcheck.enabled requires loadBalancer.pressureReadiness.enabled=true so LB collectors expose backend_drain readiness"
 
+  - it: should reject active peer balancing when only the main collector renders backend_drain
+    template: haproxy-configmap.yaml
+    set:
+      rollout.main.drain.enabled: true
+      rollout.main.drain.configSource: overlay
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.local_backend_healthcheck.enabled requires loadBalancer.pressureReadiness.enabled=true so LB collectors expose backend_drain readiness"
+
   - it: should reject a local backend check port that differs from LB readiness
     template: haproxy-configmap.yaml
     set:
@@ -632,11 +649,45 @@ tests:
       - failedTemplate:
           errorMessage: "haproxy.local_backend_healthcheck.port must equal loadBalancer.pressureReadiness.port"
 
+  - it: should reject active peer balancing when the local check port differs from LB readiness
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.port: 15000
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.local_backend_healthcheck.port must equal loadBalancer.pressureReadiness.port"
+
   - it: should reject a local backend check path that differs from LB readiness
     template: haproxy-configmap.yaml
     set:
       loadBalancer.pressureReadiness.enabled: true
       loadBalancer.pressureReadiness.readinessPath: /pressure-ready
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.local_backend_healthcheck.path must equal loadBalancer.pressureReadiness.readinessPath"
+
+  - it: should reject active peer balancing when the local check path differs from LB readiness
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.readinessPath: /pressure-ready
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
       haproxy.local_backend_healthcheck.enabled: true
       haproxy.mapping:
         http_4318:
