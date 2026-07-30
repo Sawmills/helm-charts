@@ -1059,12 +1059,9 @@ Validate local backend healthcheck has a chart-rendered backend_drain endpoint.
 {{- $localBackendHealthcheck := .Values.haproxy.local_backend_healthcheck | default dict -}}
 {{- if ($localBackendHealthcheck.enabled | default false) -}}
 {{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict -}}
-{{- $mainDrain := .Values.rollout.main.drain | default dict -}}
-{{- $mainDrainConfigSource := default "overlay" $mainDrain.configSource -}}
 {{- $lbPressureBackendDrainRendered := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) -}}
-{{- $mainDrainBackendDrainRendered := and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) (eq $mainDrainConfigSource "overlay") -}}
-{{- if not (or $lbPressureBackendDrainRendered $mainDrainBackendDrainRendered) -}}
-{{- fail "haproxy.local_backend_healthcheck.enabled requires chart-rendered backend_drain via loadBalancer.pressureReadiness.enabled=true or rollout.main.drain.enabled=true with configSource=overlay" -}}
+{{- if not $lbPressureBackendDrainRendered -}}
+{{- fail "haproxy.local_backend_healthcheck.enabled requires loadBalancer.pressureReadiness.enabled=true so LB collectors expose backend_drain readiness" -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}

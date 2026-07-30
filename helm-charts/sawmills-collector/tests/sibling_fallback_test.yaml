@@ -598,10 +598,11 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel \"\\$MY_POD_IP\":4318.*check port 13138 inter 5000 rise 3 fall 4"
 
-  - it: should fail local backend checks without chart-rendered backend_drain
+  - it: should fail local backend checks when only the main collector renders backend_drain
     template: haproxy-configmap.yaml
     set:
-      rollout.main.drain.enabled: false
+      rollout.main.drain.enabled: true
+      rollout.main.drain.configSource: overlay
       haproxy.sibling_fallback.enabled: true
       haproxy.local_backend_healthcheck.enabled: true
       haproxy.mapping:
@@ -612,7 +613,7 @@ tests:
             fallback_endpoint: vendor.example.com
     asserts:
       - failedTemplate:
-          errorMessage: "haproxy.local_backend_healthcheck.enabled requires chart-rendered backend_drain via loadBalancer.pressureReadiness.enabled=true or rollout.main.drain.enabled=true with configSource=overlay"
+          errorMessage: "haproxy.local_backend_healthcheck.enabled requires loadBalancer.pressureReadiness.enabled=true so LB collectors expose backend_drain readiness"
 
   - it: should use custom max_servers for server-template
     template: haproxy-configmap.yaml
