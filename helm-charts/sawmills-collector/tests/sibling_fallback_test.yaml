@@ -600,7 +600,7 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel \"\\$MY_POD_IP\":4318.*check port 13138 inter 5000 rise 3 fall 4"
 
-  - it: should fail local backend checks when only the main collector renders backend_drain
+  - it: should preserve legacy local backend checks when main collector renders backend_drain
     template: haproxy-configmap.yaml
     set:
       rollout.main.drain.enabled: true
@@ -614,8 +614,9 @@ tests:
             port: 4318
             fallback_endpoint: vendor.example.com
     asserts:
-      - failedTemplate:
-          errorMessage: "haproxy.local_backend_healthcheck.enabled requires loadBalancer.pressureReadiness.enabled=true so LB collectors expose backend_drain readiness"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel \"\\$MY_POD_IP\":4318.*check port 13137"
 
   - it: should reject active peer balancing when only the main collector renders backend_drain
     template: haproxy-configmap.yaml

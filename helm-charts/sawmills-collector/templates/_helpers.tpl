@@ -1059,10 +1059,19 @@ Validate local backend healthcheck has a chart-rendered backend_drain endpoint.
 {{- $localBackendHealthcheck := .Values.haproxy.local_backend_healthcheck | default dict -}}
 {{- if ($localBackendHealthcheck.enabled | default false) -}}
 {{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict -}}
+{{- $mainDrain := .Values.rollout.main.drain | default dict -}}
+{{- $mainDrainConfigSource := default "overlay" $mainDrain.configSource -}}
+{{- $siblingFallback := .Values.haproxy.sibling_fallback | default dict -}}
+{{- $activePeerBalancing := and ($siblingFallback.enabled | default false) ($siblingFallback.load_balance | default false) -}}
 {{- $lbPressureBackendDrainRendered := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) -}}
-{{- if not $lbPressureBackendDrainRendered -}}
+{{- $mainDrainBackendDrainRendered := and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) (eq $mainDrainConfigSource "overlay") -}}
+{{- if and $activePeerBalancing (not $lbPressureBackendDrainRendered) -}}
 {{- fail "haproxy.local_backend_healthcheck.enabled requires loadBalancer.pressureReadiness.enabled=true so LB collectors expose backend_drain readiness" -}}
 {{- end -}}
+{{- if and (not $activePeerBalancing) (not (or $lbPressureBackendDrainRendered $mainDrainBackendDrainRendered)) -}}
+{{- fail "haproxy.local_backend_healthcheck.enabled requires chart-rendered backend_drain via loadBalancer.pressureReadiness.enabled=true or rollout.main.drain.enabled=true with configSource=overlay" -}}
+{{- end -}}
+{{- if $lbPressureBackendDrainRendered -}}
 {{- $localBackendHealthcheckPort := int ($localBackendHealthcheck.port | default 13137) -}}
 {{- $pressureReadinessPort := int ($lbPressureReadiness.port | default 13137) -}}
 {{- if ne $localBackendHealthcheckPort $pressureReadinessPort -}}
@@ -1072,6 +1081,7 @@ Validate local backend healthcheck has a chart-rendered backend_drain endpoint.
 {{- $pressureReadinessPath := $lbPressureReadiness.readinessPath | default "/ready" -}}
 {{- if ne $localBackendHealthcheckPath $pressureReadinessPath -}}
 {{- fail "haproxy.local_backend_healthcheck.path must equal loadBalancer.pressureReadiness.readinessPath" -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
