@@ -1063,6 +1063,16 @@ Validate local backend healthcheck has a chart-rendered backend_drain endpoint.
 {{- if not $lbPressureBackendDrainRendered -}}
 {{- fail "haproxy.local_backend_healthcheck.enabled requires loadBalancer.pressureReadiness.enabled=true so LB collectors expose backend_drain readiness" -}}
 {{- end -}}
+{{- $localBackendHealthcheckPort := int ($localBackendHealthcheck.port | default 13137) -}}
+{{- $pressureReadinessPort := int ($lbPressureReadiness.port | default 13137) -}}
+{{- if ne $localBackendHealthcheckPort $pressureReadinessPort -}}
+{{- fail "haproxy.local_backend_healthcheck.port must equal loadBalancer.pressureReadiness.port" -}}
+{{- end -}}
+{{- $localBackendHealthcheckPath := $localBackendHealthcheck.path | default "/ready" -}}
+{{- $pressureReadinessPath := $lbPressureReadiness.readinessPath | default "/ready" -}}
+{{- if ne $localBackendHealthcheckPath $pressureReadinessPath -}}
+{{- fail "haproxy.local_backend_healthcheck.path must equal loadBalancer.pressureReadiness.readinessPath" -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 
