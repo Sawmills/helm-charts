@@ -745,11 +745,14 @@ Keep `rollout.main.drain.duration + rollout.main.drain.shutdownReserve` below `r
 ```yaml
 podDisruptionBudget:
   enabled: true
-  minAvailable: null  # defaults to replicaCount-1 when ≤ 5, otherwise ceil(0.8 * replicaCount)
-  autoscaledMaxUnavailable: "10%"  # default budget when keda or autoscaling is enabled
+  minAvailable: null
+  maxUnavailable: null  # defaults to 1
+  unhealthyPodEvictionPolicy: AlwaysAllow
 ```
 
-When the collector (or the LB) is autoscaled — `keda.enabled`, `autoscaling.enabled`, `loadBalancer.keda.enabled`, or `loadBalancer.autoscaling.enabled` — the static replica-derived default is meaningless: the real pod count is set by the autoscaler, not `replicaCount`. In that case the chart defaults to percentage-based `maxUnavailable` (`autoscaledMaxUnavailable`, `10%`), which Kubernetes evaluates against the current scale, so a node drain can never take a large fleet at once. Explicit `minAvailable`/`maxUnavailable` values always win over the default. Percentages round up, so a fleet scaled down to a single pod still permits eviction of that pod — the same tradeoff as the chart's static single-replica default, chosen so a PDB never blocks node upgrades outright; set `minAvailable` explicitly when a scale-to-1 fleet must block voluntary disruption instead.
+Worker and load balancer PDBs default to `maxUnavailable: 1`, for both static and autoscaled fleets. This serializes healthy-pod eviction during voluntary disruptions and prevents a node drain from removing a percentage of a large ingest tier at once. On Kubernetes 1.27+, `unhealthyPodEvictionPolicy: AlwaysAllow` lets an already-unhealthy pod be evicted without consuming the healthy-pod budget, preventing drains from deadlocking behind a failed pod.
+
+Explicit `minAvailable` or `maxUnavailable` values override the default. For autoscaled workloads only, the deprecated `autoscaledMaxUnavailable` key remains a lower-precedence compatibility alias for existing releases; use `maxUnavailable` for new configuration. Static workloads ignore the legacy alias. Raising the value makes planned node maintenance faster at the direct cost of more simultaneous ingest capacity loss. PDBs govern Eviction API requests such as node drains and Karpenter consolidation; they do not limit Deployment or StatefulSet rolling updates, which are controlled by each workload's rollout strategy. Involuntary node loss, including an expired Spot interruption window, can bypass a PDB.
 
 When `kedaScaler.enabled: true`, the chart protects the single-replica KEDA otel scaler with a `karpenter.sh/do-not-disrupt: "true"` pod annotation by default, because losing the scaler leaves the HPA without its external metric. The scaler intentionally remains single-replica: it holds an in-memory metric store, so multiple replicas behind the Service would split OTLP streams and undercount the fleet. Its PDB defaults to `maxUnavailable: 1` and, on Kubernetes 1.27+, `unhealthyPodEvictionPolicy: AlwaysAllow`, allowing deliberate node drains and upgrades even when the scaler is unhealthy instead of making its node permanently undrainable. The chart automatically omits the newer field on older supported clusters. At one replica, this PDB does not block eviction of a healthy scaler; the Karpenter annotation provides the default voluntary-disruption protection. Generic `podAnnotations` cannot override that shield; set `kedaScaler.doNotDisrupt: false` to opt out explicitly. Explicit `minAvailable` or `maxUnavailable` values override the PDB default, and an empty `unhealthyPodEvictionPolicy` omits that field.
 
@@ -869,7 +872,7 @@ pre-2.17.3 chart can briefly default an autoscaled load balancer Deployment or
 StatefulSet to one replica, so observe load balancer readiness and queue age
 until the autoscaler has converged.
 
-When `loadBalancer.keda.enabled: true` (or `loadBalancer.autoscaling.enabled: true`), the LB PDB defaults to `maxUnavailable: 10%` (`loadBalancer.podDisruptionBudget.autoscaledMaxUnavailable`) instead of the static replica-derived `minAvailable`, since percentages track the actual scaled pod count. Set `minAvailable`/`maxUnavailable` explicitly to override.
+The LB PDB uses the same `maxUnavailable: 1` default as the worker tier. Set `loadBalancer.podDisruptionBudget.minAvailable` or `loadBalancer.podDisruptionBudget.maxUnavailable` explicitly only when the maintenance-throughput trade-off is understood.
 
 ```yaml
 loadBalancer:

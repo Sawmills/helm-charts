@@ -12,14 +12,21 @@ spec:
   selector:
     matchLabels:
       {{- include "sawmills-collector.selectorLabels" . | nindent 6 }}
-  {{- if and $pdb (hasKey $pdb "minAvailable") (not (kindIs "invalid" $pdb.minAvailable)) }}
+  {{- $unhealthyPodEvictionPolicy := $pdb.unhealthyPodEvictionPolicy | default "AlwaysAllow" }}
+  {{- if and $unhealthyPodEvictionPolicy (semverCompare ">=1.27-0" .Capabilities.KubeVersion.Version) }}
+  unhealthyPodEvictionPolicy: {{ $unhealthyPodEvictionPolicy }}
+  {{- end }}
+  {{- $minAvailableSet := and (hasKey $pdb "minAvailable") (not (kindIs "invalid" $pdb.minAvailable)) (not (and (kindIs "string" $pdb.minAvailable) (eq (trim $pdb.minAvailable) ""))) }}
+  {{- $maxUnavailableSet := and (hasKey $pdb "maxUnavailable") (not (kindIs "invalid" $pdb.maxUnavailable)) (not (and (kindIs "string" $pdb.maxUnavailable) (eq (trim $pdb.maxUnavailable) ""))) }}
+  {{- $legacyAutoscaledMaxUnavailableSet := and (hasKey $pdb "autoscaledMaxUnavailable") (not (kindIs "invalid" $pdb.autoscaledMaxUnavailable)) (not (and (kindIs "string" $pdb.autoscaledMaxUnavailable) (eq (trim $pdb.autoscaledMaxUnavailable) ""))) }}
+  {{- if $minAvailableSet }}
   minAvailable: {{ $pdb.minAvailable }}
-  {{- else if and $pdb (hasKey $pdb "maxUnavailable") (not (kindIs "invalid" $pdb.maxUnavailable)) }}
+  {{- else if $maxUnavailableSet }}
   maxUnavailable: {{ $pdb.maxUnavailable }}
-  {{- else if $workerAutoscaled }}
-  maxUnavailable: {{ $pdb.autoscaledMaxUnavailable | default "10%" }}
+  {{- else if and $workerAutoscaled $legacyAutoscaledMaxUnavailableSet }}
+  maxUnavailable: {{ $pdb.autoscaledMaxUnavailable }}
   {{- else }}
-  minAvailable: {{ include "sawmills-collector.defaultPdbMinAvailable" . }}
+  maxUnavailable: 1
   {{- end }}
 {{- end }}
 ---
@@ -37,13 +44,20 @@ spec:
   selector:
     matchLabels:
       {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 6 }}
-  {{- if and $lbPdb (hasKey $lbPdb "minAvailable") (not (kindIs "invalid" $lbPdb.minAvailable)) }}
+  {{- $lbUnhealthyPodEvictionPolicy := $lbPdb.unhealthyPodEvictionPolicy | default "AlwaysAllow" }}
+  {{- if and $lbUnhealthyPodEvictionPolicy (semverCompare ">=1.27-0" .Capabilities.KubeVersion.Version) }}
+  unhealthyPodEvictionPolicy: {{ $lbUnhealthyPodEvictionPolicy }}
+  {{- end }}
+  {{- $lbMinAvailableSet := and (hasKey $lbPdb "minAvailable") (not (kindIs "invalid" $lbPdb.minAvailable)) (not (and (kindIs "string" $lbPdb.minAvailable) (eq (trim $lbPdb.minAvailable) ""))) }}
+  {{- $lbMaxUnavailableSet := and (hasKey $lbPdb "maxUnavailable") (not (kindIs "invalid" $lbPdb.maxUnavailable)) (not (and (kindIs "string" $lbPdb.maxUnavailable) (eq (trim $lbPdb.maxUnavailable) ""))) }}
+  {{- $lbLegacyAutoscaledMaxUnavailableSet := and (hasKey $lbPdb "autoscaledMaxUnavailable") (not (kindIs "invalid" $lbPdb.autoscaledMaxUnavailable)) (not (and (kindIs "string" $lbPdb.autoscaledMaxUnavailable) (eq (trim $lbPdb.autoscaledMaxUnavailable) ""))) }}
+  {{- if $lbMinAvailableSet }}
   minAvailable: {{ $lbPdb.minAvailable }}
-  {{- else if and $lbPdb (hasKey $lbPdb "maxUnavailable") (not (kindIs "invalid" $lbPdb.maxUnavailable)) }}
+  {{- else if $lbMaxUnavailableSet }}
   maxUnavailable: {{ $lbPdb.maxUnavailable }}
-  {{- else if $lbAutoscaled }}
-  maxUnavailable: {{ $lbPdb.autoscaledMaxUnavailable | default "10%" }}
+  {{- else if and $lbAutoscaled $lbLegacyAutoscaledMaxUnavailableSet }}
+  maxUnavailable: {{ $lbPdb.autoscaledMaxUnavailable }}
   {{- else }}
-  minAvailable: {{ include "sawmills-collector.defaultLbPdbMinAvailable" . }}
+  maxUnavailable: 1
   {{- end }}
 {{- end }}

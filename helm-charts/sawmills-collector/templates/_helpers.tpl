@@ -779,52 +779,6 @@ Default maxSurge based on replica count.
 {{- end }}
 
 {{/*
-Default PodDisruptionBudget minAvailable.
-*/}}
-{{- define "sawmills-collector.defaultPdbMinAvailable" -}}
-{{- $replicas := include "sawmills-collector.replicaCountValue" . | int -}}
-{{- if le $replicas 5 -}}
-  {{- $val := sub $replicas 1 -}}
-  {{- if lt $val 0 -}}
-0
-  {{- else -}}
-{{ $val }}
-  {{- end -}}
-{{- else -}}
-  {{- $val := div (add (mul $replicas 8) 9) 10 -}}
-  {{- if lt $val 2 -}}
-2
-  {{- else -}}
-{{ $val }}
-  {{- end -}}
-{{- end -}}
-{{- end }}
-
-{{/*
-Default LB PodDisruptionBudget minAvailable.
-For LB we always want at least 2 pods running to avoid single-point-of-failure.
-  1 replica:   0 (PDB would block all voluntary disruptions otherwise)
-  2-3 replicas: replicas - 1
-  > 3 replicas: ceil(0.66 * replicas), min 2
-*/}}
-{{- define "sawmills-collector.defaultLbPdbMinAvailable" -}}
-{{- $replicas := int (default 3 .Values.loadBalancer.replicas) -}}
-{{- if le $replicas 1 -}}
-0
-{{- else if le $replicas 3 -}}
-{{ sub $replicas 1 }}
-{{- else -}}
-  {{- $val := div (add (mul $replicas 2) 2) 3 -}}
-  {{- if lt $val 2 -}}
-2
-  {{- else -}}
-{{ $val }}
-  {{- end -}}
-{{- end -}}
-{{- end }}
-
-
-{{/*
 Compute GOMEMLIMIT as 90% of a Kubernetes memory value (e.g. "4Gi" → "3686MiB").
 Accepts Gi and Mi suffixes. Fails at template time for unrecognized formats
 to prevent invalid GOMEMLIMIT values that would crash Go pods at startup.

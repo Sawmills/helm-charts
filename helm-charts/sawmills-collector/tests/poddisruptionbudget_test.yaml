@@ -1,22 +1,40 @@
 suite: pod disruption budget
 templates:
   - templates/poddisruptionbudget.yaml
+capabilities:
+  majorVersion: 1
+  minorVersion: 27
 tests:
-  - it: keeps the static replica-derived default when not autoscaled
+  - it: serializes voluntary disruptions for a large static collector fleet
     release:
       name: sawmills-collector
+    set:
+      replicaCount: 80
     asserts:
       - hasDocuments:
           count: 1
       - isKind:
           of: PodDisruptionBudget
       - equal:
-          path: spec.minAvailable
-          value: 8
-      - notExists:
           path: spec.maxUnavailable
+          value: 1
+      - notExists:
+          path: spec.minAvailable
+      - equal:
+          path: spec.unhealthyPodEvictionPolicy
+          value: AlwaysAllow
 
-  - it: defaults to percentage maxUnavailable when keda autoscales the collector
+  - it: permits one disruption for a single-replica collector
+    release:
+      name: sawmills-collector
+    set:
+      replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+
+  - it: serializes disruptions when keda autoscales the collector
     release:
       name: sawmills-collector
     set:
@@ -25,11 +43,11 @@ tests:
     asserts:
       - equal:
           path: spec.maxUnavailable
-          value: 10%
+          value: 1
       - notExists:
           path: spec.minAvailable
 
-  - it: defaults to percentage maxUnavailable when native HPA autoscales the collector
+  - it: serializes disruptions when native HPA autoscales the collector
     release:
       name: sawmills-collector
     set:
@@ -38,11 +56,11 @@ tests:
     asserts:
       - equal:
           path: spec.maxUnavailable
-          value: 10%
+          value: 1
       - notExists:
           path: spec.minAvailable
 
-  - it: lets explicit minAvailable win over the autoscaled default
+  - it: lets explicit minAvailable win over all maxUnavailable settings
     release:
       name: sawmills-collector
     set:
@@ -50,6 +68,8 @@ tests:
         enabled: true
       podDisruptionBudget:
         minAvailable: 350
+        maxUnavailable: 2
+        autoscaledMaxUnavailable: 5%
     asserts:
       - equal:
           path: spec.minAvailable
@@ -57,7 +77,19 @@ tests:
       - notExists:
           path: spec.maxUnavailable
 
-  - it: honors a custom autoscaled percentage
+  - it: honors explicit maxUnavailable
+    release:
+      name: sawmills-collector
+    set:
+      podDisruptionBudget:
+        maxUnavailable: 2
+        autoscaledMaxUnavailable: 5%
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 2
+
+  - it: honors the deprecated autoscaled percentage alias
     release:
       name: sawmills-collector
     set:
@@ -70,7 +102,34 @@ tests:
           path: spec.maxUnavailable
           value: 5%
 
-  - it: defaults LB budget to percentage maxUnavailable when LB keda is enabled
+  - it: ignores the deprecated autoscaled alias for a static collector
+    release:
+      name: sawmills-collector
+    set:
+      replicaCount: 80
+      podDisruptionBudget:
+        autoscaledMaxUnavailable: 10%
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+
+  - it: falls back to one when availability settings are blank
+    release:
+      name: sawmills-collector
+    set:
+      podDisruptionBudget:
+        minAvailable: " "
+        maxUnavailable: ""
+        autoscaledMaxUnavailable: ""
+    asserts:
+      - notExists:
+          path: spec.minAvailable
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+
+  - it: serializes LB disruptions when LB keda is enabled
     release:
       name: sawmills-collector
     set:
@@ -83,23 +142,122 @@ tests:
           count: 2
       - equal:
           path: spec.maxUnavailable
-          value: 10%
+          value: 1
         documentIndex: 1
       - notExists:
           path: spec.minAvailable
         documentIndex: 1
+      - equal:
+          path: spec.unhealthyPodEvictionPolicy
+          value: AlwaysAllow
+        documentIndex: 1
 
-  - it: keeps the static LB default when LB is not autoscaled
+  - it: serializes disruptions for a large static LB fleet
     release:
       name: sawmills-collector
     set:
       loadBalancer:
         enabled: true
-        replicas: 6
+        replicas: 80
     asserts:
       - hasDocuments:
           count: 2
       - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 1
+
+  - it: serializes LB disruptions when native HPA is enabled
+    release:
+      name: sawmills-collector
+    set:
+      loadBalancer:
+        enabled: true
+        autoscaling:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 1
+
+  - it: lets explicit LB minAvailable win over maxUnavailable
+    release:
+      name: sawmills-collector
+    set:
+      loadBalancer:
+        enabled: true
+        podDisruptionBudget:
+          minAvailable: 75
+          maxUnavailable: 2
+    asserts:
+      - equal:
           path: spec.minAvailable
-          value: 4
+          value: 75
+        documentIndex: 1
+      - notExists:
+          path: spec.maxUnavailable
+        documentIndex: 1
+
+  - it: honors explicit LB maxUnavailable over the compatibility alias
+    release:
+      name: sawmills-collector
+    set:
+      loadBalancer:
+        enabled: true
+        podDisruptionBudget:
+          maxUnavailable: 2
+          autoscaledMaxUnavailable: 5%
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 2
+        documentIndex: 1
+
+  - it: honors the deprecated LB autoscaled percentage alias
+    release:
+      name: sawmills-collector
+    set:
+      loadBalancer:
+        enabled: true
+        keda:
+          enabled: true
+        podDisruptionBudget:
+          autoscaledMaxUnavailable: 5%
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 5%
+        documentIndex: 1
+
+  - it: ignores the deprecated autoscaled alias for a static LB
+    release:
+      name: sawmills-collector
+    set:
+      loadBalancer:
+        enabled: true
+        replicas: 80
+        podDisruptionBudget:
+          autoscaledMaxUnavailable: 10%
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 1
+
+  - it: omits unhealthy pod eviction policy before Kubernetes 1.27
+    capabilities:
+      majorVersion: 1
+      minorVersion: 26
+    release:
+      name: sawmills-collector
+    set:
+      loadBalancer:
+        enabled: true
+    asserts:
+      - notExists:
+          path: spec.unhealthyPodEvictionPolicy
+        documentIndex: 0
+      - notExists:
+          path: spec.unhealthyPodEvictionPolicy
         documentIndex: 1
