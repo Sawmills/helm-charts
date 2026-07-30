@@ -11,6 +11,14 @@
 {{- $localBackendHealthcheckRise := $localBackendHealthcheck.rise | default 2 -}}
 {{- $localBackendHealthcheckFall := $localBackendHealthcheck.fall | default 2 -}}
 {{- $readinessPath := dig "probes" "readiness" "path" "/ready" .Values.haproxy -}}
+{{- $activeSiblingLoadBalancing := false -}}
+{{- if and (eq (include "sawmills-collector.siblingFallbackEnabled" .) "true") (.Values.haproxy.sibling_fallback.load_balance | default false) -}}
+  {{- range $_, $mapping := .Values.haproxy.mapping -}}
+    {{- if eq (($mapping.to | default dict).mode | default "http") "http" -}}
+      {{- $activeSiblingLoadBalancing = true -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
 
 global
 {{- with .Values.haproxy.global }}
@@ -75,6 +83,9 @@ defaults
   {{- end }}
   {{- range .options }}
   option {{ . }}
+  {{- end }}
+  {{- if and $activeSiblingLoadBalancing (not (has "redispatch" (.options | default list))) }}
+  option redispatch
   {{- end }}
 {{- else }}
   timeout connect 5s
@@ -148,6 +159,20 @@ backend forwarding_health_backend
 {{- end }}
 {{- end }}
 
+{{- $haproxyFrontendPorts := list }}
+{{- range $_, $mapping := .Values.haproxy.mapping }}
+  {{- $haproxyFrontendPorts = append $haproxyFrontendPorts (int $mapping.from) }}
+{{- end }}
+{{- $forbiddenActivePeerPorts := concat $haproxyFrontendPorts (list 13133 (int $localBackendHealthcheckPort) (int ($forwardingHealth.port | default 13136))) }}
+{{- if .Values.haproxy.prometheus.enabled }}
+  {{- $forbiddenActivePeerPorts = append $forbiddenActivePeerPorts (int (.Values.haproxy.prometheus.port | default .Values.haproxy.prometheus_port)) }}
+{{- end }}
+{{- if .Values.haproxy.stats.enabled }}
+  {{- $forbiddenActivePeerPorts = append $forbiddenActivePeerPorts (int (.Values.haproxy.stats.port | default 8406)) }}
+{{- end }}
+{{- if .Values.haproxy.healthcheck.enabled }}
+  {{- $forbiddenActivePeerPorts = append $forbiddenActivePeerPorts (int (.Values.haproxy.healthcheck.port | default 13135)) }}
+{{- end }}
 {{- range $name, $config := .Values.haproxy.mapping }}
 {{ $to := $config.to | default dict }}
 {{ $fc := $to.fallback_config | default $.Values.haproxy.fallback_config | default dict }}
@@ -160,6 +185,17 @@ backend forwarding_health_backend
 {{- if and (eq (include "sawmills-collector.siblingFallbackEnabled" $) "true") (ne $mode "tcp") }}
   {{- $siblingEnabled = true }}
 {{- end }}
+{{- $siblingLoadBalance := false }}
+{{- if and $siblingEnabled (eq $mode "http") }}
+  {{- $siblingLoadBalance = $activeSiblingLoadBalancing }}
+{{- end }}
+{{- if and $siblingLoadBalance (has (int $to.port) $forbiddenActivePeerPorts) }}
+  {{- fail (printf "haproxy.mapping.%s.to.port must not match an HAProxy frontend or health/telemetry port when haproxy.sibling_fallback.load_balance=true" $name) }}
+{{- end }}
+{{- if and $siblingLoadBalance (not $localBackendHealthcheckEnabled) }}
+  {{- fail "haproxy.local_backend_healthcheck.enabled must be true when haproxy.sibling_fallback.load_balance=true" }}
+{{- end }}
+{{- $sf := $.Values.haproxy.sibling_fallback }}
 frontend logs_http_frontend_{{ $config.from }}
   {{- if and $config.tls $config.tls.enabled }}
   bind *:{{ $config.from }} ssl crt @k8s-tls/haproxy-cert{{- if eq $mode "grpc" }} alpn h2{{- end }}
@@ -190,7 +226,7 @@ frontend logs_http_frontend_{{ $config.from }}
   acl is_beta_sketches path_beg /api/beta/sketches
   use_backend datadog_metrics_direct_{{ $config.from }} if is_distribution_points or is_sketches or is_beta_sketches
   {{- end }}
-  {{- if $siblingEnabled }}
+  {{- if and $siblingEnabled (not $siblingLoadBalance) }}
   # Sibling fallback: detect forwarded requests to prevent routing loops (max 1 hop)
   acl is_sibling_hop hdr(X-Sibling-Hop) -m found
   use_backend logs_http_{{ $config.from }}_direct if is_sibling_hop
@@ -200,8 +236,11 @@ frontend logs_http_frontend_{{ $config.from }}
 backend logs_http_{{ $config.from }}
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
   {{- $localBackendHealthcheckApplies := and $localBackendHealthcheckEnabled (eq $mode "http") }}
-  {{- if and ($refusalFastFail.enabled | default false) $siblingEnabled (ne $mode "tcp") }}
+  {{- if and $siblingEnabled (ne $mode "tcp") (or $siblingLoadBalance ($refusalFastFail.enabled | default false)) }}
   retry-on 503
+  {{- end }}
+  {{- if $siblingLoadBalance }}
+  retries {{ if hasKey $sf "retries" }}{{ $sf.retries }}{{ else }}1{{ end }}
   {{- end }}
   {{- range $option := $config.backend_options }}
   option {{ $option }}
@@ -232,22 +271,39 @@ backend logs_http_{{ $config.from }}
   {{- $slowstart = ($refusalFastFail.slowstart | default "") }}
   {{- end }}
   {{- if $failoverEnabled }}
-  {{- if $siblingEnabled }}
+  {{- if and $siblingEnabled (not $siblingLoadBalance) }}
   # Tag request as sibling-forwarded before sending to sibling tier
   http-request set-header X-Sibling-Hop 1
   {{- end }}
   {{- if $localBackendHealthcheckApplies }}
-  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port {{ $localBackendHealthcheckPort }} inter {{ $localBackendHealthcheckInterval }} rise {{ $localBackendHealthcheckRise }} fall {{ $localBackendHealthcheckFall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $errorLimit }} on-error mark-down{{ if ne $slowstart "" }} slowstart {{ $slowstart }}{{ end }}
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }}{{ if $siblingLoadBalance }} backup{{ end }} check port {{ $localBackendHealthcheckPort }} inter {{ $localBackendHealthcheckInterval }} rise {{ $localBackendHealthcheckRise }} fall {{ $localBackendHealthcheckFall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $errorLimit }} on-error mark-down{{ if ne $slowstart "" }} slowstart {{ $slowstart }}{{ end }}
   {{- else }}
-  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $errorLimit }} on-error mark-down{{ if ne $slowstart "" }} slowstart {{ $slowstart }}{{ end }}
+  server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }}{{ if $siblingLoadBalance }} backup{{ end }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $errorLimit }} on-error mark-down{{ if ne $slowstart "" }} slowstart {{ $slowstart }}{{ end }}
   {{- end }}
   {{- if $siblingEnabled }}
-  {{- $sf := $.Values.haproxy.sibling_fallback }}
+  {{- $defaultPeerCheckPort := 13136 }}
+  {{- if $localBackendHealthcheckApplies }}
+    {{- $defaultPeerCheckPort = $localBackendHealthcheckPort }}
+  {{- end }}
+  {{- $peerCheckPort := $sf.check.port | default $defaultPeerCheckPort }}
+  {{- if $siblingLoadBalance }}
+  {{- $configuredPeerCheckPort := int ($sf.check.port | default 0) }}
+  {{- if and (ne $configuredPeerCheckPort 0) (ne $configuredPeerCheckPort (int $localBackendHealthcheckPort)) }}
+    {{- fail (printf "haproxy.sibling_fallback.check.port must equal haproxy.local_backend_healthcheck.port (%v) when load_balance=true" $localBackendHealthcheckPort) }}
+  {{- end }}
+  {{- $peerCheckPort = $localBackendHealthcheckPort }}
+  # Active sibling tier: spread requests across ready LB collectors to break
+  # connection-level ingress stickiness. The peer port is validated against
+  # every HAProxy frontend port, so a request cannot loop through this backend.
+  {{- else }}
   # Sibling tier: round-robin across other LB pods via headless service DNS
   # "backup" ensures these only activate when local otel is DOWN
+  {{- end }}
+  {{- if not $siblingLoadBalance }}
   # Check port 13136 is served by the forwarding_health extension in
   # sawmills-collector (PR #811); chart + collector changes must ship together.
-  server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ $config.from }} {{ $proto }} check port {{ $sf.check.port | default 13136 }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }} backup resolvers k8s init-addr none
+  {{- end }}
+  server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ if $siblingLoadBalance }}{{ $to.port }}{{ else }}{{ $config.from }}{{ end }} {{ $proto }} check port {{ $peerCheckPort }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }}{{ if not $siblingLoadBalance }} backup{{ else }} observe layer7 error-limit {{ $errorLimit }} on-error mark-down slowstart {{ $sf.slowstart | default "30s" }}{{ end }} resolvers k8s init-addr none
   {{- end }}
   {{- if and $externalFallbackEnabled $to.fallback_endpoint }}
   {{- if $siblingEnabled }}
@@ -270,7 +326,7 @@ backend datadog_metrics_direct_{{ $config.from }}
   server datadog {{ $to.metrics_proxy_endpoint }}:443 ssl verify required ca-file /etc/ssl/certs/ca-certificates.crt sni str({{ $to.metrics_proxy_endpoint }}) verifyhost {{ $to.metrics_proxy_endpoint }}
 {{- end }}
 
-{{- if $siblingEnabled }}
+{{- if and $siblingEnabled (not $siblingLoadBalance) }}
 # Direct backend for sibling-forwarded requests (no sibling tier to prevent loops)
 backend logs_http_{{ $config.from }}_direct
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}

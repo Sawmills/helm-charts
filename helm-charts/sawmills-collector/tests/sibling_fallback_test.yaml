@@ -194,6 +194,295 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
 
+  - it: should spread requests directly across sibling collector ports when load balancing is enabled
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.defaults.timeout.connect: "1s"
+      haproxy.defaults.timeout.server: "4s"
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'server otel "\$MY_POD_IP":10518\s+backup\s+check port 13137'
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:10518.*check port 13137.*observe layer7 error-limit [0-9]+ on-error mark-down slowstart 30s.*resolvers k8s.*init-addr none"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^  option redispatch$"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^  retry-on 503\\r?$"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^  retries 1\\r?$"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling .*:10000"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling .*:10518.*backup"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "X-Sibling-Hop|logs_http_10000_direct"
+
+  - it: should not duplicate explicitly configured redispatch
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.defaults.options:
+        - redispatch
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^  option redispatch\\r?$"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^  option redispatch\\r?\\n  option redispatch$"
+
+  - it: should use one configured retry even when refusal fast fail is disabled
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.refusal_fast_fail.enabled: false
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.sibling_fallback.retries: 1
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^  retry-on 503\\r?\\n  retries 1$"
+
+  - it: should preserve an explicit zero retry budget
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.sibling_fallback.retries: 0
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^  retries 0$"
+
+  - it: should use custom slowstart for active sibling request distribution
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.sibling_fallback.slowstart: "45s"
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:10518.*slowstart 45s"
+
+  - it: should require pressure-aware local health checks for active sibling distribution
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.defaults.timeout.connect: "1s"
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.local_backend_healthcheck.enabled must be true when haproxy.sibling_fallback.load_balance=true"
+
+  - it: should reject a separate peer check port for active sibling distribution
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.sibling_fallback.check.port: 13136
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.sibling_fallback.check.port must equal haproxy.local_backend_healthcheck.port (13137) when load_balance=true"
+
+  - it: should reject active sibling request distribution when peer and frontend ports match
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.mapping.http_4318.to.port must not match an HAProxy frontend or health/telemetry port when haproxy.sibling_fallback.load_balance=true"
+
+  - it: should reject active sibling distribution through another mapping frontend
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+        colliding:
+          from: 10518
+          to:
+            port: 4318
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.mapping.logs.to.port must not match an HAProxy frontend or health/telemetry port when haproxy.sibling_fallback.load_balance=true"
+
+  - it: should reject active sibling distribution through the stats port
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 8406
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.mapping.logs.to.port must not match an HAProxy frontend or health/telemetry port when haproxy.sibling_fallback.load_balance=true"
+
+  - it: should reject active sibling distribution through the collector health port
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 13133
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.mapping.logs.to.port must not match an HAProxy frontend or health/telemetry port when haproxy.sibling_fallback.load_balance=true"
+
+  - it: should reject active sibling distribution through the readiness port
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 13137
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.mapping.logs.to.port must not match an HAProxy frontend or health/telemetry port when haproxy.sibling_fallback.load_balance=true"
+
+  - it: should reject active sibling distribution through the forwarding health port
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 13136
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.mapping.logs.to.port must not match an HAProxy frontend or health/telemetry port when haproxy.sibling_fallback.load_balance=true"
+
+  - it: should reject active sibling distribution through the Prometheus port
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 8405
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.mapping.logs.to.port must not match an HAProxy frontend or health/telemetry port when haproxy.sibling_fallback.load_balance=true"
+
+  - it: should reject active sibling distribution through the HAProxy health port
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 13135
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.mapping.logs.to.port must not match an HAProxy frontend or health/telemetry port when haproxy.sibling_fallback.load_balance=true"
+
+  - it: should keep load_balance inert when sibling fallback is disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: false
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling|X-Sibling-Hop|logs_http_10000_direct"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'server otel "\$MY_POD_IP":10518'
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'server otel "\$MY_POD_IP":10518\s+backup'
+
   - it: should use /healthcheck for local and sibling backend checks
     template: haproxy-configmap.yaml
     set:
@@ -237,6 +526,29 @@ tests:
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318_direct\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel \"\\$MY_POD_IP\":4318.*check port 13137 inter 3000 rise 2 fall 2"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13137.*backup.*resolvers k8s"
+
+  - it: should check backup siblings on collector readiness when HAProxy health is disabled
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.healthcheck.enabled: false
+      haproxy.sibling_fallback.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+option httpchk GET /ready"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13137.*backup.*resolvers k8s"
 
   - it: should enable forwarding health readiness when local_backend_healthcheck is enabled
     template: haproxy-configmap.yaml
@@ -478,10 +790,12 @@ tests:
   # ============================================================
   # 6. TCP mode - sibling fallback NOT applied (Phase 1 limitation)
   # ============================================================
-  - it: should NOT apply sibling fallback for TCP mode ports
+  - it: should keep active sibling load balancing inert for TCP-only mappings
     template: haproxy-configmap.yaml
     set:
       haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.defaults.timeout.connect: "1s"
       haproxy.mapping:
         tcp_514:
           from: 514
@@ -492,7 +806,7 @@ tests:
     asserts:
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "X-Sibling-Hop"
+          pattern: "X-Sibling-Hop|option redispatch"
       - notMatchRegex:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling"
@@ -528,6 +842,29 @@ tests:
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4317_direct"
+
+  - it: should keep gRPC on readiness-safe backup sibling fallback when active HTTP balancing is enabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.defaults.timeout.connect: "1s"
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        grpc_4317:
+          from: 4317
+          to:
+            port: 10517
+            mode: grpc
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "acl is_sibling_hop hdr\\(X-Sibling-Hop\\) -m found"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling.*:4317.*proto h2.*check port 13136.*backup.*resolvers k8s"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling.*:10517|option redispatch"
 
   - it: should not use local backend readiness checks for gRPC mode
     template: haproxy-configmap.yaml
@@ -747,6 +1084,37 @@ tests:
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "logs_http_8080_direct"
+
+  - it: should actively balance HTTP and leave TCP local in mixed mode
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        http:
+          from: 10000
+          to:
+            port: 10518
+        tcp:
+          from: 10514
+          to:
+            port: 514
+            mode: tcp
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:10518.*check port 13137.*observe layer7"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling .*:514|logs_http_10514_direct"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'backend logs_http_10514[\s\S]*server otel "\$MY_POD_IP":514'
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'server otel "\$MY_POD_IP":514\s+backup'
 
   # ============================================================
   # 11. Prerequisite checks - sibling needs LB + HAProxy

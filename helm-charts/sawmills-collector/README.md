@@ -408,6 +408,40 @@ haproxy:
 
 The HAProxy container defaults to numeric UID/GID `99` with `runAsNonRoot` so clusters enforcing non-root pod security can verify the official HAProxy image user. Override `haproxy.securityContext` when using a custom HAProxy image that requires a different numeric user or additional container hardening fields.
 
+#### Request-Level Sibling Balancing
+
+Long-lived ingress connections can pin uneven request volumes to individual LB pods. Enable active sibling balancing to distribute each HTTP request across pressure-ready LB collectors:
+
+```yaml
+loadBalancer:
+  enabled: true
+  service:
+    headless:
+      enabled: true
+  pressureReadiness:
+    enabled: true
+
+haproxy:
+  enabled: true
+  local_backend_healthcheck:
+    enabled: true
+  sibling_fallback:
+    enabled: true
+    load_balance: true
+    retries: 1
+    slowstart: 30s
+    max_servers: 10
+  mapping:
+    logs:
+      from: 10000
+      to:
+        port: 10518
+```
+
+The peer target is the collector port (`mapping.<name>.to.port`), not the HAProxy frontend. The chart rejects active balancing when that port matches any HAProxy mapping frontend, health, readiness, stats, or Prometheus port. The peer health check must use the same port as `haproxy.local_backend_healthcheck`; recovered peers ramp in through `slowstart`. Set `retries: 0` to disable retry/redispatch attempts. Size `max_servers` at or above the maximum LB replica count.
+
+Active sibling balancing applies to HTTP mappings. gRPC mappings retain backup-only sibling fallback, and TCP mappings retain their existing local/fallback behavior. Disabling `load_balance` restores backup-only sibling fallback without changing the stable headless Service name.
+
 #### Per-Port TLS Termination
 
 Enable TLS termination for specific HAProxy port mappings. When TLS is enabled on any port, the service switches to LoadBalancer type with AWS internal annotations.
@@ -939,9 +973,12 @@ loadBalancer:
     checkInterval: 1s
     rejectedQuietDuration: 1m
     oldestItemAgeFailThreshold: 1m
+    oldestItemAgeRecoverThreshold: 20s
 ```
 
 When `memoryLimitBytes` is unset, the chart derives it from `loadBalancer.resources.limits.memory`; set `memoryLimitBytes: 0` to disable memory pressure gating for pods without memory limits. The rendered `backend_drain` config preserves configured LB `service.extensions` and appends `backend_drain`.
+
+`oldestItemAgeRecoverThreshold` adds queue-age hysteresis after readiness fails. It must be less than or equal to `oldestItemAgeFailThreshold`. When unset, recovery uses the failure threshold for backward-compatible behavior.
 
 By default, pressure readiness scrapes a small LB telemetry collector Prometheus endpoint on `telemetry.pressurePrometheus.port` (`19466`) instead of the full telemetry Prometheus endpoint. That endpoint keeps only the queue, inflight, memory, rejected/refused, and queue-age metrics needed by `backend_drain`. S3-backed LB telemetry configs and standalone custom LB telemetry configs without the shared telemetry base default readiness to the regular telemetry endpoint unless `metricsEndpoint` is explicitly set, because the chart cannot inject or validate the pressure exporter in external configs. If you set `metricsEndpoint` to the pressure endpoint with an external/S3 telemetry config, ensure that config defines `prometheus/pressure_readiness`. HAProxy `forwarding_health` defaults to the regular telemetry endpoint because it needs backend resolver metrics that are intentionally excluded from the pressure endpoint.
 

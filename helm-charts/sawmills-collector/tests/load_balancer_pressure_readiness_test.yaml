@@ -81,9 +81,36 @@ tests:
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 15s\n\s+pressure_check:\n\s+enabled: true\n\s+metrics_endpoint: http://\$\{env:MY_POD_IP\}:19466/metrics\n\s+queue_saturation_fail_threshold: 0.85\n\s+queue_saturation_recover_threshold: 0.6\n\s+inflight_saturation_fail_threshold: 0.85\n\s+inflight_saturation_recover_threshold: 0.6\n\s+memory_saturation_fail_threshold: 0.85\n\s+memory_saturation_recover_threshold: 0.7\n\s+capacity_warning_threshold: 0.6\n\s+fail_checks: 2\n\s+recover_checks: 3\n\s+check_interval: 1s\n\s+rejected_quiet_duration: 1m\n\s+oldest_item_age_fail_threshold: 1m\n\s+memory_limit_bytes: 536870912\n'
+
+  - it: renders an explicit queue-age recovery threshold for readiness hysteresis
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.oldestItemAgeFailThreshold: 1m
+      loadBalancer.pressureReadiness.oldestItemAgeRecoverThreshold: 20s
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '(?m)^\s+oldest_item_age_fail_threshold: 1m\n\s+oldest_item_age_recover_threshold: 20s$'
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- backend_drain\n'
+
+  - it: rejects a queue-age recovery threshold above the failure threshold
+    template: load-balancer-readiness-configmap.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.oldestItemAgeFailThreshold: 1m
+      loadBalancer.pressureReadiness.oldestItemAgeRecoverThreshold: 61s
+    asserts:
+      - failedTemplate:
+          errorMessage: "loadBalancer.pressureReadiness.oldestItemAgeRecoverThreshold must be <= oldestItemAgeFailThreshold"
 
   - it: points backend_drain health checks at forwarding_health when HAProxy local backend checks are enabled
     template: load-balancer-readiness-configmap.yaml
@@ -289,7 +316,16 @@ tests:
           pattern: 'haproxy_.*http_responses_total'
       - matchRegex:
           path: data["telemetry-config.yaml"]
-          pattern: 'otelcol_\(receiver\|processor\)_refused_.*log_records'
+          pattern: 'haproxy_frontend_[(]http_requests_total[|]current_sessions[|]sessions_total[|]connections_total[|]bytes_in_total[)]'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'haproxy_backend_[(]http_requests_total[|]http_responses_total[|]loadbalanced_total[|]current_sessions'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'haproxy_server_[(]http_responses_total[|]current_sessions[|]sessions_total[|]bytes_in_total'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_\(receiver\|processor\)_\(accepted\|refused\)_\(log_records\|metric_points\|spans\)'
       - matchRegex:
           path: data["telemetry-config.yaml"]
           pattern: 'otelcol_exporter_queue_[(]size[|]capacity[|]oldest_batch_age[)]'
