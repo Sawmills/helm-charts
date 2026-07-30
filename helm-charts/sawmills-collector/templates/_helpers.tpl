@@ -584,7 +584,7 @@ Generate merged telemetry configuration with external labels
   {{- $pipelines := get $service "pipelines" | default dict }}
   {{- if and (not $hasExplicitLBPromRWOverride) (hasKey $pipelines "metrics/external/prometheusremotewrite") }}
   {{- $processors := get $config "processors" | default dict }}
-  {{- $_ := set $processors "filter/lb_remote_write" (dict "error_mode" "ignore" "metrics" (dict "metric" (list "not IsMatch(name, \"^(otelcol_loadbalancer_central_queue_(compressed_bytes|compressed_capacity|compressed_capacity_bytes|saturation|items|rejected_compressed_bytes(_total)?|retries|decode_failures|inflight_uncompressed_bytes|inflight_uncompressed_capacity|inflight_uncompressed_capacity_bytes|configured_consumers|active_load_balancer_replicas|effective_consumers|active_consumers|queue_demand_consumers|backend_safe_consumers_per_lb|consumer_limit_reason|consumer_pressure_state|lanes|effective_lanes|oldest_item_age(_milliseconds)?|ready_windows|ready_window_limit|ready_lanes|ready_uncompressed_bytes|scheduler_state)|otelcol_loadbalancer_backend_(latency.*|outcome.*|quarantine_total|unquarantine_total|fail_open_total|reroute_total|stale_total)|otelcol_loadbalancer_num_(backends|backend_updates|resolutions)|otelcol_loadbalancer_resolver_stale_age|otelcol_(receiver|processor)_refused_(log_records|metric_points|spans)(_total)?|otelcol_exporter_queue_(size|capacity|oldest_batch_age)|otelcol_process_(cpu_seconds(_total)?|memory_rss(_bytes)?|runtime_heap_alloc_bytes)|process_(cpu_seconds_total|resident_memory_bytes)|haproxy_(server|backend)_http_responses_total|http\\\\.server\\\\.(duration|request\\\\.duration).*)$\")"))) }}
+  {{- $_ := set $processors "filter/lb_remote_write" (dict "error_mode" "ignore" "metrics" (dict "metric" (list "not IsMatch(name, \"^(otelcol_loadbalancer_central_queue_(compressed_bytes|compressed_capacity|compressed_capacity_bytes|saturation|items|rejected_compressed_bytes(_total)?|retries|decode_failures|inflight_uncompressed_bytes|inflight_uncompressed_capacity|inflight_uncompressed_capacity_bytes|configured_consumers|active_load_balancer_replicas|effective_consumers|active_consumers|queue_demand_consumers|backend_safe_consumers_per_lb|consumer_limit_reason|consumer_pressure_state|lanes|effective_lanes|oldest_item_age(_milliseconds)?|ready_windows|ready_window_limit|ready_lanes|ready_uncompressed_bytes|scheduler_state)|otelcol_loadbalancer_backend_(latency.*|outcome.*|quarantine_total|unquarantine_total|fail_open_total|reroute_total|stale_total)|otelcol_loadbalancer_num_(backends|backend_updates|resolutions)|otelcol_loadbalancer_resolver_stale_age|otelcol_(receiver|processor)_(accepted|refused)_(log_records|metric_points|spans)(_total)?|otelcol_exporter_queue_(size|capacity|oldest_batch_age)|otelcol_process_(cpu_seconds(_total)?|memory_rss(_bytes)?|runtime_heap_alloc_bytes)|process_(cpu_seconds_total|resident_memory_bytes)|haproxy_frontend_(http_requests_total|current_sessions|sessions_total|connections_total|bytes_in_total)|haproxy_backend_(http_requests_total|http_responses_total|loadbalanced_total|current_sessions|sessions_total|bytes_in_total|active_servers|backup_servers|current_queue)|haproxy_server_(http_responses_total|current_sessions|sessions_total|bytes_in_total|connection_errors_total|check_up_down_total|status)|http\\\\.server\\\\.(duration|request\\\\.duration).*)$\")"))) }}
   {{- $_ := set $config "processors" $processors }}
   {{- $exporters := get $config "exporters" | default dict }}
   {{- $promRW := get $exporters "prometheusremotewrite" | default dict }}
@@ -1061,10 +1061,27 @@ Validate local backend healthcheck has a chart-rendered backend_drain endpoint.
 {{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict -}}
 {{- $mainDrain := .Values.rollout.main.drain | default dict -}}
 {{- $mainDrainConfigSource := default "overlay" $mainDrain.configSource -}}
+{{- $siblingFallback := .Values.haproxy.sibling_fallback | default dict -}}
+{{- $activePeerBalancing := and ($siblingFallback.enabled | default false) ($siblingFallback.load_balance | default false) -}}
 {{- $lbPressureBackendDrainRendered := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) -}}
 {{- $mainDrainBackendDrainRendered := and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) (eq $mainDrainConfigSource "overlay") -}}
-{{- if not (or $lbPressureBackendDrainRendered $mainDrainBackendDrainRendered) -}}
+{{- if and $activePeerBalancing (not $lbPressureBackendDrainRendered) -}}
+{{- fail "haproxy.local_backend_healthcheck.enabled requires loadBalancer.pressureReadiness.enabled=true so LB collectors expose backend_drain readiness" -}}
+{{- end -}}
+{{- if and (not $activePeerBalancing) (not (or $lbPressureBackendDrainRendered $mainDrainBackendDrainRendered)) -}}
 {{- fail "haproxy.local_backend_healthcheck.enabled requires chart-rendered backend_drain via loadBalancer.pressureReadiness.enabled=true or rollout.main.drain.enabled=true with configSource=overlay" -}}
+{{- end -}}
+{{- if $lbPressureBackendDrainRendered -}}
+{{- $localBackendHealthcheckPort := int ($localBackendHealthcheck.port | default 13137) -}}
+{{- $pressureReadinessPort := int ($lbPressureReadiness.port | default 13137) -}}
+{{- if ne $localBackendHealthcheckPort $pressureReadinessPort -}}
+{{- fail "haproxy.local_backend_healthcheck.port must equal loadBalancer.pressureReadiness.port" -}}
+{{- end -}}
+{{- $localBackendHealthcheckPath := $localBackendHealthcheck.path | default "/ready" -}}
+{{- $pressureReadinessPath := $lbPressureReadiness.readinessPath | default "/ready" -}}
+{{- if ne $localBackendHealthcheckPath $pressureReadinessPath -}}
+{{- fail "haproxy.local_backend_healthcheck.path must equal loadBalancer.pressureReadiness.readinessPath" -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}

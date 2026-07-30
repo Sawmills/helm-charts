@@ -1,5 +1,10 @@
 {{- $lbPressure := .Values.loadBalancer.pressureReadiness | default dict }}
 {{- if and .Values.loadBalancer.enabled ($lbPressure.enabled | default false) }}
+{{- $oldestItemAgeFailThreshold := default "1m" $lbPressure.oldestItemAgeFailThreshold }}
+{{- $oldestItemAgeRecoverThreshold := $lbPressure.oldestItemAgeRecoverThreshold | default "" }}
+{{- if and $oldestItemAgeRecoverThreshold (gt (int (include "sawmills-collector.durationToMilliseconds" $oldestItemAgeRecoverThreshold)) (int (include "sawmills-collector.durationToMilliseconds" $oldestItemAgeFailThreshold))) }}
+{{- fail "loadBalancer.pressureReadiness.oldestItemAgeRecoverThreshold must be <= oldestItemAgeFailThreshold" }}
+{{- end }}
 {{- $defaultPressureMetricsEndpoint := printf "http://${env:MY_POD_IP}:%v/metrics" (.Values.telemetry.pressurePrometheus.port | default 19466) }}
 {{- $defaultTelemetryMetricsEndpoint := "http://${env:MY_POD_IP}:${env:PROMETHEUS_PORT}/metrics" }}
 {{- $lbTelemetryOtelConfig := default dict .Values.loadBalancer.telemetryOtelConfig }}
@@ -95,7 +100,10 @@ data:
           recover_checks: {{ default 3 $lbPressure.recoverChecks }}
           check_interval: {{ default "1s" $lbPressure.checkInterval }}
           rejected_quiet_duration: {{ default "1m" $lbPressure.rejectedQuietDuration }}
-          oldest_item_age_fail_threshold: {{ default "1m" $lbPressure.oldestItemAgeFailThreshold }}
+          oldest_item_age_fail_threshold: {{ $oldestItemAgeFailThreshold }}
+          {{- with $oldestItemAgeRecoverThreshold }}
+          oldest_item_age_recover_threshold: {{ . }}
+          {{- end }}
           memory_limit_bytes: {{ $memoryLimitBytes }}
     service:
       extensions:

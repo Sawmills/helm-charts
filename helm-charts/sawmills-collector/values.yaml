@@ -881,6 +881,18 @@ haproxy:
   sibling_fallback:
     # Enable sibling fallback tier (default: false - opt-in to preserve existing behavior)
     enabled: false
+    # Spread each HTTP request across ready sibling collectors instead of
+    # using siblings only after the local collector fails. This breaks
+    # connection-level ingress stickiness. The local collector remains a backup
+    # if sibling discovery is unavailable.
+    # Requires mapping.from and mapping.to.port to differ so peer requests
+    # bypass the HAProxy frontend and cannot form a forwarding loop.
+    load_balance: false
+    # Ramp a recovered peer back into request-level distribution.
+    slowstart: "30s"
+    # Retry once on a different ready peer. Keep the retry budget below the
+    # sender timeout after adding connect and server timeouts.
+    retries: 1
     # Maximum number of sibling server slots for HAProxy server-template
     # Should match or exceed loadBalancer.replicas / KEDA maxReplicas
     max_servers: 10
@@ -895,7 +907,10 @@ haproxy:
       # This endpoint should return 503 when local forwarding is unavailable
       # (for example: unresolvable backends / sustained downstream unavailability).
       # Default is 13136 to keep fallback decisions independent from Kubernetes probes.
-      port: 13136
+      # Active load balancing defaults to the local pressure-readiness port.
+      # Backup-only fallback defaults to the local pressure-readiness port when
+      # local backend checks apply, or forwarding health (13136) otherwise.
+      port: null
       # Check interval in milliseconds
       interval: 3000
       # Successful checks before marking sibling UP
@@ -1399,6 +1414,10 @@ loadBalancer:
     checkInterval: 1s
     rejectedQuietDuration: 1m
     oldestItemAgeFailThreshold: 1m
+    # Optional queue-age recovery threshold. Leave unset for compatibility
+    # with collectors that recover at oldestItemAgeFailThreshold. Set below
+    # the fail threshold to add hysteresis and prevent readiness oscillation.
+    oldestItemAgeRecoverThreshold: null
     # When unset, derived from loadBalancer.resources.limits.memory. Set 0 to
     # disable memory pressure gating for limitless pods.
     memoryLimitBytes: null
