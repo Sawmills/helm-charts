@@ -274,7 +274,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "(?m)^  retry-on 503\\r?\\n  retries 1$"
+          pattern: "(?m)^  retry-on 503\\r?\\n  option redispatch\\r?\\n  retries 1$"
 
   - it: should preserve an explicit zero retry budget
     template: haproxy-configmap.yaml
@@ -898,6 +898,34 @@ tests:
       - notMatchRegex:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling.*:10517|option redispatch"
+
+  - it: should scope redispatch to active HTTP backends in mixed protocol configs
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.load_balance: true
+      haproxy.mapping:
+        logs:
+          from: 10000
+          to:
+            port: 10518
+        grpc_4317:
+          from: 4317
+          to:
+            port: 10517
+            mode: grpc
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_10000\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+option redispatch"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "defaults\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+option redispatch"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4317\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+option redispatch"
 
   - it: should not use local backend readiness checks for gRPC mode
     template: haproxy-configmap.yaml

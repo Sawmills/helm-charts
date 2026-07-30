@@ -11,6 +11,8 @@
 {{- $localBackendHealthcheckRise := $localBackendHealthcheck.rise | default 2 -}}
 {{- $localBackendHealthcheckFall := $localBackendHealthcheck.fall | default 2 -}}
 {{- $readinessPath := dig "probes" "readiness" "path" "/ready" .Values.haproxy -}}
+{{- $haproxyDefaults := .Values.haproxy.defaults | default dict -}}
+{{- $haproxyDefaultOptions := $haproxyDefaults.options | default list -}}
 {{- $activeSiblingLoadBalancing := false -}}
 {{- if and (eq (include "sawmills-collector.siblingFallbackEnabled" .) "true") (.Values.haproxy.sibling_fallback.load_balance | default false) -}}
   {{- range $_, $mapping := .Values.haproxy.mapping -}}
@@ -84,16 +86,15 @@ defaults
   {{- range .options }}
   option {{ . }}
   {{- end }}
-  {{- if and $activeSiblingLoadBalancing (not (has "redispatch" (.options | default list))) }}
-  option redispatch
-  {{- end }}
 {{- else }}
   timeout connect 5s
   timeout client 5s
   timeout server 5s
   retries 3
   log global
+  {{- if not $activeSiblingLoadBalancing }}
   option redispatch
+  {{- end }}
 {{- end }}
 
 {{- if eq (include "sawmills-collector.siblingFallbackEnabled" .) "true" }}
@@ -238,6 +239,9 @@ backend logs_http_{{ $config.from }}
   {{- $localBackendHealthcheckApplies := and $localBackendHealthcheckEnabled (eq $mode "http") }}
   {{- if and $siblingEnabled (ne $mode "tcp") (or $siblingLoadBalance ($refusalFastFail.enabled | default false)) }}
   retry-on 503
+  {{- end }}
+  {{- if and $siblingLoadBalance (not (has "redispatch" $haproxyDefaultOptions)) }}
+  option redispatch
   {{- end }}
   {{- if $siblingLoadBalance }}
   retries {{ if hasKey $sf "retries" }}{{ $sf.retries }}{{ else }}1{{ end }}
