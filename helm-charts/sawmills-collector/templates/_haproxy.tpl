@@ -108,7 +108,7 @@ resolvers k8s
 
 {{- if .Values.haproxy.prometheus.enabled }}
 frontend prometheus
-  bind *:{{ .Values.haproxy.prometheus.port | default .Values.haproxy.prometheus_port }}
+  bind *:{{ .Values.haproxy.prometheus.port | default 8405 }}
   mode http
   http-request use-service prometheus-exporter if { path /metrics }
   no log
@@ -166,7 +166,7 @@ backend forwarding_health_backend
 {{- end }}
 {{- $forbiddenActivePeerPorts := concat $haproxyFrontendPorts (list 13133 (int $localBackendHealthcheckPort) (int ($forwardingHealth.port | default 13136))) }}
 {{- if .Values.haproxy.prometheus.enabled }}
-  {{- $forbiddenActivePeerPorts = append $forbiddenActivePeerPorts (int (.Values.haproxy.prometheus.port | default .Values.haproxy.prometheus_port)) }}
+  {{- $forbiddenActivePeerPorts = append $forbiddenActivePeerPorts (int (.Values.haproxy.prometheus.port | default 8405)) }}
 {{- end }}
 {{- if .Values.haproxy.stats.enabled }}
   {{- $forbiddenActivePeerPorts = append $forbiddenActivePeerPorts (int (.Values.haproxy.stats.port | default 8406)) }}
