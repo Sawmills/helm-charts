@@ -1199,12 +1199,18 @@ kedaScaler:
       memory: 128Mi
   telemetryConfig:
     processors:
+      transform/keda_source:
+        error_mode: ignore
+        metric_statements:
+          - context: datapoint
+            statements:
+              - set(attributes["source_pod"], resource.attributes["pod"]) where resource.attributes["pod"] != nil
       filter/keda:
         error_mode: ignore
         metrics:
           metric:
             # Drop every metric that is not in the KEDA scaler store allowlist.
-            - not IsMatch(name, "^(haproxy_server_http_responses_total|http\\.server\\.duration|otelcol_exporter_queue_size|otelcol_exporter_queue_capacity|otelcol_loadbalancer_central_queue_compressed_bytes|otelcol_loadbalancer_central_queue_compressed_capacity|otelcol_loadbalancer_central_queue_saturation|otelcol_loadbalancer_central_queue_oldest_item_age|http\\.server\\.request\\.duration)$")
+            - not IsMatch(name, "^(haproxy_server_http_responses_total|http\\.server\\.duration|otelcol_exporter_queue_size|otelcol_exporter_queue_capacity|otelcol_loadbalancer_central_queue_compressed_bytes|otelcol_loadbalancer_central_queue_compressed_capacity|otelcol_loadbalancer_central_queue_saturation|otelcol_loadbalancer_central_queue_oldest_item_age|otelcol_loadbalancer_backend_count|otelcol_loadbalancer_backend_inflight_oldest_age|otelcol_loadbalancer_backend_request_bytes_total|otelcol_loadbalancer_backend_timeout_total|http\\.server\\.request\\.duration)$")
     exporters:
       otlp/keda:
         endpoint: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}'
@@ -1217,6 +1223,7 @@ kedaScaler:
           exporters:
             - otlp/keda
           processors:
+            - transform/keda_source
             - filter/keda
           receivers:
             - forward
