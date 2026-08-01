@@ -1199,6 +1199,7 @@ kedaScaler:
       memory: 128Mi
   telemetryConfig:
     processors:
+      # Preserve the source load-balancer pod on each KEDA datapoint before filtering.
       transform/keda_source:
         error_mode: ignore
         metric_statements:

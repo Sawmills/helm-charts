@@ -142,7 +142,7 @@ tests:
           pattern: '(?m)^\s*transform/keda_source:\s*$'
       - matchRegex:
           path: data["keda.yaml"]
-          pattern: 'set\(attributes\["source_pod"\], resource\.attributes\["pod"\]\)'
+          pattern: '(?s)transform/keda_source:\s*error_mode: ignore\s*metric_statements:\s*- context: datapoint\s*statements:\s*- set\(attributes\["source_pod"\], resource\.attributes\["pod"\]\) where resource\.attributes\["pod"\]\s*!= nil\s*service:'
       - matchRegex:
           path: data["keda.yaml"]
           pattern: '(?s)metrics/keda:.*processors:\s*- transform/keda_source\s*- filter/keda'
