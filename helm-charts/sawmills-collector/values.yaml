@@ -1454,6 +1454,11 @@ loadBalancer:
       memory: 512Mi
       cpu: 500m
   additionalVolumes: []
+  # -- Extra volume mounts for the load balancer collector container. Falls back
+  # to the top-level `additionalVolumeMounts` when unset. Pair with
+  # `loadBalancer.additionalVolumes` (or the global `additionalVolumes`) to mount
+  # extra files — e.g. a GCP service-account key for the Pub/Sub pull receiver.
+  additionalVolumeMounts: []
   storage:
     # Required when using a persistent sending_queue (sending_queue.storage).
     # The chart mounts this PVC at /data for the load balancer collector.

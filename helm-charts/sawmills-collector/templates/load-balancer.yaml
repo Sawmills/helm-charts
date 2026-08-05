@@ -257,6 +257,14 @@ spec:
             - name: {{ include "sawmills-collector.name" . }}-lb
               mountPath: /data
           {{- end }}
+          {{- /* LB-specific additionalVolumeMounts take precedence; global additionalVolumeMounts used as fallback (mirrors the additionalVolumes handling in the pod volumes below) */ -}}
+          {{- with .Values.loadBalancer.additionalVolumeMounts }}
+          {{- toYaml . | nindent 12 }}
+          {{- else }}
+          {{- with .Values.additionalVolumeMounts }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
         - name: telemetry-collector
           securityContext:
             runAsNonRoot: true
