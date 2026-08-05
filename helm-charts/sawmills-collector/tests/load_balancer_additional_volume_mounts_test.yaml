@@ -1,0 +1,91 @@
+suite: load balancer additionalVolumeMounts
+templates:
+  - load-balancer.yaml
+tests:
+  - it: mounts loadBalancer.additionalVolumeMounts into the LB main-collector container
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.additionalVolumes:
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credentials
+      loadBalancer.additionalVolumeMounts:
+        - name: gcp-credentials
+          mountPath: /creds
+          readOnly: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].volumeMounts
+          content:
+            name: gcp-credentials
+            mountPath: /creds
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: gcp-credentials
+            secret:
+              secretName: gcp-credentials
+
+  - it: falls back to global additionalVolumeMounts on the LB when no LB-specific value is set
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      additionalVolumes:
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credentials
+      additionalVolumeMounts:
+        - name: gcp-credentials
+          mountPath: /creds
+          readOnly: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].volumeMounts
+          content:
+            name: gcp-credentials
+            mountPath: /creds
+            readOnly: true
+
+  - it: prefers loadBalancer.additionalVolumeMounts over the global fallback
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      additionalVolumeMounts:
+        - name: global-mount
+          mountPath: /global
+      loadBalancer.additionalVolumeMounts:
+        - name: lb-mount
+          mountPath: /lb
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].volumeMounts
+          content:
+            name: lb-mount
+            mountPath: /lb
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].volumeMounts
+          content:
+            name: global-mount
+            mountPath: /global
+
+  - it: adds no extra volume mounts to the LB main-collector by default
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].volumeMounts
+          content:
+            name: gcp-credentials
+            mountPath: /creds
+            readOnly: true
