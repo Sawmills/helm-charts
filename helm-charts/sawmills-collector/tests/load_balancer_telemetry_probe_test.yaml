@@ -55,6 +55,31 @@ tests:
           path: spec.template.spec.containers[2].livenessProbe.httpGet.path
           value: /healthz
 
+  - it: should couple the liveness probe port to a customized telemetry.prometheus.port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: false
+      haproxy.enabled: true
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+      telemetry.prometheus.port: 20000
+    asserts:
+      # Probe port must follow the actual metrics port, not a stale hardcoded default.
+      - equal:
+          path: spec.template.spec.containers[2].livenessProbe.httpGet.port
+          value: 20000
+      - equal:
+          path: spec.template.spec.containers[2].livenessProbe.httpGet.path
+          value: /metrics
+      # sanity: the container actually serves that port
+      - equal:
+          path: spec.template.spec.containers[2].ports[0].containerPort
+          value: 20000
+
   - it: should not gate lb statefulset readiness on telemetry sidecar health
     template: load-balancer.yaml
     values:

@@ -136,9 +136,11 @@ rollout:
         failureThreshold: 5
         # SAW-10798: probe the Prometheus metrics endpoint (goes unresponsive when
         # the exporter wedges) instead of the always-up health_check handler, so a
-        # wedged sidecar self-restarts. Defaults track telemetry.prometheus.port.
+        # wedged sidecar self-restarts. `port` is intentionally left unset so the
+        # template couples it to telemetry.prometheus.port — hardcoding it here
+        # would break liveness if that port is customized. Override path/port only
+        # to point the probe elsewhere.
         path: /metrics
-        port: 19465
       readiness:
         initialDelaySeconds: 5
         periodSeconds: 5
