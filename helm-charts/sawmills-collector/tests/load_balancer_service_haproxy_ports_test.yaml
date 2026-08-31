@@ -1,0 +1,114 @@
+suite: test load balancer service HAProxy client ports
+templates:
+  - load-balancer-service.yaml
+set:
+  loadBalancer.enabled: true
+tests:
+  # The <collector-id>.collectors.sawmills.ai DNS record resolves to this
+  # Service's ClusterIP, so every haproxy.mapping frontend port must be
+  # exposed here or clients of the advertised endpoints time out.
+  - it: should expose HAProxy mapping ports on the client-facing LB service
+    set:
+      haproxy.enabled: true
+      haproxy.mapping:
+        newrelic_10000:
+          from: 10000
+          to:
+            port: 14275
+            mode: http
+            protocol: TCP
+          tls:
+            enabled: true
+        otlp_10001:
+          from: 10001
+          to:
+            port: 4318
+            mode: http
+            protocol: TCP
+      haproxy.tls.secretName: test-tls
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            protocol: TCP
+            port: 10000
+            targetPort: 10000
+            name: hp-10000
+      - contains:
+          path: spec.ports
+          content:
+            protocol: TCP
+            port: 10001
+            targetPort: 10001
+            name: hp-10001
+
+  - it: should keep raw service ports alongside HAProxy ports
+    set:
+      haproxy.enabled: true
+      haproxy.mapping:
+        newrelic_10000:
+          from: 10000
+          to:
+            port: 14275
+            mode: http
+            protocol: TCP
+      loadBalancer.service.ports:
+        newrelic:
+          from: 14275
+          to:
+            port: 14275
+            protocol: TCP
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            protocol: TCP
+            port: 14275
+            targetPort: 14275
+            name: newrelic
+      - contains:
+          path: spec.ports
+          content:
+            protocol: TCP
+            port: 10000
+            targetPort: 10000
+            name: hp-10000
+
+  - it: should fail when a HAProxy mapping port collides with a raw service port
+    set:
+      haproxy.enabled: true
+      haproxy.mapping:
+        newrelic_10000:
+          from: 10000
+          to:
+            port: 14275
+            mode: http
+            protocol: TCP
+      loadBalancer.service.ports:
+        legacy:
+          from: 14275
+          to:
+            port: 10000
+            protocol: TCP
+    asserts:
+      - failedTemplate:
+          errorMessage: "haproxy.mapping.newrelic_10000.from port 10000 conflicts with an existing load balancer Service port"
+
+  - it: should not add HAProxy ports when haproxy is disabled
+    set:
+      haproxy.enabled: false
+      haproxy.mapping:
+        newrelic_10000:
+          from: 10000
+          to:
+            port: 14275
+            mode: http
+            protocol: TCP
+    asserts:
+      - notContains:
+          path: spec.ports
+          content:
+            protocol: TCP
+            port: 10000
+            targetPort: 10000
+            name: hp-10000
