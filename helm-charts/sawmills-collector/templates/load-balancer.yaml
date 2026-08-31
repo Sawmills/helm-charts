@@ -370,9 +370,13 @@ spec:
               containerPort: {{ .Values.telemetry.remoteOperatorOtlpHttpPort | default 14319 }}
               protocol: TCP
           livenessProbe:
+            # SAW-10798: probe the Prometheus metrics endpoint, not the always-up
+            # health_check handler (13134). The metrics endpoint goes unresponsive
+            # when the exporter wedges under GC thrash, so a wedged sidecar now
+            # fails liveness and Kubernetes restarts it instead of running forever.
             httpGet:
-              path: /healthcheck
-              port: 13134
+              path: {{ .Values.rollout.telemetry.probes.liveness.path | default "/metrics" }}
+              port: {{ .Values.rollout.telemetry.probes.liveness.port | default .Values.telemetry.prometheus.port }}
             initialDelaySeconds: {{ .Values.rollout.telemetry.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.telemetry.probes.liveness.periodSeconds }}
             failureThreshold: {{ .Values.rollout.telemetry.probes.liveness.failureThreshold }}
