@@ -72,6 +72,9 @@ spec:
         {{- with .Values.loadBalancer.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- if .Values.haproxy.enabled }}
+        checksum/haproxy-config: {{ include "sawmills-collector.haproxy.config" . | sha256sum }}
+        {{- end }}
       labels:
         {{- include "sawmills-collector.loadBalancerLabels" . | nindent 8 }}
     spec:
