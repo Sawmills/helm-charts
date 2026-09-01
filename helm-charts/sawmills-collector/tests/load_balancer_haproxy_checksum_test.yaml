@@ -1,0 +1,76 @@
+suite: test load balancer HAProxy config checksum
+templates:
+  - load-balancer.yaml
+  - deployment.yaml
+  - haproxy-configmap.yaml
+values:
+  - ../values.yaml
+release:
+  name: sawmills-collector
+  namespace: sawmills-test
+tests:
+  - it: hashes the rendered HAProxy config and preserves user pod annotations
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.podAnnotations.owner: platform
+      haproxy.enabled: true
+      haproxy.max_connections: 60000
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/haproxy-config"]
+          value: 58b130611d6f515363d6375595e3fb269d4ce15197ca96e448f62e31df80d2f3
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/haproxy-config"]
+          pattern: '^[0-9a-f]{64}$'
+      - equal:
+          path: spec.template.metadata.annotations.owner
+          value: platform
+
+  - it: keeps the checksum stable for identical rendered HAProxy config
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.max_connections: 60000
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/haproxy-config"]
+          value: 58b130611d6f515363d6375595e3fb269d4ce15197ca96e448f62e31df80d2f3
+
+  - it: changes the checksum when only rendered HAProxy config content changes
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.podAnnotations.owner: platform
+      haproxy.enabled: true
+      haproxy.max_connections: 60001
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/haproxy-config"]
+          value: 51404dda017e9b94c036bb476fcdf724e0c1ad788a3e56ad742eab7455cdf484
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/haproxy-config"]
+          value: 58b130611d6f515363d6375595e3fb269d4ce15197ca96e448f62e31df80d2f3
+      - equal:
+          path: spec.template.metadata.annotations.owner
+          value: platform
+
+  - it: omits the checksum when HAProxy is disabled on the load balancer
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: false
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/haproxy-config"]
+
+  - it: omits the checksum from the unrelated worker deployment
+    template: deployment.yaml
+    set:
+      loadBalancer.enabled: false
+      haproxy.enabled: true
+      haproxy.max_connections: 60001
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/haproxy-config"]
