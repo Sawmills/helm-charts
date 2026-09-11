@@ -961,6 +961,8 @@ Validation guardrails in this chart:
 
 `loadBalancer.pressureReadiness.enabled: true` adds the Sawmills `backend_drain` extension to LB collector pods and points the LB collector Kubernetes readiness probe at `backend_drain` `/ready`. Liveness stays on the collector `health_check` endpoint.
 
+When pressure readiness is enabled, the LB preStop hook also calls its drain endpoint. The hook retains the configured `rollout.loadBalancer.preStopSleepSeconds` window and ends the HTTP request when that window expires. This marks the backend unready before SIGTERM without letting a stalled drain request consume the entire pod grace period. During shutdown, the collector must then drain accepted queue work. The readiness endpoint alone does not verify queue completion. Abrupt node loss still requires replay or durable buffering.
+
 ```yaml
 loadBalancer:
   enabled: true
