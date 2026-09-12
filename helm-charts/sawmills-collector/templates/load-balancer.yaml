@@ -235,7 +235,7 @@ spec:
                   - /bin/sh
                   - -c
                   - |
-                    wget -q -O /dev/null "http://${MY_POD_IP}:{{ default 13137 $lbPressureReadiness.port }}{{ default "/drain" $lbPressureReadiness.drainPath }}" >/dev/null 2>&1 &
+                    wget -Y off -q -O /dev/null "http://${MY_POD_IP}:{{ default 13137 $lbPressureReadiness.port }}{{ default "/drain" $lbPressureReadiness.drainPath }}" >/dev/null 2>&1 &
                     drain_pid=$!
                     /bin/sleep {{ .Values.rollout.loadBalancer.preStopSleepSeconds }}
                     kill "$drain_pid" 2>/dev/null || true

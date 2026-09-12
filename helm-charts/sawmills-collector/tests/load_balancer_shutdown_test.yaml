@@ -12,7 +12,7 @@ tests:
           value: /bin/sh
       - matchRegex:
           path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[2]
-          pattern: 'wget.*13137/drain'
+          pattern: 'wget -Y off -q -O /dev/null.*13137/drain'
   - it: preserves sleep when the drain endpoint is absent
     set:
       loadBalancer.enabled: true
