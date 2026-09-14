@@ -1,0 +1,44 @@
+suite: load balancer shutdown drain
+templates:
+  - load-balancer.yaml
+tests:
+  - it: starts drain before waiting when the drain endpoint is configured
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[0]
+          value: /bin/sh
+      - matchRegex:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[2]
+          pattern: 'wget -Y off -q -O /dev/null.*13137/drain'
+  - it: preserves sleep when the drain endpoint is absent
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
+          value: [/bin/sleep, "20"]
+  - it: uses custom drain address while retaining the configured hook budget
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.port: 14137
+      loadBalancer.pressureReadiness.drainPath: /stop-intake
+      rollout.loadBalancer.preStopSleepSeconds: 3
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[2]
+          pattern: '14137/stop-intake'
+      - matchRegex:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[2]
+          pattern: '/bin/sleep 3'
+  - it: keeps prestop disabled when explicitly set to zero
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      rollout.loadBalancer.preStopSleepSeconds: 0
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].lifecycle
