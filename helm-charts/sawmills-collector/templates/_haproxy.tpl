@@ -229,9 +229,13 @@ frontend logs_http_frontend_{{ $config.from }}
   use_backend datadog_metrics_direct_{{ $config.from }} if is_distribution_points or is_sketches or is_beta_sketches
   {{- end }}
   {{- if and $siblingEnabled (not $siblingLoadBalance) }}
-  # Sibling fallback: detect forwarded requests to prevent routing loops (max 1 hop)
+  # Sibling fallback: bound forwarded requests to one peer retry hop.
   acl is_sibling_hop hdr(X-Sibling-Hop) -m found
+  acl is_first_sibling_hop hdr(X-Sibling-Hop) -m str 1
+  acl is_self_sibling_hop src "$MY_POD_IP"
+  http-request reject if is_sibling_hop is_self_sibling_hop
   {{- if and $externalFallbackEnabled $to.fallback_endpoint }}
+  use_backend logs_http_{{ $config.from }}_peer_retry if is_first_sibling_hop { nbsrv(logs_http_{{ $config.from }}_direct) eq 0 } { nbsrv(logs_http_{{ $config.from }}_peer_retry) gt 0 }
   use_backend logs_http_{{ $config.from }}_direct_fallback if is_sibling_hop { nbsrv(logs_http_{{ $config.from }}_direct) eq 0 }
   {{- end }}
   use_backend logs_http_{{ $config.from }}_direct if is_sibling_hop
@@ -248,8 +252,8 @@ backend logs_http_{{ $config.from }}
   option allbackups
   {{- end }}
   {{- $localBackendHealthcheckApplies := and $localBackendHealthcheckEnabled (eq $mode "http") }}
-  {{- if and $siblingEnabled (ne $mode "tcp") (or $siblingLoadBalance ($refusalFastFail.enabled | default false)) }}
-  retry-on 503
+  {{- if and $siblingEnabled (ne $mode "tcp") }}
+  retry-on conn-failure empty-response{{ if or $siblingLoadBalance ($refusalFastFail.enabled | default false) }} 503{{ end }}
   {{- end }}
   {{- if and $siblingLoadBalance (not (has "redispatch" $haproxyDefaultOptions)) }}
   option redispatch
@@ -374,6 +378,35 @@ backend logs_http_{{ $config.from }}_direct
   {{- else }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $directErrorLimit }} on-error mark-down{{ if ne $directSlowstart "" }} slowstart {{ $directSlowstart }}{{ end }}
   {{- end }}
+{{- end }}
+{{- if and $siblingEnabled (not $siblingLoadBalance) $externalFallbackEnabled $to.fallback_endpoint }}
+# Retry sibling-hop requests against healthy peer collectors before the vendor.
+backend logs_http_{{ $config.from }}_peer_retry
+  mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
+  {{- range $option := $config.backend_options }}
+  option {{ $option }}
+  {{- end }}
+  {{- if $localBackendHealthcheckApplies }}
+  option httpchk GET {{ $localBackendHealthcheckPath }}
+  {{- else if not $config.backend_options }}
+  {{- if not (eq $mode "grpc") }}
+  option httpchk GET /healthcheck
+  {{- end }}
+  {{- end }}
+  {{- with $fc }}
+  {{- if .timeout }}
+  {{ if .timeout.connect }}timeout connect {{ .timeout.connect }}{{- end }}
+  {{ if .timeout.server }}timeout server {{ .timeout.server }}{{- end }}
+  {{- end }}
+  {{- end }}
+  http-request set-header X-Sibling-Hop 2
+  {{- $peerRetryDefaultCheckPort := 13136 }}
+  {{- if $localBackendHealthcheckApplies }}
+  {{- $peerRetryDefaultCheckPort = int $localBackendHealthcheckPort }}
+  {{- end }}
+  {{- $peerRetryCheckPort := int (default $peerRetryDefaultCheckPort $sf.check.port) }}
+  retry-on conn-failure empty-response
+  server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ $config.from }} {{ $proto }} check port {{ $peerRetryCheckPort }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $errorLimit }} on-error mark-down slowstart {{ $sf.slowstart | default "30s" }} resolvers k8s init-addr none
 {{- end }}
 {{- if and $siblingEnabled $externalFallbackEnabled $to.fallback_endpoint }}
 # External fallback is selected only when every local and sibling server is down.
