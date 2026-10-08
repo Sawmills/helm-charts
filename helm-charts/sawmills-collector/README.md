@@ -442,6 +442,8 @@ The peer target is the collector port (`mapping.<name>.to.port`), not the HAProx
 
 Active sibling balancing applies to HTTP mappings. gRPC mappings retain backup-only sibling fallback, and TCP mappings retain their existing local/fallback behavior. Disabling `load_balance` restores backup-only sibling fallback without changing the stable headless Service name.
 
+When `fallback_endpoint` is configured, the external fallback server is isolated in a separate HAProxy backend so `option allbackups` cannot send normal traffic to the vendor. This changes its HAProxy `proxy` metric label to `logs_http_<from>_fallback` (or `logs_http_<from>_direct_fallback` for sibling-forwarded requests). Queries that include a proxy label must include these suffixes, for example `proxy=~"logs_http_10000(_direct)?(_fallback)?"`. HAProxy selects a backend when a request starts, so a request already retrying when its local server is marked down can return 503; new requests use the fallback backend once no server is available.
+
 #### Per-Port TLS Termination
 
 Enable TLS termination for specific HAProxy port mappings. When TLS is enabled on any port, the service switches to LoadBalancer type with AWS internal annotations.

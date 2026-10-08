@@ -313,6 +313,15 @@ tests:
           pattern: 'otelcol_loadbalancer_backend_.*latency.*quarantine_total'
       - matchRegex:
           path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_loadbalancer_central_queue_.*routing_key_failures'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_loadbalancer_backend_.*failed'
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: 'otelcol_loadbalancer_backend_.*backend_failed'
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
           pattern: 'haproxy_.*http_responses_total'
       - matchRegex:
           path: data["telemetry-config.yaml"]
