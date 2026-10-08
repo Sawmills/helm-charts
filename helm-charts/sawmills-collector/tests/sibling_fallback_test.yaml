@@ -210,16 +210,16 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "acl is_first_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 1\\r?\\n  acl is_self_sibling_hop src \\\"\\$MY_POD_IP\\\"\\r?\\n  http-request reject if is_sibling_hop is_self_sibling_hop"
+          pattern: "acl is_first_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 1\\r?\\n  acl is_second_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 2\\r?\\n  acl is_self_sibling_hop src \\\"\\$MY_POD_IP\\\"\\r?\\n  http-request reject if is_sibling_hop is_self_sibling_hop"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "use_backend logs_http_4318_peer_retry if is_first_sibling_hop"
+          pattern: "use_backend logs_http_4318_direct if is_second_sibling_hop\\r?\\n  use_backend logs_http_4318_peer_retry if is_first_sibling_hop"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on conn-failure empty-response"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_peer_retry[\\s\\S]*?http-request set-header X-Sibling-Hop 2[\\s\\S]*?retry-on conn-failure empty-response[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13136.*resolvers k8s"
+          pattern: "backend logs_http_4318_peer_retry[\\s\\S]*?http-request set-header X-Sibling-Hop 2[\\s\\S]*?option redispatch[\\s\\S]*?retry-on conn-failure empty-response 503[\\s\\S]*?retries 1[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13133.*resolvers k8s[\\s\\S]*?server fallback vendor.example.com backup ssl verify none"
 
   - it: should spread requests directly across sibling collector ports when load balancing is enabled
     template: haproxy-configmap.yaml
@@ -880,7 +880,7 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling.*check port 13137 inter 5000 rise 3 fall 4"
 
-  - it: should reuse a configured sibling check port for peer retries
+  - it: should use the local backend health port for peer retries
     template: haproxy-configmap.yaml
     set:
       loadBalancer.pressureReadiness.enabled: true
@@ -899,7 +899,7 @@ tests:
           pattern: "backend logs_http_4318\\r?\\n[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13140"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_peer_retry[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13140"
+          pattern: "backend logs_http_4318_peer_retry[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13137"
 
   # ============================================================
   # 5. Sibling fallback ENABLED - Direct backend (loop prevention)

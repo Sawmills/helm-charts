@@ -916,6 +916,8 @@ haproxy:
       # Active load balancing defaults to the local pressure-readiness port.
       # Backup-only fallback defaults to the local pressure-readiness port when
       # local backend checks apply, or forwarding health (13136) otherwise.
+      # The bounded peer-retry tier always uses the local backend health port
+      # (or 13133 when that check is disabled) before selecting the vendor.
       port: null
       # Check interval in milliseconds
       interval: 3000
