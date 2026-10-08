@@ -260,7 +260,7 @@ backend logs_http_{{ $config.from }}
   {{- end }}
   {{- $localBackendHealthcheckApplies := and $localBackendHealthcheckEnabled (eq $mode "http") }}
   {{- if and $siblingEnabled (ne $mode "tcp") }}
-  retry-on conn-failure empty-response{{ if or $siblingLoadBalance ($refusalFastFail.enabled | default false) }} 503{{ end }}
+  retry-on conn-failure{{ if or $siblingLoadBalance ($refusalFastFail.enabled | default false) }} 503{{ end }}
   {{- end }}
   {{- if and $siblingLoadBalance (not (has "redispatch" $haproxyDefaultOptions)) }}
   option redispatch
@@ -415,7 +415,7 @@ backend logs_http_{{ $config.from }}_peer_retry
   # The sibling forwarding-health port is intentionally not sufficient here:
   # it can remain UP while this peer's local collector backend is down.
   option redispatch
-  retry-on conn-failure empty-response 503
+  retry-on conn-failure 503
   retries {{ if hasKey $sf "retries" }}{{ $sf.retries }}{{ else }}1{{ end }}
   server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ $config.from }} {{ $proto }} check port {{ $peerRetryDefaultCheckPort }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $errorLimit }} on-error mark-down slowstart {{ $sf.slowstart | default "30s" }} resolvers k8s init-addr none
   server fallback {{ $to.fallback_endpoint }} {{ if $proto }}{{ $proto }} {{ end }}backup{{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }} ssl verify none{{ end }}

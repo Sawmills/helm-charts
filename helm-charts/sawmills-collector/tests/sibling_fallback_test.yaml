@@ -208,6 +208,9 @@ tests:
             port: 4318
             fallback_endpoint: vendor.example.com
     asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "empty-response"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "acl is_first_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 1\\r?\\n  acl is_second_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 2\\r?\\n  acl is_self_sibling_hop src \\\"\\$MY_POD_IP\\\""
@@ -219,10 +222,10 @@ tests:
           pattern: "use_backend logs_http_4318_peer_retry if is_first_sibling_hop is_self_sibling_hop"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on conn-failure empty-response"
+          pattern: "(?m)backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on conn-failure\\r?$"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_peer_retry[\\s\\S]*?http-request set-header X-Sibling-Hop 2[\\s\\S]*?option redispatch[\\s\\S]*?retry-on conn-failure empty-response 503[\\s\\S]*?retries 1[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13133.*resolvers k8s[\\s\\S]*?server fallback vendor.example.com backup ssl verify none"
+          pattern: "backend logs_http_4318_peer_retry[\\s\\S]*?http-request set-header X-Sibling-Hop 2[\\s\\S]*?option redispatch[\\s\\S]*?retry-on conn-failure 503[\\s\\S]*?retries 1[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13133.*resolvers k8s[\\s\\S]*?server fallback vendor.example.com backup ssl verify none"
 
   - it: should spread requests directly across sibling collector ports when load balancing is enabled
     template: haproxy-configmap.yaml
@@ -251,7 +254,7 @@ tests:
           pattern: "(?m)^  option redispatch$"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "(?m)^  retry-on conn-failure empty-response 503\\r?$"
+          pattern: "(?m)^  retry-on conn-failure 503\\r?$"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "(?m)^  retries 1\\r?$"
@@ -316,7 +319,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "(?m)^  retry-on conn-failure empty-response 503\\r?\\n  option redispatch\\r?\\n  retries 1$"
+          pattern: "(?m)^  retry-on conn-failure 503\\r?\\n  option redispatch\\r?\\n  retries 1$"
 
   - it: should preserve an explicit zero retry budget
     template: haproxy-configmap.yaml
@@ -1418,7 +1421,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on conn-failure empty-response 503"
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on conn-failure 503"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down"
