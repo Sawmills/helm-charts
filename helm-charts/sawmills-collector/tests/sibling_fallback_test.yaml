@@ -87,7 +87,7 @@ tests:
           pattern: 'server otel "\$MY_POD_IP":4318'
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_fallback\\r?\\n  mode http\\r?\\n  server fallback vendor.example.com ssl verify none"
+          pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
       - notMatchRegex:
           path: data["haproxy.cfg"]
           pattern: "(?m)^  option allbackups$"
@@ -981,7 +981,7 @@ tests:
       # Should still have the original 2-server backend
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_514_fallback\\r?\\n  mode tcp\\r?\\n  server fallback vendor.example.com ssl verify none"
+          pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
 
   # ============================================================
   # 7. gRPC mode - sibling fallback IS applied

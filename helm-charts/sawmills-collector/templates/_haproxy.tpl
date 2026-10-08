@@ -236,7 +236,7 @@ frontend logs_http_frontend_{{ $config.from }}
   {{- end }}
   use_backend logs_http_{{ $config.from }}_direct if is_sibling_hop
   {{- end }}
-  {{- if and $externalFallbackEnabled $to.fallback_endpoint }}
+  {{- if and $siblingEnabled $externalFallbackEnabled $to.fallback_endpoint }}
   use_backend logs_http_{{ $config.from }}_fallback if { nbsrv(logs_http_{{ $config.from }}) eq 0 }
   {{- end }}
   default_backend logs_http_{{ $config.from }}
@@ -319,6 +319,9 @@ backend logs_http_{{ $config.from }}
   {{- end }}
   server-template sibling {{ $sf.max_servers | default 10 }} {{ include "sawmills-collector.lbHeadlessSvcFQDN" $ }}:{{ if $siblingLoadBalance }}{{ $to.port }}{{ else }}{{ $config.from }}{{ end }} {{ $proto }} check port {{ $peerCheckPort }} inter {{ $sf.check.interval | default 3000 }} rise {{ $sf.check.rise | default 2 }} fall {{ $sf.check.fall | default 2 }}{{ if not $siblingLoadBalance }} backup{{ else }} observe layer7 error-limit {{ $errorLimit }} on-error mark-down slowstart {{ $sf.slowstart | default "30s" }}{{ end }} resolvers k8s init-addr none
   {{- end }}
+  {{- if and (not $siblingEnabled) $externalFallbackEnabled $to.fallback_endpoint }}
+  server fallback {{ $to.fallback_endpoint }} {{ $proto }} backup {{ if (or (not (hasKey $to "fallback_ssl")) $to.fallback_ssl) }}ssl verify none{{ end }}
+  {{- end }}
   {{- else }}
   {{- if $localBackendHealthcheckApplies }}
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port {{ $localBackendHealthcheckPort }} inter {{ $localBackendHealthcheckInterval }} rise {{ $localBackendHealthcheckRise }} fall {{ $localBackendHealthcheckFall }}
@@ -372,7 +375,7 @@ backend logs_http_{{ $config.from }}_direct
   server otel "$MY_POD_IP":{{ $to.port }} {{ $proto }} check port 13133 inter {{ $interval }} rise {{ $rise }} fall {{ $fall }} observe {{ if eq $mode "http" }}layer7{{ else }}layer4{{ end }} error-limit {{ $directErrorLimit }} on-error mark-down{{ if ne $directSlowstart "" }} slowstart {{ $directSlowstart }}{{ end }}
   {{- end }}
 {{- end }}
-{{- if and $externalFallbackEnabled $to.fallback_endpoint }}
+{{- if and $siblingEnabled $externalFallbackEnabled $to.fallback_endpoint }}
 # External fallback is selected only when every local and sibling server is down.
 backend logs_http_{{ $config.from }}_fallback
   mode {{ if eq $mode "grpc" }}http{{ else }}{{ $mode }}{{ end }}
