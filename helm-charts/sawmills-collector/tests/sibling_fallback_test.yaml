@@ -88,6 +88,9 @@ tests:
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^  option allbackups$"
 
   # ============================================================
   # 2. Sibling fallback ENABLED - DNS resolver
@@ -194,6 +197,36 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
 
+  - it: should reroute self-hops and bound peer retries
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "empty-response"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "acl is_first_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 1\\r?\\n  acl is_second_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 2\\r?\\n  acl is_self_sibling_hop src \\\"\\$MY_POD_IP\\\""
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "use_backend logs_http_4318_direct if is_second_sibling_hop"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "use_backend logs_http_4318_peer_retry if is_first_sibling_hop is_self_sibling_hop"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on conn-failure\\r?$"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_peer_retry[\\s\\S]*?http-request set-header X-Sibling-Hop 2[\\s\\S]*?option redispatch[\\s\\S]*?retry-on conn-failure 503[\\s\\S]*?retries 1[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13133.*resolvers k8s[\\s\\S]*?server fallback vendor.example.com backup ssl verify none"
+
   - it: should spread requests directly across sibling collector ports when load balancing is enabled
     template: haproxy-configmap.yaml
     set:
@@ -221,7 +254,7 @@ tests:
           pattern: "(?m)^  option redispatch$"
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "(?m)^  retry-on 503\\r?$"
+          pattern: "(?m)^  retry-on conn-failure 503\\r?$"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "(?m)^  retries 1\\r?$"
@@ -234,6 +267,18 @@ tests:
       - notMatchRegex:
           path: data["haproxy.cfg"]
           pattern: "X-Sibling-Hop|logs_http_10000_direct"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_10000\\r?\\n  mode http\\r?\\n(?:  #.*\\r?\\n)*  option allbackups\\r?\\n"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "use_backend logs_http_10000_fallback if \\{ nbsrv\\(logs_http_10000\\) eq 0 \\}"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_10000_fallback[\\s\\S]*?server fallback vendor.example.com ssl verify none"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^backend logs_http_10000\\r?\\n(?:^  .*\\r?\\n|^\\r?\\n)*^  server fallback vendor.example.com"
 
   - it: should not duplicate explicitly configured redispatch
     template: haproxy-configmap.yaml
@@ -274,7 +319,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "(?m)^  retry-on 503\\r?\\n  option redispatch\\r?\\n  retries 1$"
+          pattern: "(?m)^  retry-on conn-failure 503\\r?\\n  option redispatch\\r?\\n  retries 1$"
 
   - it: should preserve an explicit zero retry budget
     template: haproxy-configmap.yaml
@@ -715,7 +760,7 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling 20 RELEASE-NAME-headless\\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
 
-  - it: should include external fallback as last resort
+  - it: should route to Coralogix only when all local and sibling servers are down
     template: haproxy-configmap.yaml
     set:
       haproxy.sibling_fallback.enabled: true
@@ -728,7 +773,34 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
+          pattern: "use_backend logs_http_4318_fallback if \\{ nbsrv\\(logs_http_4318\\) eq 0 \\}"
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "(?m)^backend logs_http_4318\\r?\\n(?:^  .*\\r?\\n|^\\r?\\n)*^  server fallback vendor.example.com"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_fallback\\r?\\n  mode http\\r?\\n  server fallback vendor.example.com ssl verify none"
+
+  - it: should spread one failed local LB across every healthy sibling before Coralogix
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318\\r?\\n  mode http\\r?\\n(?:  #.*\\r?\\n)*  option allbackups\\r?\\n"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*backup.*resolvers k8s"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "use_backend logs_http_4318_fallback if \\{ nbsrv\\(logs_http_4318\\) eq 0 \\}"
 
   - it: should gate direct LB readiness on forwarding health when enabled
     template: haproxy-configmap.yaml
@@ -793,7 +865,7 @@ tests:
           pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "server fallback vendor.example.com.*backup.*ssl verify none"
+          pattern: "backend logs_http_4318_fallback"
 
   - it: should use custom sibling health check settings
     template: haproxy-configmap.yaml
@@ -814,6 +886,27 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling.*check port 13137 inter 5000 rise 3 fall 4"
 
+  - it: should use the local backend health port for peer retries
+    template: haproxy-configmap.yaml
+    set:
+      loadBalancer.pressureReadiness.enabled: true
+      haproxy.local_backend_healthcheck.enabled: true
+      haproxy.sibling_fallback.enabled: true
+      haproxy.sibling_fallback.check.port: 13140
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318\\r?\\n[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13140"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_peer_retry[\\s\\S]*?server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13137"
+
   # ============================================================
   # 5. Sibling fallback ENABLED - Direct backend (loop prevention)
   # ============================================================
@@ -833,9 +926,12 @@ tests:
           pattern: "backend logs_http_4318_direct"
       - matchRegex:
           path: data["haproxy.cfg"]
+          pattern: "use_backend logs_http_4318_direct_fallback if is_sibling_hop \\{ nbsrv\\(logs_http_4318_direct\\) eq 0 \\}\\r?\\n[[:space:]]+use_backend logs_http_4318_direct if is_sibling_hop"
+      - matchRegex:
+          path: data["haproxy.cfg"]
           pattern: "http-request del-header X-Sibling-Hop"
 
-  - it: should have otel and fallback servers in _direct backend
+  - it: should isolate the external fallback from the _direct backend
     template: haproxy-configmap.yaml
     set:
       haproxy.sibling_fallback.enabled: true
@@ -848,7 +944,42 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318_direct[\\s\\S]*?server otel[\\s\\S]*?server fallback"
+          pattern: "backend logs_http_4318_direct\\r?\\n[\\s\\S]*?server otel"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct_fallback[\\s\\S]*?server fallback vendor.example.com ssl verify none"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct_fallback[\\s\\S]*?http-request del-header X-Sibling-Hop"
+
+  - it: should preserve fallback backend timeouts
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.sibling_fallback.enabled: true
+      haproxy.mapping.http_4318.backend_options[0]: http-keep-alive
+      haproxy.mapping:
+        http_4318:
+          from: 4318
+          to:
+            port: 4318
+            fallback_endpoint: vendor.example.com
+            fallback_config:
+              timeout:
+                connect: 2s
+                server: 7s
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_fallback[\\s\\S]*?timeout connect 2s[\\s\\S]*?timeout server 7s"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct_fallback[\\s\\S]*?timeout connect 2s[\\s\\S]*?timeout server 7s"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_fallback[\\s\\S]*?option http-keep-alive"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_direct_fallback[\\s\\S]*?option http-keep-alive"
 
   - it: should keep _direct backend otel-only when external fallback disabled
     template: haproxy-configmap.yaml
@@ -927,6 +1058,12 @@ tests:
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4317_direct"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4317_fallback[\\s\\S]*?server fallback vendor.example.com proto h2 ssl verify none"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4317_direct_fallback[\\s\\S]*?server fallback vendor.example.com proto h2 ssl verify none"
 
   - it: should keep gRPC on readiness-safe backup sibling fallback when active HTTP balancing is enabled
     template: haproxy-configmap.yaml
@@ -1284,7 +1421,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on 503"
+          pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on conn-failure 503"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+server otel .*error-limit 17 on-error mark-down"
@@ -1341,7 +1478,10 @@ tests:
     asserts:
       - notMatchRegex:
           path: data["haproxy.cfg"]
-          pattern: "slowstart"
+          pattern: "server (otel|fallback) .*slowstart"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "backend logs_http_4318_peer_retry[\\s\\S]*?slowstart 30s"
 
   - it: should include slowstart on otel servers when configured
     template: haproxy-configmap.yaml
