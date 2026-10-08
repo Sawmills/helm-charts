@@ -197,7 +197,7 @@ tests:
           path: data["haproxy.cfg"]
           pattern: "server-template sibling 10 RELEASE-NAME-headless\\..*:4318.*check port 13136.*backup.*resolvers k8s.*init-addr none"
 
-  - it: should reject self-hops and bound peer retries
+  - it: should reroute self-hops and bound peer retries
     template: haproxy-configmap.yaml
     set:
       haproxy.sibling_fallback.enabled: true
@@ -210,10 +210,13 @@ tests:
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "acl is_first_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 1\\r?\\n  acl is_second_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 2\\r?\\n  acl is_self_sibling_hop src \\\"\\$MY_POD_IP\\\"\\r?\\n  http-request reject if is_sibling_hop is_self_sibling_hop"
+          pattern: "acl is_first_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 1\\r?\\n  acl is_second_sibling_hop hdr\\(X-Sibling-Hop\\) -m str 2\\r?\\n  acl is_self_sibling_hop src \\\"\\$MY_POD_IP\\\""
       - matchRegex:
           path: data["haproxy.cfg"]
-          pattern: "use_backend logs_http_4318_direct if is_second_sibling_hop\\r?\\n  use_backend logs_http_4318_peer_retry if is_first_sibling_hop"
+          pattern: "use_backend logs_http_4318_direct if is_second_sibling_hop"
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: "use_backend logs_http_4318_peer_retry if is_first_sibling_hop is_self_sibling_hop"
       - matchRegex:
           path: data["haproxy.cfg"]
           pattern: "backend logs_http_4318\\r?\\n(?:[ \\t]+.*\\r?\\n)*[ \\t]+retry-on conn-failure empty-response"

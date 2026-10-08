@@ -234,12 +234,14 @@ frontend logs_http_frontend_{{ $config.from }}
   acl is_first_sibling_hop hdr(X-Sibling-Hop) -m str 1
   acl is_second_sibling_hop hdr(X-Sibling-Hop) -m str 2
   acl is_self_sibling_hop src "$MY_POD_IP"
-  http-request reject if is_sibling_hop is_self_sibling_hop
   {{- if and $externalFallbackEnabled $to.fallback_endpoint }}
   # A second-hop request must fail through the peer-retry backend before the
   # vendor fallback can be selected. Its local-only backend returns 503 when
   # this peer cannot serve the request, allowing the first hop to retry peers.
   use_backend logs_http_{{ $config.from }}_direct if is_second_sibling_hop
+  # A self-hop must enter the peer tier so the vendor remains reachable when
+  # no other locally healthy sibling is available.
+  use_backend logs_http_{{ $config.from }}_peer_retry if is_first_sibling_hop is_self_sibling_hop
   use_backend logs_http_{{ $config.from }}_peer_retry if is_first_sibling_hop { nbsrv(logs_http_{{ $config.from }}_direct) eq 0 }
   use_backend logs_http_{{ $config.from }}_direct_fallback if is_sibling_hop { nbsrv(logs_http_{{ $config.from }}_direct) eq 0 }
   {{- end }}
