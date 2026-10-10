@@ -61,6 +61,21 @@ tests:
           content:
             "$patch": replace
 
+  - it: should use an explicit drain grace override for load balancer topology
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
+      rollout.main.drain.terminationGracePeriodSeconds: 140
+      rollout.main.drain.duration: 129s
+      rollout.main.drain.shutdownReserve: 10s
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 140
+
 
   - it: should add backend drain overlay config for load balancer topology
     template: backend-drain-configmap.yaml
@@ -182,6 +197,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
           value: "15"
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 150
       - isNotSubset:
           path: spec.template.spec.containers[1].lifecycle
           content:
@@ -209,6 +227,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[1].lifecycle.preStop.exec.command[1]
           value: "15"
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 150
       - isNotSubset:
           path: spec.template.spec.containers[1].lifecycle
           content:
@@ -274,4 +295,4 @@ tests:
       rollout.terminationGracePeriodSeconds: 150
     asserts:
       - failedTemplate:
-          errorMessage: 'rollout.main.drain.duration (140s) plus rollout.main.drain.shutdownReserve (10s) must be less than rollout.terminationGracePeriodSeconds (150s)'
+          errorMessage: 'rollout.main.drain.duration (140s) plus rollout.main.drain.shutdownReserve (10s) must be less than the effective termination grace period (135s)'

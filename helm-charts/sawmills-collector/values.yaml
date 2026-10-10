@@ -28,13 +28,9 @@ resourceBaseName: ""
 # Rollout configuration
 rollout:
   # Global rollout settings
-  # 135s = 100s backend drain + 15s main preStop sleep + 10s shutdown reserve
-  # + 10s margin. The 100s drain is 1.2x the 82.659s all-LB convergence
-  # measured in SAW-12556 worker-churn run 20106. The active HAProxy fallback
-  # check is 2s with fall=5 (10s); the wider drain margin covers one-run and
-  # health-check observation limits. Replacement Ready time remains a separate
-  # capacity measure because terminating workers retain node CPU requests.
-  terminationGracePeriodSeconds: 135
+  # The global value applies when the collector has no backend-drain listener.
+  # LoadBalancer workers use main.drain.terminationGracePeriodSeconds below.
+  terminationGracePeriodSeconds: 150
   minReadySeconds: 15
 
   # Deployment strategy configuration
@@ -125,9 +121,17 @@ rollout:
       serviceExtensions:
         - health_check
         - cgroup_runtime
-      # Keep drain.duration + shutdownReserve below
-      # rollout.terminationGracePeriodSeconds so the collector still has time
-      # to handle SIGTERM after the drain hook returns.
+      # Keep drain.duration + shutdownReserve below this effective grace
+      # period so the collector still has time to handle SIGTERM after the
+      # drain hook returns.
+      # 135s = 100s backend drain + 15s main preStop sleep + 10s shutdown
+      # reserve + 10s margin. The 100s drain is 1.2x the 82.659s all-LB
+      # convergence measured in SAW-12556 worker-churn run 20106. The active
+      # HAProxy fallback check is 2s with fall=5 (10s); the wider drain margin
+      # covers one-run and health-check observation limits. Replacement Ready
+      # time remains a separate capacity measure because terminating workers
+      # retain node CPU requests.
+      terminationGracePeriodSeconds: 135
       # 100s = ceil(82.659s run-20106 all-LB convergence * 1.2). The chart's
       # active HAProxy fallback check is interval 2s with fall 5; this drain
       # budget includes margin above that 10s detection budget and the measured

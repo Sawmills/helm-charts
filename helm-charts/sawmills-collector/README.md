@@ -677,7 +677,7 @@ rollout:
     maxUnavailable: null   # defaults to 1 for ≤ 10 replicas, scales proportionally beyond that
     maxSurge: null         # defaults to 2 for ≤ 10 replicas, scales proportionally beyond that
   minReadySeconds: 15
-  terminationGracePeriodSeconds: 135
+  terminationGracePeriodSeconds: 150
   main:
     probes:
       liveness:
@@ -701,6 +701,7 @@ rollout:
       serviceExtensions: [health_check, cgroup_runtime]
       duration: 100s
       shutdownReserve: 10s
+      terminationGracePeriodSeconds: 135
     preStopSleepSeconds: 15
 ```
 
@@ -710,7 +711,7 @@ When `loadBalancer.enabled: true`, the chart can protect backend collector rollo
 
 ```yaml
 rollout:
-  terminationGracePeriodSeconds: 135
+  terminationGracePeriodSeconds: 150
   main:
     drain:
       enabled: true
@@ -722,6 +723,7 @@ rollout:
       serviceExtensions: [health_check, cgroup_runtime]
       duration: 100s
       shutdownReserve: 10s
+      terminationGracePeriodSeconds: 135
 ```
 
 `rollout.main.drain.configSource` controls where the `backend_drain` extension config lives:
@@ -740,7 +742,7 @@ With that topology enabled, the chart:
 * Uses a `preStop.httpGet` hook to call `/drain`, which flips readiness immediately and blocks for the configured drain duration.
 * Leaves liveness and startup probes on the normal `health_check` endpoint (`13133`) so crash detection stays unchanged.
 
-Keep `rollout.main.drain.duration + rollout.main.drain.shutdownReserve` below `rollout.terminationGracePeriodSeconds` so the collector still has explicit post-drain shutdown time before kubelet force-kills the pod.
+Keep `rollout.main.drain.duration + rollout.main.drain.shutdownReserve` below the effective termination grace period. The chart uses `rollout.main.drain.terminationGracePeriodSeconds` for the load-balancer drain path and `rollout.terminationGracePeriodSeconds` for the no-load-balancer path.
 
 ### Pod Disruption Budget
 
