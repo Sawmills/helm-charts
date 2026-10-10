@@ -55,7 +55,7 @@ tests:
           pattern: "wget.*13137.*/drain.*sleep"
       - equal:
           path: spec.template.spec.terminationGracePeriodSeconds
-          value: 150
+          value: 135
       - isNotSubset:
           path: spec.template.spec.containers[1].lifecycle
           content:
@@ -74,7 +74,7 @@ tests:
           count: 1
       - matchRegex:
           path: data["config.yaml"]
-          pattern: '(?ms)^extensions:\n\s+backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 120s\n'
+          pattern: '(?ms)^extensions:\n\s+backend_drain:\n\s+endpoint: \$\{env:MY_POD_IP\}:13137\n\s+readiness_path: /ready\n\s+drain_path: /drain\n\s+health_check_endpoint: http://\$\{env:MY_POD_IP\}:13133/healthcheck\n\s+drain_duration: 100s\n'
       - matchRegex:
           path: data["config.yaml"]
           pattern: '(?ms)^service:\n\s+extensions:\n\s+- health_check\n\s+- cgroup_runtime\n\s+- backend_drain\n'
