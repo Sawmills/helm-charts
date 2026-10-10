@@ -2,6 +2,21 @@
 {{- $mainStartupProbe := .Values.rollout.main.probes.startup | default dict }}
 {{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) }}
 {{- $mainCollectorDrainConfigSource := default "overlay" $mainDrain.configSource }}
+{{- $globalTerminationGracePeriodSeconds := .Values.rollout.terminationGracePeriodSeconds }}
+{{- $globalTerminationGracePeriodSet := not (kindIs "invalid" $globalTerminationGracePeriodSeconds) }}
+{{- $drainTerminationGracePeriodSeconds := $mainDrain.terminationGracePeriodSeconds }}
+{{- $drainTerminationGracePeriodSet := not (kindIs "invalid" $drainTerminationGracePeriodSeconds) }}
+{{- $terminationGracePeriodSeconds := 150 }}
+{{- if $globalTerminationGracePeriodSet }}
+{{- $terminationGracePeriodSeconds = int $globalTerminationGracePeriodSeconds }}
+{{- end }}
+{{- if $mainCollectorDrainEnabled }}
+{{- if $drainTerminationGracePeriodSet }}
+{{- $terminationGracePeriodSeconds = int $drainTerminationGracePeriodSeconds }}
+{{- else if not $globalTerminationGracePeriodSet }}
+{{- $terminationGracePeriodSeconds = 135 }}
+{{- end }}
+{{- end }}
 {{- if and $mainCollectorDrainEnabled (not (or (eq $mainCollectorDrainConfigSource "overlay") (eq $mainCollectorDrainConfigSource "mainConfig"))) }}
 {{- fail (printf "rollout.main.drain.configSource must be one of: overlay, mainConfig (got %q)" $mainCollectorDrainConfigSource) }}
 {{- end }}
@@ -18,9 +33,10 @@
 {{- $shutdownReserve := default "10s" $mainDrain.shutdownReserve }}
 {{- $drainDurationMs := include "sawmills-collector.durationToMilliseconds" $drainDuration | atoi }}
 {{- $shutdownReserveMs := include "sawmills-collector.durationToMilliseconds" $shutdownReserve | atoi }}
-{{- $terminationGracePeriodMs := mul (int .Values.rollout.terminationGracePeriodSeconds) 1000 }}
-{{- if ge (add $drainDurationMs $shutdownReserveMs) $terminationGracePeriodMs }}
-{{- fail (printf "rollout.main.drain.duration (%s) plus rollout.main.drain.shutdownReserve (%s) must be less than rollout.terminationGracePeriodSeconds (%ds)" $drainDuration $shutdownReserve (int .Values.rollout.terminationGracePeriodSeconds)) }}
+{{- $preStopSleepMs := mul (int .Values.rollout.main.preStopSleepSeconds) 1000 }}
+{{- $terminationGracePeriodMs := mul $terminationGracePeriodSeconds 1000 }}
+{{- if ge (add $drainDurationMs $preStopSleepMs $shutdownReserveMs) $terminationGracePeriodMs }}
+{{- fail (printf "rollout.main.drain.duration (%s) plus rollout.main.preStopSleepSeconds (%ds) plus rollout.main.drain.shutdownReserve (%s) must be less than the effective termination grace period (%ds)" $drainDuration (int .Values.rollout.main.preStopSleepSeconds) $shutdownReserve $terminationGracePeriodSeconds) }}
 {{- end }}
 {{- end }}
 {{- if eq .Values.mode "daemonSet" }}
@@ -117,7 +133,7 @@ spec:
     spec:
       serviceAccountName:  {{ include "sawmills-collector.serviceAccountName" . }}
 
-      terminationGracePeriodSeconds: {{ .Values.rollout.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ $terminationGracePeriodSeconds }}
       {{- if not (empty .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml .Values.nodeSelector | nindent 8 }}

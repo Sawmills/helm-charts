@@ -28,7 +28,9 @@ resourceBaseName: ""
 # Rollout configuration
 rollout:
   # Global rollout settings
-  terminationGracePeriodSeconds: 150
+  # Leave null to use the legacy 150s no-LoadBalancer grace and the measured
+  # 135s LoadBalancer drain grace. Set this value to override both topologies.
+  terminationGracePeriodSeconds: null
   minReadySeconds: 15
 
   # Deployment strategy configuration
@@ -119,10 +121,18 @@ rollout:
       serviceExtensions:
         - health_check
         - cgroup_runtime
-      # Keep drain.duration + shutdownReserve below
-      # rollout.terminationGracePeriodSeconds so the collector still has time
-      # to handle SIGTERM after the drain hook returns.
-      duration: 120s
+      # Keep drain.duration + preStopSleepSeconds + shutdownReserve below this
+      # effective grace period so the collector still has time to handle
+      # SIGTERM after the drain hook returns.
+      # Leave null to use the measured 135s LoadBalancer drain grace. The
+      # parent rollout.terminationGracePeriodSeconds remains the shared
+      # override when set.
+      terminationGracePeriodSeconds: null
+      # 100s = ceil(82.659s run-20106 all-LB convergence * 1.2). The chart's
+      # active HAProxy fallback check is interval 2s with fall 5; this drain
+      # budget includes margin above that 10s detection budget and the measured
+      # in-flight counter quieting before worker termination.
+      duration: 100s
       # Reserve explicit post-drain shutdown time inside the pod termination
       # grace period for collector shutdown and kubelet bookkeeping.
       shutdownReserve: 10s
