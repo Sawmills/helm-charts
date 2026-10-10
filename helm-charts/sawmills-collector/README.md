@@ -677,7 +677,7 @@ rollout:
     maxUnavailable: null   # defaults to 1 for ≤ 10 replicas, scales proportionally beyond that
     maxSurge: null         # defaults to 2 for ≤ 10 replicas, scales proportionally beyond that
   minReadySeconds: 15
-  terminationGracePeriodSeconds: 150
+  terminationGracePeriodSeconds: 135
   main:
     probes:
       liveness:
@@ -701,7 +701,6 @@ rollout:
       serviceExtensions: [health_check, cgroup_runtime]
       duration: 100s
       shutdownReserve: 10s
-      terminationGracePeriodSeconds: 135
     preStopSleepSeconds: 15
 ```
 
@@ -711,7 +710,7 @@ When `loadBalancer.enabled: true`, the chart can protect backend collector rollo
 
 ```yaml
 rollout:
-  terminationGracePeriodSeconds: 150
+  terminationGracePeriodSeconds: 135
   main:
     drain:
       enabled: true
@@ -723,7 +722,6 @@ rollout:
       serviceExtensions: [health_check, cgroup_runtime]
       duration: 100s
       shutdownReserve: 10s
-      terminationGracePeriodSeconds: 135
 ```
 
 `rollout.main.drain.configSource` controls where the `backend_drain` extension config lives:
@@ -742,7 +740,7 @@ With that topology enabled, the chart:
 * Uses a `preStop.httpGet` hook to call `/drain`, which flips readiness immediately and blocks for the configured drain duration.
 * Leaves liveness and startup probes on the normal `health_check` endpoint (`13133`) so crash detection stays unchanged.
 
-Keep `rollout.main.drain.duration + rollout.main.drain.shutdownReserve` below the effective termination grace period. The chart uses `rollout.main.drain.terminationGracePeriodSeconds` for the load-balancer drain path and `rollout.terminationGracePeriodSeconds` for the no-load-balancer path.
+Keep `rollout.main.drain.duration + rollout.main.preStopSleepSeconds + rollout.main.drain.shutdownReserve` below the effective termination grace period. The chart preserves the legacy 150 s grace for the no-load-balancer sleep path when `rollout.terminationGracePeriodSeconds` remains at its 135 s drain default; an explicit parent value overrides both topologies.
 
 ### Pod Disruption Budget
 

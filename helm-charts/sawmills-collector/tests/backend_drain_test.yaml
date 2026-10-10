@@ -61,20 +61,20 @@ tests:
           content:
             "$patch": replace
 
-  - it: should use an explicit drain grace override for load balancer topology
+  - it: should honor an explicit grace override for load balancer topology
     template: deployment.yaml
     values:
       - ../values.yaml
     set:
       loadBalancer.enabled: true
       rollout.main.drain.enabled: true
-      rollout.main.drain.terminationGracePeriodSeconds: 140
+      rollout.terminationGracePeriodSeconds: 170
       rollout.main.drain.duration: 129s
       rollout.main.drain.shutdownReserve: 10s
     asserts:
       - equal:
           path: spec.template.spec.terminationGracePeriodSeconds
-          value: 140
+          value: 170
 
 
   - it: should add backend drain overlay config for load balancer topology
@@ -295,4 +295,4 @@ tests:
       rollout.terminationGracePeriodSeconds: 150
     asserts:
       - failedTemplate:
-          errorMessage: 'rollout.main.drain.duration (140s) plus rollout.main.drain.shutdownReserve (10s) must be less than the effective termination grace period (135s)'
+          errorMessage: 'rollout.main.drain.duration (140s) plus rollout.main.preStopSleepSeconds (15s) plus rollout.main.drain.shutdownReserve (10s) must be less than the effective termination grace period (150s)'
