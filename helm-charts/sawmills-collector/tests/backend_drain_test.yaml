@@ -68,6 +68,21 @@ tests:
     set:
       loadBalancer.enabled: true
       rollout.main.drain.enabled: true
+      rollout.main.drain.terminationGracePeriodSeconds: 170
+      rollout.main.drain.duration: 129s
+      rollout.main.drain.shutdownReserve: 10s
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 170
+
+  - it: should honor an explicit global grace override when drain override is null
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      rollout.main.drain.enabled: true
       rollout.terminationGracePeriodSeconds: 170
       rollout.main.drain.duration: 129s
       rollout.main.drain.shutdownReserve: 10s
@@ -75,6 +90,18 @@ tests:
       - equal:
           path: spec.template.spec.terminationGracePeriodSeconds
           value: 170
+
+  - it: should preserve an explicit 135 second no-load-balancer override
+    template: deployment.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: false
+      rollout.terminationGracePeriodSeconds: 135
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 135
 
 
   - it: should add backend drain overlay config for load balancer topology

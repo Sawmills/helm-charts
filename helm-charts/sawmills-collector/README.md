@@ -677,7 +677,7 @@ rollout:
     maxUnavailable: null   # defaults to 1 for ≤ 10 replicas, scales proportionally beyond that
     maxSurge: null         # defaults to 2 for ≤ 10 replicas, scales proportionally beyond that
   minReadySeconds: 15
-  terminationGracePeriodSeconds: 135
+  terminationGracePeriodSeconds: null # 150s without LB drain, 135s with LB drain
   main:
     probes:
       liveness:
@@ -701,6 +701,7 @@ rollout:
       serviceExtensions: [health_check, cgroup_runtime]
       duration: 100s
       shutdownReserve: 10s
+      terminationGracePeriodSeconds: null # defaults to 135s for LB drain
     preStopSleepSeconds: 15
 ```
 
@@ -710,7 +711,7 @@ When `loadBalancer.enabled: true`, the chart can protect backend collector rollo
 
 ```yaml
 rollout:
-  terminationGracePeriodSeconds: 135
+  terminationGracePeriodSeconds: null
   main:
     drain:
       enabled: true
@@ -722,6 +723,7 @@ rollout:
       serviceExtensions: [health_check, cgroup_runtime]
       duration: 100s
       shutdownReserve: 10s
+      terminationGracePeriodSeconds: null # defaults to 135s for LB drain
 ```
 
 `rollout.main.drain.configSource` controls where the `backend_drain` extension config lives:
@@ -740,7 +742,7 @@ With that topology enabled, the chart:
 * Uses a `preStop.httpGet` hook to call `/drain`, which flips readiness immediately and blocks for the configured drain duration.
 * Leaves liveness and startup probes on the normal `health_check` endpoint (`13133`) so crash detection stays unchanged.
 
-Keep `rollout.main.drain.duration + rollout.main.preStopSleepSeconds + rollout.main.drain.shutdownReserve` below the effective termination grace period. The chart preserves the legacy 150 s grace for the no-load-balancer sleep path when `rollout.terminationGracePeriodSeconds` remains at its 135 s drain default; an explicit parent value overrides both topologies.
+Keep `rollout.main.drain.duration + rollout.main.preStopSleepSeconds + rollout.main.drain.shutdownReserve` below the effective termination grace period. With both grace values unset, the chart uses 150 s for the no-load-balancer sleep path and 135 s for the measured LB drain path. Set either value to override the corresponding topology; the parent value overrides both when the drain-specific value is null.
 
 ### Pod Disruption Budget
 

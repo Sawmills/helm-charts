@@ -28,10 +28,9 @@ resourceBaseName: ""
 # Rollout configuration
 rollout:
   # Global rollout settings
-  # 135s is the measured LoadBalancer drain budget. When this default remains
-  # unchanged, the no-LoadBalancer sleep path keeps its legacy 150s grace.
-  # Set this value to override the grace period for both topologies.
-  terminationGracePeriodSeconds: 135
+  # Leave null to use the legacy 150s no-LoadBalancer grace and the measured
+  # 135s LoadBalancer drain grace. Set this value to override both topologies.
+  terminationGracePeriodSeconds: null
   minReadySeconds: 15
 
   # Deployment strategy configuration
@@ -125,9 +124,10 @@ rollout:
       # Keep drain.duration + preStopSleepSeconds + shutdownReserve below this
       # effective grace period so the collector still has time to handle
       # SIGTERM after the drain hook returns.
-      # The parent rollout.terminationGracePeriodSeconds carries the effective
-      # grace. The chart preserves the legacy 150s value for no-LoadBalancer
-      # workers when that parent remains at its 135s drain default.
+      # Leave null to use the measured 135s LoadBalancer drain grace. The
+      # parent rollout.terminationGracePeriodSeconds remains the shared
+      # override when set.
+      terminationGracePeriodSeconds: null
       # 100s = ceil(82.659s run-20106 all-LB convergence * 1.2). The chart's
       # active HAProxy fallback check is interval 2s with fall 5; this drain
       # budget includes margin above that 10s detection budget and the measured

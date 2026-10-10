@@ -2,10 +2,20 @@
 {{- $mainStartupProbe := .Values.rollout.main.probes.startup | default dict }}
 {{- $mainCollectorDrainEnabled := and .Values.loadBalancer.enabled ($mainDrain.enabled | default false) }}
 {{- $mainCollectorDrainConfigSource := default "overlay" $mainDrain.configSource }}
-{{- $configuredTerminationGracePeriodSeconds := int .Values.rollout.terminationGracePeriodSeconds }}
-{{- $terminationGracePeriodSeconds := $configuredTerminationGracePeriodSeconds }}
-{{- if and (not $mainCollectorDrainEnabled) (eq $configuredTerminationGracePeriodSeconds 135) }}
-{{- $terminationGracePeriodSeconds = 150 }}
+{{- $globalTerminationGracePeriodSeconds := .Values.rollout.terminationGracePeriodSeconds }}
+{{- $globalTerminationGracePeriodSet := not (kindIs "invalid" $globalTerminationGracePeriodSeconds) }}
+{{- $drainTerminationGracePeriodSeconds := $mainDrain.terminationGracePeriodSeconds }}
+{{- $drainTerminationGracePeriodSet := not (kindIs "invalid" $drainTerminationGracePeriodSeconds) }}
+{{- $terminationGracePeriodSeconds := 150 }}
+{{- if $globalTerminationGracePeriodSet }}
+{{- $terminationGracePeriodSeconds = int $globalTerminationGracePeriodSeconds }}
+{{- end }}
+{{- if $mainCollectorDrainEnabled }}
+{{- if $drainTerminationGracePeriodSet }}
+{{- $terminationGracePeriodSeconds = int $drainTerminationGracePeriodSeconds }}
+{{- else if not $globalTerminationGracePeriodSet }}
+{{- $terminationGracePeriodSeconds = 135 }}
+{{- end }}
 {{- end }}
 {{- if and $mainCollectorDrainEnabled (not (or (eq $mainCollectorDrainConfigSource "overlay") (eq $mainCollectorDrainConfigSource "mainConfig"))) }}
 {{- fail (printf "rollout.main.drain.configSource must be one of: overlay, mainConfig (got %q)" $mainCollectorDrainConfigSource) }}
