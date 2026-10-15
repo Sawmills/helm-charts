@@ -991,6 +991,14 @@ for a 15-second endpoint budget,
 20-second propagation sleep, and five-minute exporter budget. All options remain
 off by default. Enable them on customer collectors only with separate approval.
 
+Queue-aware completion requires explicit producer timestamps, with two distinct
+observations newer than drain start. The chart enables `send_timestamps` on its
+pressure metrics exporter for this mode. External telemetry configs must supply
+the same timestamps; missing or stale timestamps keep drain incomplete. Allow
+two producer collection intervals plus forwarding delay in `drainDuration`.
+For a 15-second producer interval, use a 60-second drain duration and at least
+390 seconds of termination grace with the default shutdown reserve.
+
 The LB telemetry allowlist includes
 `otelcol_loadbalancer_central_queue_shutdown_dropped_items` (and its `_total`
 Prometheus form). A final scrape can be lost during termination, so an absent
