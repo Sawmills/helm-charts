@@ -111,6 +111,23 @@ Changing `resourceBaseName` on an existing release changes rendered resource nam
 
 When setting `affinity` or `loadBalancer.affinity` with `resourceBaseName` set, use the selector label values rendered by the chart: `<resourceBaseName>` for the collector and `<resourceBaseName>-lb` for the load balancer. The chart's built-in selector values (`sawmills-collector-chart` / `sawmills-collector-chart-lb`) are rewritten automatically; arbitrary custom selector values are not.
 
+### DNS Load Balancer Membership
+
+Set `loadBalancer.dnsMembership.enabled: true` to publish LB peer addresses
+through a separate `<fullname>-lb-peers` headless Service. Long names are shortened
+to keep the Service name within 63 characters. `resourceBaseName` still controls
+the resource prefix. This option is off by default and requires a load balancer.
+
+The membership Service sets `publishNotReadyAddresses: true`, so readiness changes
+do not remove draining peers from discovery. The existing `<fullname>-headless`
+traffic Service keeps its name, selector, ports and readiness behavior. DNS
+membership does not enable EndpointSlice permissions.
+
+Configure the collector's `central_queue.load_balancer_dns` separately, using this
+Service's DNS name and the existing `MY_POD_IP` Downward API value as `self_ip`.
+The collector image must support DNS membership. DNS caches can delay convergence;
+a successful lookup does not prove an authoritative fresh view.
+
 ### Telemetry Sidecar Pprof
 
 The main collector uses pprof port `1777`. When telemetry sidecar profiling is
