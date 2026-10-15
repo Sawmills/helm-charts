@@ -705,6 +705,10 @@ rollout:
     preStopSleepSeconds: 15
 ```
 
+### LB Membership Discovery
+
+Set `loadBalancer.membershipDiscovery.enabled: true` with a compatible membership-aware collector and generated configuration. The default is `false`. With the load balancer enabled, this creates one namespace Role and RoleBinding for the collector workload service account. The Role grants only `list` and `watch` on `discovery.k8s.io/endpointslices`. It grants no Pod or Secret access and no cluster permissions. Older charts must not receive the collector discovery field from the producer.
+
 ### Backend Drain Wiring For LB Topology
 
 When `loadBalancer.enabled: true`, the chart can protect backend collector rollouts with a dedicated drain listener on the main collector:
