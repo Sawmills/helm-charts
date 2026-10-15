@@ -1,0 +1,14 @@
+suite: installer membership discovery permissions
+templates:
+  - sawmills-role.yaml
+tests:
+  - it: grants only list and watch for namespace EndpointSlices
+    asserts:
+      - isKind:
+          of: Role
+      - contains:
+          path: rules
+          content:
+            apiGroups: [discovery.k8s.io]
+            resources: [endpointslices]
+            verbs: [list, watch]

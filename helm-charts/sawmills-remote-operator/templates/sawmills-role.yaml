@@ -9,6 +9,9 @@ metadata:
     app.kubernetes.io/name: sawmills-operator
   name: {{ .Values.rbac.roleName }}
 rules:
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [list, watch]
   - apiGroups: [""]
     resources:
       [

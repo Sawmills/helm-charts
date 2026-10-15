@@ -2,6 +2,12 @@
 
 This chart deploys the Sawmills Remote Operator, which maintains a bidirectional gRPC session with `controller.sawmills.ai` and optionally forwards Prometheus remote-write metrics. Use the values below to configure outbound connectivity.
 
+## Collector Membership Permissions
+
+The namespace Role grants `discovery.k8s.io/endpointslices` `list` and `watch`. Operators need these permissions before they can create the collector's membership-discovery Role. This chart adds no `bind` or `escalate` permission.
+
+A cluster permission owner must approve and install this grant. An existing operator without these permissions cannot grant them to itself. Publishing this chart does not update customer clusters or enable collector membership discovery.
+
 ## Pin Images By Digest
 
 Set `image.digest` to render the operator image as `repository@digest` instead of `repository:tag`:
