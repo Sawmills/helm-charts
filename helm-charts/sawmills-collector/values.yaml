@@ -1332,6 +1332,9 @@ loadBalancer:
   membershipDiscovery:
     # -- Grant namespace-local EndpointSlice list/watch to the collector service account.
     enabled: false
+  dnsMembership:
+    # -- Publish all LB peer addresses through a separate membership-only Service; grants no API access.
+    enabled: false
   replicas: 3
   minReadySeconds: 15
   strategy:

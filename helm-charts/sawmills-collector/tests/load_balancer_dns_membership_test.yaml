@@ -1,0 +1,123 @@
+suite: DNS membership uses a separate unready-publishing Service
+templates:
+  - templates/load-balancer-service-headless.yaml
+  - templates/load-balancer-membership-rbac.yaml
+release:
+  name: collector-west
+  namespace: customer
+tests:
+  - it: leaves the traffic Service alone by default
+    template: templates/load-balancer-service-headless.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: collector-west-headless
+      - notExists:
+          path: spec.publishNotReadyAddresses
+  - it: preserves reused values without a DNS membership map
+    template: templates/load-balancer-service-headless.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.dnsMembership: null
+    asserts:
+      - hasDocuments:
+          count: 1
+  - it: does not publish peers when the load balancer is disabled
+    template: templates/load-balancer-service-headless.yaml
+    set:
+      loadBalancer.dnsMembership.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: publishes membership independently of the traffic Service
+    template: templates/load-balancer-service-headless.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.service.headless.enabled: false
+      loadBalancer.dnsMembership.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: collector-west-lb-peers
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true
+  - it: publishes membership peers without changing the traffic Service
+    template: templates/load-balancer-service-headless.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.service.headless.enabled: true
+      loadBalancer.dnsMembership.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: metadata.name
+          value: collector-west-headless
+        documentIndex: 0
+      - notExists:
+          path: spec.publishNotReadyAddresses
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: collector-west-lb-peers
+        documentIndex: 1
+      - equal:
+          path: spec.clusterIP
+          value: None
+        documentIndex: 1
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true
+        documentIndex: 1
+      - equal:
+          path: spec.selector["app.kubernetes.io/name"]
+          value: sawmills-collector-chart-lb
+        documentIndex: 1
+      - equal:
+          path: spec.selector["app.kubernetes.io/instance"]
+          value: collector-west
+        documentIndex: 1
+  - it: uses the resource base name and workload isolation selector
+    template: templates/load-balancer-service-headless.yaml
+    set:
+      resourceBaseName: blackhawk-west
+      loadBalancer.enabled: true
+      loadBalancer.service.headless.enabled: false
+      loadBalancer.dnsMembership.enabled: true
+    asserts:
+      - equal:
+          path: metadata.name
+          value: blackhawk-west-lb-peers
+      - equal:
+          path: spec.selector["app.kubernetes.io/name"]
+          value: blackhawk-west-lb
+      - equal:
+          path: spec.selector["app.kubernetes.io/instance"]
+          value: collector-west
+  - it: keeps the maximum supported Helm release name within the Service limit
+    template: templates/load-balancer-service-headless.yaml
+    release:
+      name: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.service.headless.enabled: false
+      loadBalancer.dnsMembership.enabled: true
+    asserts:
+      - equal:
+          path: metadata.name
+          value: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-lb-peers
+  - it: grants no API permissions for DNS membership
+    template: templates/load-balancer-membership-rbac.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.dnsMembership.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
