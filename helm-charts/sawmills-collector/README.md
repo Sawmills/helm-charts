@@ -978,10 +978,15 @@ HPA maximum-limit enforcement, manual deletion, forced disruption, node loss,
 and other eviction systems can bypass these protections. A PDB does not stop
 HPA deletion. These settings do not provide durable queue recovery.
 
-Queue-aware drain requires collector `v1.1208.0` or a build containing
+Collector `v1.1209.0` is the first verified image for queue-aware shutdown.
+Its released arm64 image accepts the complete LB configuration through CLI
+validation and contains the bounded shutdown exporter. It includes
 [collector PR 1275](https://github.com/Sawmills/sawmills-collector/pull/1275)
-and its pinned shutdown exporter. Older images ignore `wait_for_queue` and can
-return HTTP 200 after a fixed delay while the queue still holds items. Verify
+and the [release dependency fix](https://github.com/Sawmills/sawmills-collector/pull/1277).
+Collector `v1.1208.0` is incompatible: its packaged exporter rejects
+`central_queue.shutdown_timeout`. Older drain implementations
+ignore `wait_for_queue` and can return HTTP 200 after a fixed delay while the
+queue still holds items. Verify
 the released image digest and timestamped metrics endpoint before enabling
 `loadBalancer.pressureReadiness.waitForQueue` with pressure readiness enabled.
 The preStop hook waits for `/drain?wait_for_queue=true` rather than killing the
