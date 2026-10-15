@@ -10,6 +10,20 @@
 {{- $lbStartupProbe := .Values.rollout.loadBalancer.probes.startup | default dict }}
 {{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict }}
 {{- $lbPressureReadinessEnabled := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) }}
+{{- $lbWaitForQueue := $lbPressureReadiness.waitForQueue | default false }}
+{{- $lbDrainRequestTimeoutSeconds := 0 }}
+{{- if and $lbWaitForQueue (not $lbPressureReadinessEnabled) }}
+{{- fail "loadBalancer.pressureReadiness.waitForQueue requires pressureReadiness.enabled=true" }}
+{{- end }}
+{{- if $lbWaitForQueue }}
+{{- $drainMs := include "sawmills-collector.durationToMilliseconds" (default "15s" $lbPressureReadiness.drainDuration) | atoi }}
+{{- $lbDrainRequestTimeoutSeconds = add 5 (div (add 999 $drainMs) 1000) }}
+{{- $reserveMs := include "sawmills-collector.durationToMilliseconds" (default "310s" $lbPressureReadiness.shutdownReserve) | atoi }}
+{{- $hookMs := max (mul (int .Values.rollout.loadBalancer.preStopSleepSeconds) 1000) (mul $lbDrainRequestTimeoutSeconds 1000) }}
+{{- if or (le $reserveMs 0) (ge (add $hookMs $reserveMs) (mul (int .Values.loadBalancer.terminationGracePeriodSeconds) 1000)) }}
+{{- fail "loadBalancer.pressureReadiness.waitForQueue requires termination grace greater than the preStop budget plus shutdownReserve (exporter shutdown_timeout plus cleanup)" }}
+{{- end }}
+{{- end }}
 {{- $lbPressureReadinessUseForPodReadiness := true }}
 {{- if hasKey $lbPressureReadiness "useForPodReadiness" }}
 {{- $lbPressureReadinessUseForPodReadiness = $lbPressureReadiness.useForPodReadiness }}
@@ -69,7 +83,12 @@ spec:
   template:
     metadata:
       annotations:
-        {{- with .Values.loadBalancer.podAnnotations }}
+        {{- $annotations := deepCopy (.Values.loadBalancer.podAnnotations | default dict) }}
+        {{- $protection := .Values.loadBalancer.removalProtection | default dict }}
+        {{- if $protection.preventConsolidation }}
+        {{- $_ := set $annotations "karpenter.sh/do-not-disrupt" "true" }}
+        {{- end }}
+        {{- with $annotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if .Values.haproxy.enabled }}
@@ -226,7 +245,7 @@ spec:
             periodSeconds: {{ default 5 $lbStartupProbe.periodSeconds }}
             failureThreshold: {{ default 24 $lbStartupProbe.failureThreshold }}
           {{- end }}
-          {{- if .Values.rollout.loadBalancer.preStopSleepSeconds }}
+          {{- if or .Values.rollout.loadBalancer.preStopSleepSeconds $lbWaitForQueue }}
           lifecycle:
             preStop:
               exec:
@@ -235,11 +254,18 @@ spec:
                   - /bin/sh
                   - -c
                   - |
+                    {{- if $lbWaitForQueue }}
+                    wget -Y off -T {{ $lbDrainRequestTimeoutSeconds }} -t 1 -q -O /dev/null "http://${MY_POD_IP}:{{ default 13137 $lbPressureReadiness.port }}{{ default "/drain" $lbPressureReadiness.drainPath }}?wait_for_queue=true" &
+                    drain_pid=$!
+                    /bin/sleep {{ .Values.rollout.loadBalancer.preStopSleepSeconds }}
+                    wait "$drain_pid" || { echo "LB queue drain incomplete; collector shutdown will retry within remaining grace" >&2; exit 1; }
+                    {{- else }}
                     wget -Y off -q -O /dev/null "http://${MY_POD_IP}:{{ default 13137 $lbPressureReadiness.port }}{{ default "/drain" $lbPressureReadiness.drainPath }}" >/dev/null 2>&1 &
                     drain_pid=$!
                     /bin/sleep {{ .Values.rollout.loadBalancer.preStopSleepSeconds }}
                     kill "$drain_pid" 2>/dev/null || true
                     wait "$drain_pid" 2>/dev/null || true
+                    {{- end }}
                   {{- else }}
                   - /bin/sleep
                   - "{{ .Values.rollout.loadBalancer.preStopSleepSeconds }}"

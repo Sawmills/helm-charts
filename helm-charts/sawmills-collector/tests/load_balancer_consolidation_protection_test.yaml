@@ -1,0 +1,22 @@
+suite: opt-in LB consolidation protection
+templates:
+  - templates/load-balancer.yaml
+tests:
+  - it: leaves consolidation unchanged by default
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["karpenter.sh/do-not-disrupt"]
+  - it: marks LB pods only when consolidation protection is enabled
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.removalProtection.preventConsolidation: true
+      loadBalancer.podAnnotations.example: kept
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["karpenter.sh/do-not-disrupt"]
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations.example
+          value: kept

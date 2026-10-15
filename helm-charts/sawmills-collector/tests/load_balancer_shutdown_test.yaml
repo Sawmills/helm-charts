@@ -2,6 +2,39 @@ suite: load balancer shutdown drain
 templates:
   - load-balancer.yaml
 tests:
+  - it: includes rounded request timeout in the grace budget
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.waitForQueue: true
+      loadBalancer.pressureReadiness.drainDuration: 1500ms
+      loadBalancer.pressureReadiness.shutdownReserve: 1s
+      loadBalancer.terminationGracePeriodSeconds: 8
+      rollout.loadBalancer.preStopSleepSeconds: 0
+    asserts:
+      - failedTemplate:
+          errorPattern: 'waitForQueue.*termination grace'
+  - it: rejects queue waiting without room for exporter shutdown
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.waitForQueue: true
+    asserts:
+      - failedTemplate:
+          errorPattern: 'waitForQueue.*termination grace'
+  - it: waits for queue-aware drain instead of killing the helper at the sleep boundary
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.waitForQueue: true
+      loadBalancer.terminationGracePeriodSeconds: 360
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[2]
+          pattern: 'drain\?wait_for_queue=true'
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[2]
+          pattern: 'kill.*drain_pid'
   - it: starts drain before waiting when the drain endpoint is configured
     set:
       loadBalancer.enabled: true
