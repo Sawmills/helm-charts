@@ -1,0 +1,80 @@
+suite: Load balancer membership discovery permissions
+templates:
+  - templates/load-balancer-membership-rbac.yaml
+release:
+  name: collector-west
+  namespace: customer
+tests:
+  - it: grants no access for reused values without a discovery map
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.membershipDiscovery: null
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: grants no access by default
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: grants only namespace EndpointSlice list and watch to the workload account
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.membershipDiscovery.enabled: true
+      serviceAccount.name: collector-workload
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: kind
+          value: Role
+        documentIndex: 0
+      - equal:
+          path: metadata.namespace
+          value: customer
+        documentIndex: 0
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [discovery.k8s.io]
+              resources: [endpointslices]
+              verbs: [list, watch]
+        documentIndex: 0
+      - equal:
+          path: subjects
+          value:
+            - kind: ServiceAccount
+              name: collector-workload
+              namespace: customer
+        documentIndex: 1
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: collector-west-lb-membership
+        documentIndex: 1
+  - it: grants no access without a load balancer
+    set:
+      loadBalancer.membershipDiscovery.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: binds the default workload service account when none is configured
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.membershipDiscovery.enabled: true
+    asserts:
+      - equal:
+          path: subjects[0].name
+          value: default
+        documentIndex: 1
+  - it: binds a chart-created workload service account
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.membershipDiscovery.enabled: true
+      serviceAccount.create: true
+    asserts:
+      - equal:
+          path: subjects[0].name
+          value: sa-collector-service
+        documentIndex: 1

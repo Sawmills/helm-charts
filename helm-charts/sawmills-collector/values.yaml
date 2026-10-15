@@ -1322,6 +1322,9 @@ kedaScaler:
 
 loadBalancer:
   enabled: false
+  membershipDiscovery:
+    # -- Grant namespace-local EndpointSlice list/watch to the collector service account.
+    enabled: false
   replicas: 3
   minReadySeconds: 15
   strategy:
