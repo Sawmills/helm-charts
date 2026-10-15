@@ -978,7 +978,11 @@ HPA maximum-limit enforcement, manual deletion, forced disruption, node loss,
 and other eviction systems can bypass these protections. A PDB does not stop
 HPA deletion. These settings do not provide durable queue recovery.
 
-For collectors that support queue-aware drain, enable
+Queue-aware drain requires collector `v1.1208.0` or a build containing
+[collector PR 1275](https://github.com/Sawmills/sawmills-collector/pull/1275)
+and its pinned shutdown exporter. Older images ignore `wait_for_queue` and can
+return HTTP 200 after a fixed delay while the queue still holds items. Verify
+the released image digest and timestamped metrics endpoint before enabling
 `loadBalancer.pressureReadiness.waitForQueue` with pressure readiness enabled.
 The preStop hook waits for `/drain?wait_for_queue=true` rather than killing the
 helper after `preStopSleepSeconds`. `drainDuration` bounds the queue wait;
