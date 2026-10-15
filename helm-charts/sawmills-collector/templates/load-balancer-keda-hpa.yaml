@@ -19,7 +19,21 @@ spec:
   maxReplicaCount: {{ .Values.loadBalancer.keda.maxReplicas }}
   pollingInterval: {{ .Values.loadBalancer.keda.pollingInterval }}
   cooldownPeriod: {{ .Values.loadBalancer.keda.cooldownPeriod }}
-  {{- with .Values.loadBalancer.keda.advanced }}
+  {{- $advanced := deepCopy (.Values.loadBalancer.keda.advanced | default dict) }}
+  {{- $protection := .Values.loadBalancer.removalProtection | default dict }}
+  {{- if $protection.disableScaleDown }}
+  {{- if lt (int .Values.loadBalancer.keda.minReplicas) 1 }}
+  {{- fail "loadBalancer.removalProtection.disableScaleDown requires loadBalancer.keda.minReplicas greater than zero; KEDA scale-to-zero bypasses HPA behavior" }}
+  {{- end }}
+  {{- $hpa := deepCopy ($advanced.horizontalPodAutoscalerConfig | default dict) }}
+  {{- $behavior := deepCopy ($hpa.behavior | default dict) }}
+  {{- $scaleDown := deepCopy ($behavior.scaleDown | default dict) }}
+  {{- $_ := set $scaleDown "selectPolicy" "Disabled" }}
+  {{- $_ := set $behavior "scaleDown" $scaleDown }}
+  {{- $_ := set $hpa "behavior" $behavior }}
+  {{- $_ := set $advanced "horizontalPodAutoscalerConfig" $hpa }}
+  {{- end }}
+  {{- with $advanced }}
   advanced:
     {{- with .horizontalPodAutoscalerConfig }}
     horizontalPodAutoscalerConfig:

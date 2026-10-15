@@ -1322,6 +1322,13 @@ kedaScaler:
 
 loadBalancer:
   enabled: false
+  removalProtection:
+    # Opt-in per collector. Retains idle LB capacity, including when queues empty.
+    # HPA limits, manual deletion and forceful disruption can still remove LBs.
+    disableScaleDown: false
+    # Opt-in Karpenter marker. Nodes with these LBs cannot be consolidated;
+    # forced disruption, node loss and non-Karpenter evictions are not prevented.
+    preventConsolidation: false
   membershipDiscovery:
     # -- Grant namespace-local EndpointSlice list/watch to the collector service account.
     enabled: false
@@ -1424,6 +1431,14 @@ loadBalancer:
     readinessPath: /ready
     drainPath: /drain
     drainDuration: 15s
+    # Opt-in queue-aware preStop (requires a collector supporting wait_for_queue).
+    # drainDuration becomes a maximum queue-wait budget. Missing gauges fail closed.
+    # Set LB termination grace to cover preStop plus central_queue.shutdown_timeout
+    # and cleanup; e.g. 360s for a 15s preStop drain and the 5m exporter default.
+    waitForQueue: false
+    # Must cover the actual exporter shutdown timeout plus cleanup, including
+    # external/S3 config. Rendering rejects grace <= preStop + this reserve.
+    shutdownReserve: 310s
     # Defaults to HAProxy /ready when HAProxy HTTP readiness is enabled,
     # otherwise to collector health_check.
     healthCheckEndpoint: ""

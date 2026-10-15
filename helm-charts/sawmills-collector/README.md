@@ -969,6 +969,48 @@ Validation guardrails in this chart:
 
 #### Load Balancer Pressure Readiness
 
+`loadBalancer.removalProtection.disableScaleDown` disables normal HPA scale-down
+for both HPA and KEDA. `loadBalancer.removalProtection.preventConsolidation` adds
+Karpenter's `karpenter.sh/do-not-disrupt: "true"` pod annotation. Both options are
+off by default and must be enabled per collector. They retain idle LB capacity,
+including empty LBs, and prevent consolidation of nodes with protected LBs.
+HPA maximum-limit enforcement, manual deletion, forced disruption, node loss,
+and other eviction systems can bypass these protections. A PDB does not stop
+HPA deletion. These settings do not provide durable queue recovery.
+
+Queue-aware drain requires collector `v1.1208.0` or a build containing
+[collector PR 1275](https://github.com/Sawmills/sawmills-collector/pull/1275)
+and its pinned shutdown exporter. Older images ignore `wait_for_queue` and can
+return HTTP 200 after a fixed delay while the queue still holds items. Verify
+the released image digest and timestamped metrics endpoint before enabling
+`loadBalancer.pressureReadiness.waitForQueue` with pressure readiness enabled.
+The preStop hook waits for `/drain?wait_for_queue=true` rather than killing the
+helper after `preStopSleepSeconds`. `drainDuration` bounds the queue wait;
+HTTP 503 means completion was not established. Keep termination grace large
+enough for preStop, `central_queue.shutdown_timeout` (default five minutes),
+and cleanup. `shutdownReserve` defaults to 310 seconds and must cover the actual
+exporter timeout plus cleanup, including S3-backed configs. Rendering rejects a
+grace period that cannot cover the hook and reserve. For example, use 360 seconds
+for a 15-second endpoint budget,
+20-second propagation sleep, and five-minute exporter budget. All options remain
+off by default. Enable them on customer collectors only with separate approval.
+
+Queue-aware completion requires explicit producer timestamps, with two distinct
+observations newer than drain start. The chart enables `send_timestamps` on its
+pressure metrics exporter for this mode. External telemetry configs must supply
+the same timestamps; missing or stale timestamps keep drain incomplete. Allow
+two producer collection intervals plus forwarding delay in `drainDuration`.
+For a 15-second producer interval, use a 60-second drain duration and at least
+390 seconds of termination grace with the default shutdown reserve.
+
+The LB telemetry allowlist includes
+`otelcol_loadbalancer_central_queue_shutdown_dropped_items` (and its `_total`
+Prometheus form). A final scrape can be lost during termination, so an absent
+counter cannot establish zero loss.
+
+KEDA scale-to-zero bypasses HPA behavior, so `disableScaleDown` requires
+`loadBalancer.keda.minReplicas` greater than zero when KEDA is enabled.
+
 `loadBalancer.pressureReadiness.enabled: true` adds the Sawmills `backend_drain` extension to LB collector pods and points the LB collector Kubernetes readiness probe at `backend_drain` `/ready`. Liveness stays on the collector `health_check` endpoint.
 
 When pressure readiness is enabled, the LB preStop hook also calls its drain endpoint. The local request bypasses HTTP proxies, including lowercase proxy environment variables. The hook retains the configured `rollout.loadBalancer.preStopSleepSeconds` window and ends the HTTP request when that window expires. This marks the backend unready before SIGTERM without letting a stalled drain request consume the entire pod grace period. During shutdown, the collector must then drain accepted queue work. The readiness endpoint alone does not verify queue completion. Abrupt node loss still requires replay or durable buffering.

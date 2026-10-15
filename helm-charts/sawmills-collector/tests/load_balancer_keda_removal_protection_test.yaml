@@ -1,0 +1,39 @@
+suite: opt-in LB KEDA removal protection
+templates:
+  - templates/load-balancer-keda-hpa.yaml
+tests:
+  - it: rejects KEDA scale to zero when scale down protection is enabled
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.keda.enabled: true
+      loadBalancer.keda.minReplicas: 0
+      loadBalancer.removalProtection.disableScaleDown: true
+    asserts:
+      - failedTemplate:
+          errorPattern: 'disableScaleDown.*minReplicas'
+  - it: preserves KEDA scale down by default
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.keda.enabled: true
+    asserts:
+      - notExists:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown.selectPolicy
+  - it: disables KEDA HPA scale down when opted in
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.keda.enabled: true
+      loadBalancer.removalProtection.disableScaleDown: true
+    asserts:
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown.selectPolicy
+          value: Disabled
+  - it: protects a KEDA HPA with no existing advanced settings
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.keda.enabled: true
+      loadBalancer.keda.advanced: null
+      loadBalancer.removalProtection.disableScaleDown: true
+    asserts:
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown.selectPolicy
+          value: Disabled
