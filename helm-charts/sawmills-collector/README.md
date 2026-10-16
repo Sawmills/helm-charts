@@ -984,6 +984,16 @@ Validation guardrails in this chart:
 * `compress_in_memory: true` requires `sending_queue.enabled: true`
 * `compress_in_memory: true` requires `payload_compression: snappy|zstd`
 
+LB storage mode uses the existing StatefulSet identity. It retains each ordinal's
+claim after scale-in or StatefulSet deletion. Kubernetes 1.27 and later receive an
+explicit retention policy. Earlier supported versions use their default Retain behavior.
+A retained claim still needs a recovery owner; retention does not prove delivery.
+Restore the original ordinal and drain its queue before retiring that owner.
+For `central_queue.storage`, use a compatible collector release and configure
+`file_storage` with `fsync: true` on the mounted `/data` volume.
+The default LB remote-write filter forwards durable ownership, rejection and storage-failure
+metrics. Preserve those metrics when you supply a custom telemetry configuration.
+
 #### Load Balancer Pressure Readiness
 
 `loadBalancer.removalProtection.disableScaleDown` disables normal HPA scale-down
