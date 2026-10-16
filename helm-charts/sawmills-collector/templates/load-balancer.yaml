@@ -59,6 +59,9 @@ spec:
   {{- $lbStrategy := default (dict) .Values.loadBalancer.strategy }}
   {{- $lbStrategyType := default "RollingUpdate" $lbStrategy.type }}
   {{- if .Values.loadBalancer.storage.enabled }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
   updateStrategy:
     type: {{ $lbStrategyType }}
     {{- if eq $lbStrategyType "RollingUpdate" }}

@@ -1,0 +1,61 @@
+suite: Load Balancer Durable Storage Ownership
+templates:
+  - templates/load-balancer.yaml
+values:
+  - ../values.yaml
+release:
+  name: durable-proof
+  namespace: saw-13194-lb-drain
+tests:
+  - it: preserves the original claims for a durable ordinal
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+      loadBalancer.storage.className: encrypted-gp3-1b
+      loadBalancer.autoscaling.enabled: false
+      loadBalancer.keda.enabled: false
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - notExists:
+          path: spec.serviceName
+      - equal:
+          path: spec.persistentVolumeClaimRetentionPolicy
+          value:
+            whenDeleted: Retain
+            whenScaled: Retain
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.storageClassName
+          value: encrypted-gp3-1b
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.accessModes
+          value: [ReadWriteOnce]
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 10001
+
+  - it: preserves legacy service identity with a custom resource base name
+    set:
+      resourceBaseName: durable-custom
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+    asserts:
+      - notExists:
+          path: spec.serviceName
+      - equal:
+          path: metadata.name
+          value: durable-custom-lb
+
+  - it: leaves memory-only load balancers as deployments
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: false
+    asserts:
+      - isKind:
+          of: Deployment
+      - notExists:
+          path: spec.serviceName
+      - notExists:
+          path: spec.persistentVolumeClaimRetentionPolicy
+      - notExists:
+          path: spec.volumeClaimTemplates
