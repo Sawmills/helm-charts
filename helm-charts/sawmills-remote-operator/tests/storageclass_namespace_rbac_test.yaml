@@ -1,0 +1,13 @@
+suite: namespace permissions without cluster discovery
+templates:
+  - sawmills-role.yaml
+  - role-binding.yaml
+tests:
+  - it: keeps namespace permissions with storage discovery disabled by default
+    asserts:
+      - isKind:
+          of: Role
+        template: sawmills-role.yaml
+      - isKind:
+          of: RoleBinding
+        template: role-binding.yaml

@@ -2,6 +2,21 @@
 
 This chart deploys the Sawmills Remote Operator, which maintains a bidirectional gRPC session with `controller.sawmills.ai` and optionally forwards Prometheus remote-write metrics. Use the values below to configure outbound connectivity.
 
+## Storage Class Discovery Permissions
+
+Set `rbac.storageClassDiscovery.enabled=true` to add a separate ClusterRole and ClusterRoleBinding for storage class discovery.
+The only cluster permission is `get` and `list` on `storage.k8s.io/storageclasses`.
+The binding selects `rbac.serviceAccountName` in the release namespace.
+The namespace Role keeps its current permissions.
+
+The cluster objects use `<namespace>.<release>-storageclasses` names.
+Storage class discovery defaults to false so namespace-only installations retain their current permissions.
+The existing `rbac.createRole` and `rbac.createRoleBinding` values control only the namespace objects.
+
+A cluster permission owner must install this grant.
+An operator with only namespace permissions cannot grant cluster access to itself.
+Publishing the chart alone does not update customer permissions.
+
 ## Collector Membership Permissions
 
 The namespace Role grants `discovery.k8s.io/endpointslices` `list` and `watch`. Operators need these permissions before they can create the collector's membership-discovery Role. This chart adds no `bind` or `escalate` permission.
