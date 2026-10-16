@@ -4,6 +4,7 @@ capabilities:
   minorVersion: 35
 templates:
   - templates/load-balancer.yaml
+  - templates/load-balancer-telemetry-configmap.yaml
 values:
   - ../values.yaml
 release:
@@ -17,6 +18,7 @@ tests:
       loadBalancer.storage.className: encrypted-gp3-1b
       loadBalancer.autoscaling.enabled: false
       loadBalancer.keda.enabled: false
+    template: templates/load-balancer.yaml
     asserts:
       - isKind:
           of: StatefulSet
@@ -42,6 +44,7 @@ tests:
       resourceBaseName: durable-custom
       loadBalancer.enabled: true
       loadBalancer.storage.enabled: true
+    template: templates/load-balancer.yaml
     asserts:
       - notExists:
           path: spec.serviceName
@@ -53,6 +56,7 @@ tests:
     set:
       loadBalancer.enabled: true
       loadBalancer.storage.enabled: false
+    template: templates/load-balancer.yaml
     asserts:
       - isKind:
           of: Deployment
@@ -70,6 +74,7 @@ tests:
     set:
       loadBalancer.enabled: true
       loadBalancer.storage.enabled: true
+    template: templates/load-balancer.yaml
     asserts:
       - isKind:
           of: StatefulSet
@@ -77,3 +82,12 @@ tests:
           path: spec.persistentVolumeClaimRetentionPolicy
       - notExists:
           path: spec.serviceName
+
+  - it: preserves durable ownership and failure telemetry in the remote-write filter
+    template: templates/load-balancer-telemetry-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?ms)filter/lb_remote_write:.*storage_failures.*durable_pending_items.*durable_pending_bytes.*durable_oldest_enqueued_time.*durable_terminal_rejected_items.*durable_deferred_items'
