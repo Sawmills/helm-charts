@@ -1,0 +1,85 @@
+suite: storage class discovery permissions
+templates:
+  - storageclass-rbac.yaml
+tests:
+  - it: grants exactly get and list on StorageClasses at cluster scope
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: ClusterRole
+        documentIndex: 0
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [storage.k8s.io]
+              resources: [storageclasses]
+              verbs: [get, list]
+        documentIndex: 0
+      - notExists:
+          path: metadata.namespace
+        documentIndex: 0
+  - it: binds only the configured service account in the release namespace
+    release:
+      name: operator
+      namespace: logging
+    set:
+      rbac.serviceAccountName: existing-operator
+    asserts:
+      - isKind:
+          of: ClusterRoleBinding
+        documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: logging-operator-storageclasses
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: logging-operator-storageclasses
+        documentIndex: 1
+      - equal:
+          path: subjects
+          value:
+            - kind: ServiceAccount
+              name: existing-operator
+              namespace: logging
+        documentIndex: 1
+      - equal:
+          path: roleRef
+          value:
+            kind: ClusterRole
+            name: logging-operator-storageclasses
+            apiGroup: rbac.authorization.k8s.io
+        documentIndex: 1
+      - notExists:
+          path: metadata.namespace
+        documentIndex: 1
+  - it: creates no cluster objects when existing RBAC is selected
+    set:
+      rbac.createRole: false
+      rbac.createRoleBinding: false
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: supports an externally created cluster role
+    set:
+      rbac.createRole: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ClusterRoleBinding
+  - it: supports an externally created cluster role binding
+    set:
+      rbac.createRoleBinding: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ClusterRole
+  - it: refuses a binding without a service account
+    set:
+      rbac.serviceAccountName: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: rbac.serviceAccountName is required for storage class discovery
