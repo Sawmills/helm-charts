@@ -1,5 +1,5 @@
-{{- $name := printf "%s-%s-storageclasses" .Release.Namespace .Release.Name }}
-{{- if .Values.rbac.createRole }}
+{{- if .Values.rbac.storageClassDiscovery.enabled }}
+{{- $name := printf "%s.%s-storageclasses" .Release.Namespace .Release.Name }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -10,8 +10,6 @@ rules:
   - apiGroups: [storage.k8s.io]
     resources: [storageclasses]
     verbs: [get, list]
-{{- end }}
-{{- if .Values.rbac.createRoleBinding }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

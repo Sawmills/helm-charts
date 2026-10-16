@@ -15,6 +15,9 @@ rbac:
   roleName: sawmills-role
   # The name of the RoleBinding to create
   roleBindingName: sawmills-operator-rolebinding
+  # Cluster-wide read access requires installation by a cluster permission owner.
+  storageClassDiscovery:
+    enabled: false
 
 # DEPRECATED: The API key for the Sawmills operator
 apiKey: ""
