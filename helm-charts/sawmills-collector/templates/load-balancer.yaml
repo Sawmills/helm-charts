@@ -59,9 +59,11 @@ spec:
   {{- $lbStrategy := default (dict) .Values.loadBalancer.strategy }}
   {{- $lbStrategyType := default "RollingUpdate" $lbStrategy.type }}
   {{- if .Values.loadBalancer.storage.enabled }}
+  {{- if semverCompare ">=1.27-0" .Capabilities.KubeVersion.Version }}
   persistentVolumeClaimRetentionPolicy:
     whenDeleted: Retain
     whenScaled: Retain
+  {{- end }}
   updateStrategy:
     type: {{ $lbStrategyType }}
     {{- if eq $lbStrategyType "RollingUpdate" }}

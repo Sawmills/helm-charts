@@ -1,4 +1,7 @@
 suite: Load Balancer Durable Storage Ownership
+capabilities:
+  majorVersion: 1
+  minorVersion: 35
 templates:
   - templates/load-balancer.yaml
 values:
@@ -59,3 +62,18 @@ tests:
           path: spec.persistentVolumeClaimRetentionPolicy
       - notExists:
           path: spec.volumeClaimTemplates
+
+  - it: retains legacy claims without unsupported fields on Kubernetes 1.22
+    capabilities:
+      majorVersion: 1
+      minorVersion: 22
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - notExists:
+          path: spec.persistentVolumeClaimRetentionPolicy
+      - notExists:
+          path: spec.serviceName
