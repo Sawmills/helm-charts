@@ -13,6 +13,14 @@ inputs:
   tag:
     description: "Docker image tag"
     required: true
+  app-version:
+    description: "Application version override; empty retains the tag-derived version"
+    required: false
+    default: ""
+  checkout-ref:
+    description: "Source ref to package; empty retains the event ref"
+    required: false
+    default: ""
   aws_region:
     description: "AWS region"
     required: true
@@ -30,6 +38,7 @@ runs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        ref: ${{ inputs.checkout-ref }}
     - name: Authenticate with AWS
       uses: ./.github/actions/aws-auth
       with:
@@ -49,6 +58,7 @@ runs:
         CHART_PATH: ${{ inputs.chart-path }}
         CHART_REPO: ${{ inputs.chart-repo }}
         INPUT_TAG: ${{ inputs.tag }}
+        INPUT_APP_VERSION: ${{ inputs.app-version }}
         AWS_REGION: ${{ inputs.aws_region }}
         RUNNER_TEMP_DIR: ${{ runner.temp }}
       run: |
@@ -68,6 +78,10 @@ runs:
           # Fallback: use tag as-is
           version="$tag"
           appVersion="$tag"
+        fi
+
+        if [[ -n "$INPUT_APP_VERSION" ]]; then
+          appVersion="$INPUT_APP_VERSION"
         fi
 
         echo "Extracted version: $version"

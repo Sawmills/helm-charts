@@ -39,9 +39,7 @@ on:
         value: ${{ jobs.version-and-tag.outputs.new_version }}
 
 permissions:
-  id-token: write
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   version-and-tag:
