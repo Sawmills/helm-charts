@@ -40,7 +40,9 @@ fields, target image, and chart version labels to change.
 
 ## Prerequisites and Upgrade Example
 
-Use Helm 3 with access to the existing release namespace and its existing service account.
+Use Helm with OCI digest-reference support and access to the existing release namespace
+and its existing service account. The Helm 3.15.3 bundled with operator 0.340.0 rejects
+the direct digest reference below. Do not run this example with that bundled Helm.
 Obtain the approved executor route, settled release revision, and rollback binding first.
 Run this synthetic example only through that executor after approval:
 Set BOUND_CHART_DIGEST to the approved published manifest digest, including sha256:.
