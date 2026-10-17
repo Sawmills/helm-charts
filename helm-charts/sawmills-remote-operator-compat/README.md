@@ -49,7 +49,7 @@ helm upgrade sawmills-remote-operator \
   oci://public.ecr.aws/s7a5m1b4/sawmills-remote-operator-compat-chart \
   --version 1.0.0 --namespace example-namespace \
   --reuse-values --set-string image.tag=0.340.0 \
-  --wait --timeout 10m --hide-notes
+  --wait --timeout 10m
 ```
 
 For a new isolated test installation, use helm install with a nonsecret values file
