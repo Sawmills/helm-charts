@@ -10,6 +10,27 @@ on:
     branches: [main]
 
 jobs:
+  helm-test-remote-operator-compat:
+    name: Helm Chart Tests / Remote Operator Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 3.18.0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install render-test dependency
+        run: python3 -m pip install PyYAML==6.0.3
+      - name: Lint compatibility chart
+        run: helm lint helm-charts/sawmills-remote-operator-compat
+      - name: Compare against installed chart 2.0.5
+        run: python3 helm-charts/sawmills-remote-operator-compat/tests/test_compatibility.py
+
   check-codeowners:
     uses: ./.github/workflows/check-codeowners.yml
 
