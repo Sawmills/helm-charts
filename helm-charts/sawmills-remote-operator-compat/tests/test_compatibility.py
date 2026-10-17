@@ -31,8 +31,10 @@ def render(chart, values):
             ],
             capture_output=True,
             text=True,
-            check=True,
+            check=False,
         )
+    if result.returncode:
+        raise AssertionError(f"helm template failed: {result.stderr}")
     objects = [item for item in yaml.safe_load_all(result.stdout) if item]
     return {(item["kind"], item["metadata"]["name"]): item for item in objects}
 
@@ -132,7 +134,7 @@ class CompatibilityTest(unittest.TestCase):
                                         "command": [
                                             "/bin/sh",
                                             "-c",
-                                            "curl --fail --silent --show-error -X POST http://127.0.0.1:8086/drain",
+                                            "curl --noproxy '*' --fail --silent --show-error -X POST http://127.0.0.1:8086/drain",
                                         ]
                                     }
                                 }

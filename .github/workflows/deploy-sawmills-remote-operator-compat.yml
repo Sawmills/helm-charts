@@ -1,9 +1,7 @@
 name: Deploy Sawmills Remote Operator Compatibility Helm Chart
 
 permissions:
-  id-token: write
-  contents: write
-  packages: write
+  contents: read
 
 on:
   pull_request:
@@ -15,6 +13,8 @@ on:
 jobs:
   version-and-tag:
     if: github.event.pull_request.merged == true
+    permissions:
+      contents: read
     uses: ./.github/workflows/deploy-helm-chart.yml
     with:
       chart_path: helm-charts/sawmills-remote-operator-compat
@@ -27,13 +27,17 @@ jobs:
   build-and-deploy:
     if: github.event.pull_request.merged == true
     needs: [version-and-tag]
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ needs.version-and-tag.outputs.tag }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Publish compatibility chart
         uses: ./.github/actions/push-helm
         with:
@@ -44,3 +48,5 @@ jobs:
           aws_role: ${{ vars.AWS_ROLE }}
           ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
           tag: ${{ needs.version-and-tag.outputs.tag }}
+          app-version: "0.340.0"
+          checkout-ref: ${{ needs.version-and-tag.outputs.tag }}

@@ -30,6 +30,8 @@ jobs:
         run: helm lint helm-charts/sawmills-remote-operator-compat
       - name: Compare against installed chart 2.0.5
         run: python3 helm-charts/sawmills-remote-operator-compat/tests/test_compatibility.py
+      - name: Verify published package metadata
+        run: python3 helm-charts/sawmills-remote-operator-compat/tests/test_publication.py
 
   check-codeowners:
     uses: ./.github/workflows/check-codeowners.yml

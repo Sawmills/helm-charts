@@ -43,11 +43,13 @@ fields, target image, and chart version labels to change.
 Use Helm 3 with access to the existing release namespace and its existing service account.
 Obtain the approved executor route, settled release revision, and rollback binding first.
 Run this synthetic example only through that executor after approval:
+Set BOUND_CHART_DIGEST to the approved published manifest digest, including sha256:.
+The executor must pass the resulting literal chart reference to Helm.
 
 ```sh
 helm upgrade sawmills-remote-operator \
-  oci://public.ecr.aws/s7a5m1b4/sawmills-remote-operator-compat-chart \
-  --version 1.0.0 --namespace example-namespace \
+  "oci://public.ecr.aws/s7a5m1b4/sawmills-remote-operator-compat-chart@${BOUND_CHART_DIGEST:?Bind the approved chart digest first}" \
+  --namespace example-namespace \
   --reuse-values --set-string image.tag=0.340.0 \
   --wait --timeout 10m
 ```
@@ -56,7 +58,10 @@ For a new isolated test installation, use helm install with a nonsecret values f
 that references an existing API-key Secret. Set the RBAC creation switches to false
 when reusing existing identities. Customer upgrades preserve their existing values.
 
-## Legacy Values
+## Compatibility Chart Defaults
+
+These values retain the legacy configuration contract. This chart defaults image.tag
+to 0.340.0; the original 2.0.5 archive defaults it to 0.176.0.
 
 ```text
 ┌───────────────────────────────┬─────────────────────────────────┐
