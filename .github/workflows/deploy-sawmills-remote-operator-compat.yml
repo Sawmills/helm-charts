@@ -37,7 +37,6 @@ jobs:
         with:
           ref: ${{ needs.version-and-tag.outputs.tag }}
           fetch-depth: 0
-          persist-credentials: false
       - name: Publish compatibility chart
         uses: ./.github/actions/push-helm
         with:

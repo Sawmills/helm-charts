@@ -34,8 +34,8 @@ class PublicationTest(unittest.TestCase):
                 "#!/bin/bash\nset -euo pipefail\n"
                 'case "$1" in\n'
                 '  package) exec "$REAL_HELM" "$@" ;;\n'
-                '  registry) [[ "$2" == login ]] && cat >/dev/null ;;\n'
-                '  push) [[ -f "$2" ]] ;;\n'
+                '  registry) [[ "$#" == 6 && "$2" == login && "$3" == --username && "$4" == AWS && "$5" == --password-stdin && "$6" == registry.example.invalid ]] && cat >/dev/null ;;\n'
+                '  push) [[ "$#" == 3 && -f "$2" && "$3" == oci://registry.example.invalid ]] ;;\n'
                 "  *) exit 91 ;;\n"
                 "esac\n"
             )
