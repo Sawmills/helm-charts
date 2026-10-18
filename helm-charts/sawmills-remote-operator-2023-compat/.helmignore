@@ -21,3 +21,6 @@
 .idea/
 *.tmproj
 .vscode/
+
+# Keep the immutable comparison archive and render tests out of the package.
+tests/

@@ -4,10 +4,16 @@ import copy
 import hashlib
 from pathlib import Path
 import unittest
+import sys
 
-from test_compatibility import remove_version_labels, render
+sys.path.insert(
+    0,
+    str(Path(__file__).resolve().parents[2] / "sawmills-remote-operator-compat/tests"),
+)
 
-CHART = Path(__file__).resolve().parents[2] / "sawmills-remote-operator-2023-compat"
+from test_compatibility import remove_version_labels, render  # noqa: E402
+
+CHART = Path(__file__).resolve().parents[1]
 BASELINE = Path(__file__).with_name("operator-2.0.23.tgz")
 BASELINE_SHA256 = "e054cf7bd788b161931f644693ea6d78da8694b6ef85c82d3f56785f410356ab"
 DRAIN = {

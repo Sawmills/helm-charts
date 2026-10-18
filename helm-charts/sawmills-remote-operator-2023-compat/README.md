@@ -11,7 +11,7 @@ Chart versions come from the PR version label and release workflow. A checked-in
 Run the preservation tests on the devbox:
 
 ```sh
-python3 helm-charts/sawmills-remote-operator-compat/tests/test_compatibility.py
+python3 helm-charts/sawmills-remote-operator-2023-compat/tests/test_compatibility_2023.py
 helm lint helm-charts/sawmills-remote-operator-2023-compat
 helm unittest helm-charts/sawmills-remote-operator-2023-compat
 ```

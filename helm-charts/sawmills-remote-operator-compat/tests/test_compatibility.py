@@ -209,8 +209,4 @@ class CompatibilityTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    from test_compatibility_2023 import Compatibility2023Test
-
-    unittest.main(
-        defaultTest=[CompatibilityTest.__name__, Compatibility2023Test.__name__]
-    )
+    unittest.main()
