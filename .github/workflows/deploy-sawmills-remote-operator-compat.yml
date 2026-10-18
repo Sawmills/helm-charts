@@ -47,5 +47,5 @@ jobs:
           aws_role: ${{ vars.AWS_ROLE }}
           ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
           tag: ${{ needs.version-and-tag.outputs.tag }}
-          app-version: "0.340.0"
+          app-version: "0.342.0"
           checkout-ref: ${{ needs.version-and-tag.outputs.tag }}

@@ -1,6 +1,6 @@
 # Remote Operator Compatibility Chart
 
-This chart upgrades installations based on operator chart 2.0.5 to image 0.340.0.
+This chart upgrades installations based on operator chart 2.0.5 to image 0.342.0.
 It preserves the old image.tag and Helm tpl behavior for collectorName and managedCharts.
 The standard operator chart remains separate.
 
@@ -14,14 +14,14 @@ though this chart has a separate package name. Existing Role rules, service acco
 bindings, Secret references, scheduling, resources, cache, and managed values retain their
 2.0.5 templates. No new permission is required by this chart.
 
-Operator 0.340.0 receives `REMOTE_WRITE_URL` from this chart for its status metrics.
+Operator 0.342.0 receives `REMOTE_WRITE_URL` from this chart for its status metrics.
 Its `remoteWriteUrl` value defaults to `https://ingress.sawmills.ai`, as in the standard
 operator chart. The template retains that fallback when `--reuse-values` supplies old
 values without the new field. An empty URL otherwise causes a send error on each status report.
 For Sawmills staging, set `remoteWriteUrl=https://ingress.sawmills-staging.com`.
 
 Use the existing release name and namespace. Preserve release values inside the cluster
-with `--reuse-values`, and explicitly set `image.tag=0.340.0`: reused values can retain
+with `--reuse-values`, and explicitly set `image.tag=0.342.0`: reused values can retain
 the old image tag. Bind the immutable chart version and digest before an upgrade.
 The image version comes from image.tag, independently of the chart version.
 
@@ -30,7 +30,8 @@ executor that survives that replacement, and inspect both Helm state and all man
 instances afterward. Record the previous successful revision and an independent rollback
 route first. A timeout or lost connection requires reconciliation of that same operation.
 
-The 0.340.0 process can remain connected during termination after its drain hook completes.
+Operator 0.342.0 exits after its drain hook completes and fixes remote-write URL handling.
+The older 0.340.0 process can remain connected until its four-hour termination grace ends.
 Pod readiness alone does not prove that old instances retired. Customer use requires
 the separate staging upgrade and rollback proof, preserved settings, and explicit approval.
 
@@ -58,7 +59,7 @@ The executor must pass the resulting literal chart reference to Helm.
 helm upgrade sawmills-remote-operator \
   "oci://public.ecr.aws/s7a5m1b4/sawmills-remote-operator-compat-chart@${BOUND_CHART_DIGEST:?Bind the approved chart digest first}" \
   --namespace example-namespace \
-  --reuse-values --set-string image.tag=0.340.0 \
+  --reuse-values --set-string image.tag=0.342.0 \
   --wait --timeout 10m
 ```
 
@@ -69,7 +70,7 @@ when reusing existing identities. Customer upgrades preserve their existing valu
 ## Compatibility Chart Defaults
 
 These values retain the legacy configuration contract. This chart defaults image.tag
-to 0.340.0; the original 2.0.5 archive defaults it to 0.176.0.
+to 0.342.0; the original 2.0.5 archive defaults it to 0.176.0.
 
 ```text
 ┌───────────────────────────────┬─────────────────────────────────┐
@@ -87,7 +88,7 @@ to 0.340.0; the original 2.0.5 archive defaults it to 0.176.0.
 │ apiKeyExistingSecretKey       │ api-key                         │
 │ collectorName                 │ empty                           │
 │ image.pullPolicy              │ Always                          │
-│ image.tag                     │ 0.340.0                         │
+│ image.tag                     │ 0.342.0                         │
 │ operatorAddress               │ https://controller.sawmills.ai  │
 │ remoteWriteUrl                │ https://ingress.sawmills.ai     │
 │ grpcTrace                     │ empty                           │

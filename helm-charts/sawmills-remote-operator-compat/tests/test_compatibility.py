@@ -117,7 +117,7 @@ class CompatibilityTest(unittest.TestCase):
         ]
         for values in cases:
             with self.subTest(case=cases.index(values)):
-                tag = values.get("image", {}).get("tag", "0.340.0")
+                tag = values.get("image", {}).get("tag", "0.342.0")
                 remote_write_url = values.get(
                     "remoteWriteUrl", "https://ingress.sawmills.ai"
                 )
