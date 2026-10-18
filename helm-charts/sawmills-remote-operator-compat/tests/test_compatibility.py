@@ -46,6 +46,23 @@ def remove_version_labels(metadata):
 
 
 class CompatibilityTest(unittest.TestCase):
+    def test_legacy_reused_values_receive_remote_write_default(self):
+        values = {
+            "apiKeyExistingSecret": "existing-secret",
+            "image": {"tag": "0.176.0"},
+            "remoteWriteUrl": None,
+        }
+        expected = {"name": "REMOTE_WRITE_URL", "value": "https://ingress.sawmills.ai"}
+
+        objects = render(CHART, values)
+
+        deployment = objects[
+            ("Deployment", "sawmills-remote-operator-sawmills-remote-operator-chart")
+        ]
+        self.assertIn(
+            expected, deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+        )
+
     def test_upgrade_preserves_installed_contract(self):
         self.assertEqual(
             hashlib.sha256(BASELINE.read_bytes()).hexdigest(), BASELINE_SHA256
@@ -57,6 +74,7 @@ class CompatibilityTest(unittest.TestCase):
                 "apiKeyExistingSecretKey": "custom-key",
                 "collectorName": "eu-{{ .Release.Namespace }}",
                 "operatorAddress": "https://manager.example.invalid",
+                "remoteWriteUrl": "https://ingress.sawmills-staging.com",
                 "managedCharts": {
                     "collector": {
                         "endpoint": "{{ .Values.operatorAddress }}",
@@ -100,7 +118,17 @@ class CompatibilityTest(unittest.TestCase):
         for values in cases:
             with self.subTest(case=cases.index(values)):
                 tag = values.get("image", {}).get("tag", "0.340.0")
-                before = render(BASELINE, {**values, "image": {"tag": tag}})
+                remote_write_url = values.get(
+                    "remoteWriteUrl", "https://ingress.sawmills.ai"
+                )
+                before = render(
+                    BASELINE,
+                    {
+                        **values,
+                        "image": {"tag": tag},
+                        "remoteWriteUrl": remote_write_url,
+                    },
+                )
                 after = render(CHART, values)
                 self.assertEqual(
                     set(after), set(before), "object identity must remain stable"
@@ -156,6 +184,20 @@ class CompatibilityTest(unittest.TestCase):
                         )
                         container["env"] = [
                             env for env in container["env"] if env["name"] != "POD_UID"
+                        ]
+                        remote_write = [
+                            env
+                            for env in container["env"]
+                            if env["name"] == "REMOTE_WRITE_URL"
+                        ]
+                        self.assertEqual(
+                            remote_write,
+                            [{"name": "REMOTE_WRITE_URL", "value": remote_write_url}],
+                        )
+                        container["env"] = [
+                            env
+                            for env in container["env"]
+                            if env["name"] != "REMOTE_WRITE_URL"
                         ]
                         container["image"] = old["spec"]["template"]["spec"][
                             "containers"
