@@ -12,7 +12,8 @@ on:
 jobs:
   helm-test-remote-operator-compat:
     name: Helm Chart Tests / Remote Operator Compatibility
-    runs-on: ubuntu-latest
+    # trunk-ignore(actionlint/runner-label): Existing Namespace profile
+    runs-on: namespace-profile-sawmills-runner
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,7 +43,8 @@ jobs:
 
   helm-test-remote-operator:
     name: Helm Chart Tests / Remote Operator
-    runs-on: ubuntu-latest
+    # trunk-ignore(actionlint/runner-label): Existing Namespace profile
+    runs-on: namespace-profile-sawmills-runner
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -63,7 +65,8 @@ jobs:
 
   helm-test-remote-operator-manual:
     name: Helm Chart Tests / Remote Operator Manual
-    runs-on: ubuntu-latest
+    # trunk-ignore(actionlint/runner-label): Existing Namespace profile
+    runs-on: namespace-profile-sawmills-runner
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
