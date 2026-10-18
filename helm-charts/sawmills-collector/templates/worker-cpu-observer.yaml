@@ -16,7 +16,7 @@
 {{- fail "workerCPUObserver.image requires an immutable sha256 digest" -}}
 {{- end -}}
 {{- $workload := include "sawmills-collector.fullname" . -}}
-{{- $name := printf "%s-cpu-observer" ($workload | trunc 39 | trimSuffix "-") -}}
+{{- $name := printf "%s-%s-cpu-observer" ($workload | trunc 30 | trimSuffix "-") (sha256sum $workload | trunc 8) -}}
 {{- $labels := include "sawmills-collector.labels" . | fromYaml -}}
 {{- /* Keep observer Pods outside the worker Service selector. */ -}}
 {{- $_ := set $labels "app.kubernetes.io/name" "worker-cpu-observer" -}}

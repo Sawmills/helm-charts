@@ -58,7 +58,6 @@ lint:
   ignore:
     - linters: [markdownlint]
       paths:
-        - CLAUDE.md
     - linters: [prettier]
       paths:
         # Ignore markdown files
