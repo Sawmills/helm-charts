@@ -36,6 +36,9 @@ image:
 # The address of the Sawmills operator
 operatorAddress: https://controller.sawmills.ai
 
+# Remote-write endpoint, matching the standard operator chart default
+remoteWriteUrl: https://ingress.sawmills.ai
+
 # enable grpc tracing, by default it is disabled
 grpcTrace: ""
 

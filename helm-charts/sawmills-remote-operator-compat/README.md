@@ -14,6 +14,12 @@ though this chart has a separate package name. Existing Role rules, service acco
 bindings, Secret references, scheduling, resources, cache, and managed values retain their
 2.0.5 templates. No new permission is required by this chart.
 
+Operator 0.340.0 receives `REMOTE_WRITE_URL` from this chart for its status metrics.
+Its `remoteWriteUrl` value defaults to `https://ingress.sawmills.ai`, as in the standard
+operator chart. The template retains that fallback when `--reuse-values` supplies old
+values without the new field. An empty URL otherwise causes a send error on each status report.
+For Sawmills staging, set `remoteWriteUrl=https://ingress.sawmills-staging.com`.
+
 Use the existing release name and namespace. Preserve release values inside the cluster
 with `--reuse-values`, and explicitly set `image.tag=0.340.0`: reused values can retain
 the old image tag. Bind the immutable chart version and digest before an upgrade.
@@ -36,7 +42,7 @@ python3 helm-charts/sawmills-remote-operator-compat/tests/test_compatibility.py
 
 The test compares complete rendered objects, including templated values, custom identities,
 RBAC, existing Secret references, and scheduling. It permits only the declared recovery
-fields, target image, and chart version labels to change.
+fields, target image, remote-write URL, and chart version labels to change.
 
 ## Prerequisites and Upgrade Example
 
@@ -83,6 +89,7 @@ to 0.340.0; the original 2.0.5 archive defaults it to 0.176.0.
 │ image.pullPolicy              │ Always                          │
 │ image.tag                     │ 0.340.0                         │
 │ operatorAddress               │ https://controller.sawmills.ai  │
+│ remoteWriteUrl                │ https://ingress.sawmills.ai     │
 │ grpcTrace                     │ empty                           │
 │ cacheVolume.sizeLimit         │ 500Mi                           │
 │ resources.requests.memory     │ 256Mi                           │

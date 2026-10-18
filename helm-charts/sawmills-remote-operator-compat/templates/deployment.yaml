@@ -51,6 +51,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.uid
+        - name: REMOTE_WRITE_URL
+          value: {{ .Values.remoteWriteUrl | default "https://ingress.sawmills.ai" | quote }}
         - name: OPERATOR_ADDRESS
           value: {{ .Values.operatorAddress }}
         {{ if .Values.grpcTrace }}
