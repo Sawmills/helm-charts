@@ -100,12 +100,26 @@ class PublicationTest(unittest.TestCase):
             )
             self.assertEqual(
                 deployment["spec"]["template"]["spec"]["containers"][0]["image"],
-                "public.ecr.aws/s7a5m1b4/sawmills-remote-operator:0.340.0",
+                "public.ecr.aws/s7a5m1b4/sawmills-remote-operator:0.342.0",
             )
             return metadata
 
     def test_package_keeps_operator_version_separate_from_chart_version(self):
-        self.assertEqual(self.package("0.340.0")["appVersion"], "0.340.0")
+        workflow = yaml.safe_load(
+            (
+                ROOT / ".github/workflows/deploy-sawmills-remote-operator-compat.yml"
+            ).read_text()
+        )
+        publish = next(
+            step["with"]
+            for step in workflow["jobs"]["build-and-deploy"]["steps"]
+            if step.get("name") == "Publish compatibility chart"
+        )
+        expected = "0.342.0"
+
+        metadata = self.package(publish["app-version"])
+
+        self.assertEqual(metadata["appVersion"], expected)
 
     def test_existing_callers_keep_tag_derived_application_version(self):
         self.assertEqual(self.package("")["appVersion"], "1.0.0")
