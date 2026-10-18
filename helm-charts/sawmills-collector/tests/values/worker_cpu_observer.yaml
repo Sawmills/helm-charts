@@ -1,0 +1,3 @@
+workerCPUObserver:
+  organizationId: synthetic-org
+  allowedCollectorIds: [synthetic-collector]
