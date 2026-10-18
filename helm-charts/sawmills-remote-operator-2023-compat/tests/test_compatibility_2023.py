@@ -2,9 +2,9 @@
 
 import copy
 import hashlib
-from pathlib import Path
-import unittest
 import sys
+import unittest
+from pathlib import Path
 
 sys.path.insert(
     0,
