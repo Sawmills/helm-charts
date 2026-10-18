@@ -1,0 +1,146 @@
+{{- $observer := .Values.workerCPUObserver | default dict -}}
+{{- if $observer.enabled -}}
+{{- if or .Values.proxy.http .Values.proxy.https -}}
+{{- fail "workerCPUObserver does not support outbound proxies" -}}
+{{- end -}}
+{{- if not .Values.keda.enabled -}}
+{{- fail "workerCPUObserver requires KEDA" -}}
+{{- end -}}
+{{- if not $observer.organizationId -}}
+{{- fail "workerCPUObserver requires organizationId" -}}
+{{- end -}}
+{{- if or (not (hasPrefix "production-" .Values.collectorName)) (not (has .Values.collectorId ($observer.allowedCollectorIds | default list))) -}}
+{{- fail "workerCPUObserver requires an explicitly permitted production collector" -}}
+{{- end -}}
+{{- if not (regexMatch "^.+@sha256:[a-f0-9]{64}$" $observer.image) -}}
+{{- fail "workerCPUObserver.image requires an immutable sha256 digest" -}}
+{{- end -}}
+{{- $workload := include "sawmills-collector.fullname" . -}}
+{{- $name := printf "%s-cpu-observer" ($workload | trunc 39 | trimSuffix "-") -}}
+{{- $labels := include "sawmills-collector.labels" . | fromYaml -}}
+{{- /* Keep observer Pods outside the worker Service selector. */ -}}
+{{- $_ := set $labels "app.kubernetes.io/name" "worker-cpu-observer" -}}
+{{- $so := printf "%s-keda-hpa" $workload -}}
+{{- $hpa := dig "horizontalPodAutoscalerConfig" "name" "" (.Values.keda.advanced | default dict) | default (printf "keda-hpa-%s" $so) -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml $labels | nindent 4 }}
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml $labels | nindent 4 }}
+rules:
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    resourceNames: [{{ $hpa | quote }}]
+    verbs: [get]
+  - apiGroups: [keda.sh]
+    resources: [scaledobjects]
+    resourceNames: [{{ $so | quote }}]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml $labels | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml $labels | nindent 4 }}
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 30
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 30
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            {{- toYaml $labels | nindent 12 }}
+        spec:
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.priorityClassName }}
+          priorityClassName: {{ . | quote }}
+          {{- end }}
+          serviceAccountName: {{ $name }}
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: worker-cpu-observer
+              image: {{ $observer.image | quote }}
+              imagePullPolicy: IfNotPresent
+              args:
+                - --namespace
+                - {{ .Release.Namespace | quote }}
+                - --workload
+                - {{ $workload | quote }}
+                - --scaledobject
+                - {{ $so | quote }}
+                - --hpa
+                - {{ $hpa | quote }}
+                - --collector
+                - {{ required "collectorId is required" .Values.collectorId | quote }}
+                - --organization
+                - {{ $observer.organizationId | quote }}
+                - --ca-file
+                - /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              env:
+                - name: PROMETHEUS_REMOTE_WRITE_ENDPOINT
+                  value: {{ required "prometheusremotewrite.endpoint is required" .Values.prometheusremotewrite.endpoint | quote }}
+                - name: PROMETHEUS_REMOTE_WRITE_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      {{- include "sawmills-collector.secretConfig" . | nindent 22 }}
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 64Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+{{- end }}

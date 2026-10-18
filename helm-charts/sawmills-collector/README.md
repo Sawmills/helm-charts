@@ -10,23 +10,23 @@ The Sawmills Collector is a production-ready OpenTelemetry Collector distributio
 
 ## Features
 
-* **Multiple Deployment Modes**: Supports both Deployment and DaemonSet modes
-* **Autoscaling**: Built-in support for Kubernetes HPA and KEDA-based autoscaling
-* **Load Balancing**: Optional HAProxy integration for advanced load balancing
-* **High Availability**: Optional pod anti-affinity (disabled by default) and topology spread constraints
-* **Telemetry Collection**: Dedicated telemetry collector for internal metrics
-* **Proxy Support**: HTTP/HTTPS proxy configuration for outbound traffic
-* **Flexible Configuration**: S3-based or direct YAML configuration
-* **Service Mesh Ready**: Compatible with service mesh architectures
-* **Monitoring**: Prometheus metrics and ServiceMonitor support
+- **Multiple Deployment Modes**: Supports both Deployment and DaemonSet modes
+- **Autoscaling**: Built-in support for Kubernetes HPA and KEDA-based autoscaling
+- **Load Balancing**: Optional HAProxy integration for advanced load balancing
+- **High Availability**: Optional pod anti-affinity (disabled by default) and topology spread constraints
+- **Telemetry Collection**: Dedicated telemetry collector for internal metrics
+- **Proxy Support**: HTTP/HTTPS proxy configuration for outbound traffic
+- **Flexible Configuration**: S3-based or direct YAML configuration
+- **Service Mesh Ready**: Compatible with service mesh architectures
+- **Monitoring**: Prometheus metrics and ServiceMonitor support
 
 ## Prerequisites
 
-* Kubernetes cluster (v1.19+)
-* Helm 3.x
-* Access to Sawmills container registry (`public.ecr.aws/s7a5m1b4`)
-* (Optional) KEDA installed if using KEDA autoscaling
-* (Optional) Prometheus Operator if using ServiceMonitor
+- Kubernetes cluster (v1.19+)
+- Helm 3.x
+- Access to Sawmills container registry (`public.ecr.aws/s7a5m1b4`)
+- (Optional) KEDA installed if using KEDA autoscaling
+- (Optional) Prometheus Operator if using ServiceMonitor
 
 ## Installation
 
@@ -176,10 +176,10 @@ proxy:
     - 10.0.0.0/8
 ```
 
-If either `proxy.http` or `proxy.https` is set, the chart will automatically populate NO\_PROXY with the following predefined values:
+If either `proxy.http` or `proxy.https` is set, the chart will automatically populate NO_PROXY with the following predefined values:
 
-* `localhost`, `127.0.0.1`, `::1`, `kubernetes`, `kubernetes.default.svc`, `.svc`, `.svc.cluster.local`, `.cluster.local`
-* `$(KUBERNETES_SERVICE_HOST)` and `$(MY_POD_IP)`
+- `localhost`, `127.0.0.1`, `::1`, `kubernetes`, `kubernetes.default.svc`, `.svc`, `.svc.cluster.local`, `.cluster.local`
+- `$(KUBERNETES_SERVICE_HOST)` and `$(MY_POD_IP)`
 
 Use `noProxy` to extend that list with any additional domains or CIDRs that must bypass your proxy.
 
@@ -205,7 +205,7 @@ resources:
   limits:
     memory: 2.5Gi
     cpu: 3000m
-  disableLimits: false  # Set to true to disable resource limits
+  disableLimits: false # Set to true to disable resource limits
 ```
 
 ### Autoscaling
@@ -470,6 +470,7 @@ Enable TLS termination for specific HAProxy port mappings. When TLS is enabled o
 **Prerequisites:**
 
 1. Create a Kubernetes TLS secret:
+
    ```bash
    kubectl create secret tls collector-tls \
      --cert=tls.crt \
@@ -497,9 +498,9 @@ Enable TLS termination for specific HAProxy port mappings. When TLS is enabled o
 
 This creates:
 
-* HTTP frontend on port 10000 (plain traffic)
-* HTTPS frontend on port 443 (TLS terminated, forwards to same backend)
-* LoadBalancer service exposing port 443
+- HTTP frontend on port 10000 (plain traffic)
+- HTTPS frontend on port 443 (TLS terminated, forwards to same backend)
+- LoadBalancer service exposing port 443
 
 ### Ingress Configuration
 
@@ -658,8 +659,8 @@ See [examples/additional-containers.yaml](./examples/additional-containers.yaml)
 service:
   type: ClusterIP
   headless:
-    enabled: true  # Recommended for StatefulSet-like behavior
-  internalTrafficPolicy: "Local"  # Route traffic to local endpoints
+    enabled: true # Recommended for StatefulSet-like behavior
+  internalTrafficPolicy: "Local" # Route traffic to local endpoints
   annotations:
     service.kubernetes.io/topology-mode: "Auto"
 ```
@@ -668,10 +669,10 @@ service:
 
 `{{ fullname }}-headless` is a stable external service name used by workloads outside this chart.
 
-* In LoadBalancer mode, do not rename or remove `{{ fullname }}-headless` without an explicit migration plan.
-* Internal chart refactors must preserve that DNS contract even if implementation details change.
-* Changes to this service name are breaking changes and must be called out as such in the PR and release notes.
-* Upgrade note: clusters that briefly ran chart versions with the intermediate `{{ fullname }}-lb-headless` name should verify `{{ fullname }}-headless` exists again after upgrade and prune any orphaned `{{ fullname }}-lb-headless` Service if it remains.
+- In LoadBalancer mode, do not rename or remove `{{ fullname }}-headless` without an explicit migration plan.
+- Internal chart refactors must preserve that DNS contract even if implementation details change.
+- Changes to this service name are breaking changes and must be called out as such in the PR and release notes.
+- Upgrade note: clusters that briefly ran chart versions with the intermediate `{{ fullname }}-lb-headless` name should verify `{{ fullname }}-headless` exists again after upgrade and prune any orphaned `{{ fullname }}-lb-headless` Service if it remains.
 
 ### ServiceMonitor (Prometheus Operator)
 
@@ -691,8 +692,8 @@ serviceMonitor:
 rollout:
   strategy: RollingUpdate
   rollingUpdate:
-    maxUnavailable: null   # defaults to 1 for ≤ 10 replicas, scales proportionally beyond that
-    maxSurge: null         # defaults to 2 for ≤ 10 replicas, scales proportionally beyond that
+    maxUnavailable: null # defaults to 1 for ≤ 10 replicas, scales proportionally beyond that
+    maxSurge: null # defaults to 2 for ≤ 10 replicas, scales proportionally beyond that
   minReadySeconds: 15
   terminationGracePeriodSeconds: null # 150s without LB drain, 135s with LB drain
   main:
@@ -707,7 +708,7 @@ rollout:
       startup:
         enabled: true
         periodSeconds: 5
-        failureThreshold: 24  # 120s budget for the 60s fail-closed startup config scan
+        failureThreshold: 24 # 120s budget for the 60s fail-closed startup config scan
     drain:
       enabled: true
       configSource: overlay
@@ -751,19 +752,19 @@ rollout:
 
 `rollout.main.drain.configSource` controls where the `backend_drain` extension config lives:
 
-* `overlay` keeps the legacy chart-rendered extra ConfigMap and extra `--config` file. This remains the default for backward compatibility and unmanaged Helm users.
-* `mainConfig` skips the extra overlay and expects `backend_drain` to already exist in the primary collector config, including S3-backed configs generated by collectors-service.
+- `overlay` keeps the legacy chart-rendered extra ConfigMap and extra `--config` file. This remains the default for backward compatibility and unmanaged Helm users.
+- `mainConfig` skips the extra overlay and expects `backend_drain` to already exist in the primary collector config, including S3-backed configs generated by collectors-service.
 
 With that topology enabled, the chart:
 
-* Adds a separate `backend_drain` config overlay as an extra `--config` only when `configSource: overlay`.
-* Names the overlay ConfigMap with a collector image hash and keeps old copies so old ReplicaSets do not load config rendered for a newer collector binary.
-* Preserves the main collector extension list by defaulting to `health_check`, `cgroup_runtime`, and appending `backend_drain` unless `otelCollectorConfig.service.extensions` already specifies a custom list.
-* When using `configSource: overlay` with S3-backed main collector configs, mirror any extra `service.extensions` entries in `rollout.main.drain.serviceExtensions`, because the chart cannot inspect or merge the remote extension list for you.
-* Configures the drain-aware readiness server to mirror the normal `health_check` endpoint until drain starts, so readiness still tracks real collector health.
-* Switches the main collector readiness probe to the drain-aware endpoint.
-* Uses a `preStop.httpGet` hook to call `/drain`, which flips readiness immediately and blocks for the configured drain duration.
-* Leaves liveness and startup probes on the normal `health_check` endpoint (`13133`) so crash detection stays unchanged.
+- Adds a separate `backend_drain` config overlay as an extra `--config` only when `configSource: overlay`.
+- Names the overlay ConfigMap with a collector image hash and keeps old copies so old ReplicaSets do not load config rendered for a newer collector binary.
+- Preserves the main collector extension list by defaulting to `health_check`, `cgroup_runtime`, and appending `backend_drain` unless `otelCollectorConfig.service.extensions` already specifies a custom list.
+- When using `configSource: overlay` with S3-backed main collector configs, mirror any extra `service.extensions` entries in `rollout.main.drain.serviceExtensions`, because the chart cannot inspect or merge the remote extension list for you.
+- Configures the drain-aware readiness server to mirror the normal `health_check` endpoint until drain starts, so readiness still tracks real collector health.
+- Switches the main collector readiness probe to the drain-aware endpoint.
+- Uses a `preStop.httpGet` hook to call `/drain`, which flips readiness immediately and blocks for the configured drain duration.
+- Leaves liveness and startup probes on the normal `health_check` endpoint (`13133`) so crash detection stays unchanged.
 
 Keep `rollout.main.drain.duration + rollout.main.preStopSleepSeconds + rollout.main.drain.shutdownReserve` below the effective termination grace period. With both grace values unset, the chart uses 150 s for the no-load-balancer sleep path and 135 s for the measured LB drain path. Set either value to override the corresponding topology; the parent value overrides both when the drain-specific value is null.
 
@@ -773,7 +774,7 @@ Keep `rollout.main.drain.duration + rollout.main.preStopSleepSeconds + rollout.m
 podDisruptionBudget:
   enabled: true
   minAvailable: null
-  maxUnavailable: null  # defaults to 1
+  maxUnavailable: null # defaults to 1
   unhealthyPodEvictionPolicy: AlwaysAllow
 ```
 
@@ -936,8 +937,8 @@ kedaScaler:
 
 Configure these options in `loadBalancer.otelCollectorConfig.exporters.<loadbalancing-exporter>.sending_queue`:
 
-* `payload_compression`: `none`, `snappy`, or `zstd`
-* `compress_in_memory`: boolean (for in-memory queue payload compression)
+- `payload_compression`: `none`, `snappy`, or `zstd`
+- `compress_in_memory`: boolean (for in-memory queue payload compression)
 
 In-memory queue compression (no persistent storage):
 
@@ -980,9 +981,9 @@ loadBalancer:
 
 Validation guardrails in this chart:
 
-* `sending_queue.storage` requires `loadBalancer.storage.enabled: true`
-* `compress_in_memory: true` requires `sending_queue.enabled: true`
-* `compress_in_memory: true` requires `payload_compression: snappy|zstd`
+- `sending_queue.storage` requires `loadBalancer.storage.enabled: true`
+- `compress_in_memory: true` requires `sending_queue.enabled: true`
+- `compress_in_memory: true` requires `payload_compression: snappy|zstd`
 
 LB storage mode uses the existing StatefulSet identity. It retains each ordinal's
 claim after scale-in or StatefulSet deletion. Kubernetes 1.27 and later receive an
@@ -1107,29 +1108,29 @@ kedaScaler:
 
 #### Pods Not Starting
 
-* Check resource limits and requests
-* Verify image pull secrets if using private registry
-* Review pod events: `kubectl describe pod <pod-name>`
-* Check logs: `kubectl logs <pod-name>`
+- Check resource limits and requests
+- Verify image pull secrets if using private registry
+- Review pod events: `kubectl describe pod <pod-name>`
+- Check logs: `kubectl logs <pod-name>`
 
 #### Configuration Errors
 
-* Validate YAML syntax: `helm template . --debug`
-* Check for missing required values
-* Verify S3 access if using S3-based configuration
-* Review collector logs for configuration parsing errors
+- Validate YAML syntax: `helm template . --debug`
+- Check for missing required values
+- Verify S3 access if using S3-based configuration
+- Review collector logs for configuration parsing errors
 
 #### Autoscaling Not Working
 
-* Verify HPA/KEDA resources exist: `kubectl get hpa`
-* Check metrics availability: `kubectl top pods`
-* Review autoscaling events: `kubectl describe hpa <name>`
+- Verify HPA/KEDA resources exist: `kubectl get hpa`
+- Check metrics availability: `kubectl top pods`
+- Review autoscaling events: `kubectl describe hpa <name>`
 
 #### Proxy Issues
 
-* Verify proxy URL format: `http://[user:pass@]host:port`
-* Check NO\_PROXY settings for internal services
-* Review collector logs for connection errors
+- Verify proxy URL format: `http://[user:pass@]host:port`
+- Check NO_PROXY settings for internal services
+- Review collector logs for connection errors
 
 ### Debugging Commands
 
@@ -1176,16 +1177,35 @@ helm uninstall my-collector --namespace sawmills-system
 
 ## Additional Resources
 
-* [Main README](../../README.md) - Repository overview and contribution guidelines
-* [Configuration Examples](./examples/) - Example configurations
-* [Helm Documentation](https://helm.sh/docs/)
-* [OpenTelemetry Collector Documentation](https://opentelemetry.io/docs/collector/)
-* [Sawmills Platform Documentation](https://docs.sawmills.ai)
+- [Main README](../../README.md) - Repository overview and contribution guidelines
+- [Configuration Examples](./examples/) - Example configurations
+- [Helm Documentation](https://helm.sh/docs/)
+- [OpenTelemetry Collector Documentation](https://opentelemetry.io/docs/collector/)
+- [Sawmills Platform Documentation](https://docs.sawmills.ai)
 
 ## Support
 
 For issues, questions, or contributions, please:
 
-* Create an issue in this repository
-* Tag `@sawmills/engineers` in discussions
-* Contact Sawmills support for urgent issues
+- Create an issue in this repository
+- Tag `@sawmills/engineers` in discussions
+- Contact Sawmills support for urgent issues
+
+## Optional Worker CPU Observation
+
+`workerCPUObserver.enabled` defaults to `false`. To enable the observer, configure
+an immutable `image` digest, an explicit `organizationId`, and an exact
+`allowedCollectorIds` list. The release's `collectorId` must be in that list and
+its `collectorName` must start with `production-`. Keep tenant-specific settings
+in private deployment values.
+
+The dedicated CronJob and namespaced Role permit GET only on the release's exact
+worker ScaledObject and HPA. The job runs once per minute, cannot overlap, and
+stops after 30 seconds without retry. It uses the existing collector telemetry
+Secret reference and remote-write endpoint. The worker Deployment template and
+scaling configuration stay unchanged.
+
+CPU-target absence and read success are separate gauges. Failed or stale reads
+remain unknown. Bind the declared organization to the actual release and its
+telemetry credential before installation; Kubernetes cannot verify tenant identity.
+Outbound HTTP/HTTPS proxies are unsupported and cause rendering to stop.

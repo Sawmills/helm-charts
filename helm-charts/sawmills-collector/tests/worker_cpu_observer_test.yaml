@@ -1,0 +1,159 @@
+suite: Read-only worker CPU observer
+values:
+  - values/worker_cpu_observer.yaml
+templates:
+  - templates/worker-cpu-observer.yaml
+tests:
+  - it: creates no monitoring workload by default
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: creates a bounded CronJob and exact-object read permissions
+    set:
+      keda.enabled: true
+      workerCPUObserver.enabled: true
+      workerCPUObserver.image: example.invalid/checker@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      collectorId: synthetic-collector
+      collectorName: production-synthetic
+    asserts:
+      - hasDocuments:
+          count: 4
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [autoscaling]
+              resources: [horizontalpodautoscalers]
+              resourceNames: [keda-hpa-RELEASE-NAME-keda-hpa]
+              verbs: [get]
+            - apiGroups: [keda.sh]
+              resources: [scaledobjects]
+              resourceNames: [RELEASE-NAME-keda-hpa]
+              verbs: [get]
+        documentIndex: 1
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Forbid
+        documentIndex: 3
+      - equal:
+          path: spec.jobTemplate.spec.activeDeadlineSeconds
+          value: 30
+        documentIndex: 3
+      - equal:
+          path: spec.jobTemplate.spec.backoffLimit
+          value: 0
+        documentIndex: 3
+  - it: rejects a mutable image before creating workloads
+    set:
+      keda.enabled: true
+      workerCPUObserver.enabled: true
+      workerCPUObserver.image: example.invalid/checker:latest
+      collectorId: synthetic-collector
+      collectorName: production-synthetic
+    asserts:
+      - failedTemplate:
+          errorMessage: workerCPUObserver.image requires an immutable sha256 digest
+  - it: refuses staging targets
+    set:
+      keda.enabled: true
+      workerCPUObserver.enabled: true
+      workerCPUObserver.image: example.invalid/checker@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      collectorId: excluded-collector
+      collectorName: production-synthetic
+    asserts:
+      - failedTemplate:
+          errorMessage: workerCPUObserver requires an explicitly permitted production collector
+  - it: follows an explicitly named HPA
+    set:
+      keda.enabled: true
+      keda.advanced.horizontalPodAutoscalerConfig.name: custom-worker-hpa
+      workerCPUObserver.enabled: true
+      workerCPUObserver.image: example.invalid/checker@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      collectorId: synthetic-collector
+      collectorName: production-synthetic
+    asserts:
+      - equal:
+          path: rules[0].resourceNames
+          value: [custom-worker-hpa]
+        documentIndex: 1
+  - it: keeps long release names within the CronJob name limit
+    release:
+      name: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    set:
+      keda.enabled: true
+      workerCPUObserver.enabled: true
+      workerCPUObserver.image: example.invalid/checker@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      collectorId: synthetic-collector
+      collectorName: production-synthetic
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: "^.{1,52}$"
+        documentIndex: 3
+  - it: refuses a release outside the configured collector policy
+    set:
+      keda.enabled: true
+      collectorId: excluded-collector
+      collectorName: staging-mt-1
+      workerCPUObserver.enabled: true
+      workerCPUObserver.image: example.invalid/checker@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    asserts:
+      - failedTemplate:
+          errorMessage: workerCPUObserver requires an explicitly permitted production collector
+  - it: requires an explicit organization
+    set:
+      keda.enabled: true
+      workerCPUObserver.enabled: true
+      workerCPUObserver.organizationId: ""
+      collectorName: production-synthetic
+    asserts:
+      - failedTemplate:
+          errorMessage: workerCPUObserver requires organizationId
+  - it: refuses a non-production release identity
+    set:
+      keda.enabled: true
+      workerCPUObserver.enabled: true
+      collectorName: staging-synthetic
+    asserts:
+      - failedTemplate:
+          errorMessage: workerCPUObserver requires an explicitly permitted production collector
+  - it: requires KEDA before creating the observer
+    set:
+      keda.enabled: false
+      workerCPUObserver.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: workerCPUObserver requires KEDA
+  - it: follows dedicated node scheduling without joining worker Service selectors
+    set:
+      keda.enabled: true
+      workerCPUObserver.enabled: true
+      workerCPUObserver.image: example.invalid/checker@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      collectorId: synthetic-collector
+      collectorName: production-synthetic
+      nodeSelector:
+        pool: sawmills
+      tolerations:
+        - key: sawmills
+          operator: Exists
+          effect: NoSchedule
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.nodeSelector
+          value:
+            pool: sawmills
+        documentIndex: 3
+      - equal:
+          path: spec.jobTemplate.spec.template.metadata.labels["app.kubernetes.io/name"]
+          value: worker-cpu-observer
+        documentIndex: 3
+  - it: refuses unsupported outbound proxy configuration
+    set:
+      keda.enabled: true
+      workerCPUObserver.enabled: true
+      collectorId: synthetic-collector
+      collectorName: production-synthetic
+      workerCPUObserver.image: example.invalid/checker@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      proxy.https: http://proxy.invalid:8080
+    asserts:
+      - failedTemplate:
+          errorMessage: workerCPUObserver does not support outbound proxies
