@@ -6,6 +6,8 @@ Declared changes are the image, the POD_UID field reference, the recovery label,
 
 This is a separate compatibility family. The chart uses fixed legacy RBAC names and ServiceAccount `sawmills-operator-sa`. It does not add new permissions or make modern RBAC controls effective.
 
+The legacy Role grants access to Ingress resources but grants no NetworkPolicy permissions. If this Role is the operator's only grant, a collector Helm operation that includes NetworkPolicy resources will be denied. Before approving a customer upgrade, compare the collector's resource kinds with the operator's effective grants. Keep targets that need NetworkPolicy access on hold until a separate permission plan is approved.
+
 ## Configuration
 
 Public values retain their 0.163.0 meanings:
@@ -45,6 +47,6 @@ helm lint helm-charts/sawmills-remote-operator-0163-compat
 python3 helm-charts/sawmills-remote-operator-compat/tests/test_compatibility.py
 ```
 
-Publication, candidate digest binding, an owned staging upgrade and rollback proof, and customer eligibility remain separate approvals. Render tests establish none of those outcomes. No publication workflow or customer installation is included here.
+Publication, candidate digest binding, an owned staging upgrade and rollback proof, and customer eligibility remain separate approvals. Render tests establish none of those outcomes. Publication alone does not establish staging or customer acceptance.
 
 After approval of a release packet, use its reviewed executor with the existing operator release name and namespace. Bind the installed chart, operator image, protected collector state and actual rollback revision first. Do not install over the collector release. A failed invariance check requires the packet's rollback and stop procedure. Missing telemetry remains UNKNOWN with its stated limits.
