@@ -48,6 +48,7 @@ def run(argv, *, receipt_dir=None, retain_stdout=False, **kwargs):
                 try:
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
+                    # The child exited before killpg; wait below still reaps it.
                     pass
                 process.wait(timeout=2)
                 try:
