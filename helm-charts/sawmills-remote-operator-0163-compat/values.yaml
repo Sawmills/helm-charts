@@ -1,0 +1,36 @@
+# Number of replicas for the Sawmills operator
+replicaCount: 3
+
+# The API key for the Sawmills operator
+apiKey: ""
+
+# The collector name of the Sawmills operator
+collectorName: ""
+
+# The image pull policy the Sawmills operator
+image:
+  pullPolicy: Always
+
+# The address of the Sawmills operator
+operatorAddress: controller.sawmills.ai:443
+
+# enable grpc tracing, by default it is disabled
+grpcTrace: ""
+
+# The cache is used for storing the state of the operator
+cacheVolume:
+  sizeLimit: 500Mi
+
+# The resources for the Sawmills operator
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 250m
+  limits:
+    memory: 1Gi
+    cpu: 500m
+
+# The security context for the Sawmills operator
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
