@@ -6,6 +6,8 @@ Declared changes are the image, the POD_UID field reference, the recovery label,
 
 This is a separate compatibility family. The chart uses fixed legacy RBAC names and ServiceAccount `sawmills-operator-sa`. It does not add new permissions or make modern RBAC controls effective.
 
+The legacy Role grants access to Ingress resources but grants no NetworkPolicy permissions. If this Role is the operator's only grant, a collector Helm operation that includes NetworkPolicy resources will be denied. Before approving a customer upgrade, compare the collector's resource kinds with the operator's effective grants. Keep targets that need NetworkPolicy access on hold until a separate permission plan is approved.
+
 ## Configuration
 
 Public values retain their 0.163.0 meanings:
