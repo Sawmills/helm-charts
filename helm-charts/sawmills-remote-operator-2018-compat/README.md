@@ -25,6 +25,50 @@ This package requires a separate approved release packet. First bind its publish
 
 The supported settings are in `values.yaml`. They retain the 2.0.18 names and meanings. Use an existing Secret reference for credentials. Keep credential values out of shell arguments and saved examples.
 
+The table lists every public value and its default. The image repository is `public.ecr.aws/s7a5m1b4/sawmills-remote-operator`. The pinned template retains its hard-coded container security context. The legacy `securityContext` values do not override it.
+
+```text
+┌────────────────────────────┬──────────────────────────────────┐
+│ Setting                    │ Default                          │
+├────────────────────────────┼──────────────────────────────────┤
+│ replicaCount               │ 3                                │
+│ rbac.createServiceAccount  │ true                             │
+│ rbac.createRole            │ true                             │
+│ rbac.createRoleBinding     │ true                             │
+│ rbac.serviceAccountName    │ "sawmills-operator-sa"           │
+│ rbac.roleName              │ "sawmills-role"                  │
+│ rbac.roleBindingName       │ "sawmills-operator-rolebinding"  │
+│ apiKey                     │ ""                               │
+│ apiKeyExistingSecret       │ ""                               │
+│ apiKeyExistingSecretKey    │ "api-key"                        │
+│ collectorName              │ ""                               │
+│ image.repository           │ Public ECR operator repository   │
+│ image.pullPolicy           │ "Always"                         │
+│ image.tag                  │ "0.343.0"                        │
+│ operatorAddress            │ "https://controller.sawmills.ai" │
+│ remoteWriteUrl             │ "https://ingress.sawmills.ai"    │
+│ selfManaged                │ false                            │
+│ proxy.http                 │ ""                               │
+│ proxy.https                │ ""                               │
+│ proxy.noProxy              │ []                               │
+│ grpcTrace                  │ ""                               │
+│ cacheVolume.sizeLimit      │ "500Mi"                          │
+│ resources.requests.memory  │ "256Mi"                          │
+│ resources.requests.cpu     │ "250m"                           │
+│ resources.limits.memory    │ "1Gi"                            │
+│ resources.limits.cpu       │ "500m"                           │
+│ securityContext.runAsUser  │ 1000                             │
+│ securityContext.runAsGroup │ 1000                             │
+│ logLevel                   │ "info"                           │
+│ affinity                   │ {}                               │
+│ nodeSelector               │ {}                               │
+│ tolerations                │ []                               │
+│ managedChartsValues        │ {}                               │
+│ managedCharts              │ {}                               │
+│ managedChartsOverrides     │ {}                               │
+└────────────────────────────┴──────────────────────────────────┘
+```
+
 This synthetic example renders resources without installing them:
 
 ```sh
