@@ -1586,3 +1586,11 @@ loadBalancer:
           - type: Percent
             value: 25
             periodSeconds: 120
+
+# Explicit per-release opt-in; the default creates no observer resources.
+workerCPUObserver:
+  enabled: false
+  # Required immutable image published from agent-scripts.
+  image: ""
+  organizationId: ""
+  allowedCollectorIds: []
