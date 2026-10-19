@@ -47,6 +47,6 @@ helm lint helm-charts/sawmills-remote-operator-0163-compat
 python3 helm-charts/sawmills-remote-operator-compat/tests/test_compatibility.py
 ```
 
-Publication, candidate digest binding, an owned staging upgrade and rollback proof, and customer eligibility remain separate approvals. Render tests establish none of those outcomes. No publication workflow or customer installation is included here.
+Publication, candidate digest binding, an owned staging upgrade and rollback proof, and customer eligibility remain separate approvals. Render tests establish none of those outcomes. Publication alone does not establish staging or customer acceptance.
 
 After approval of a release packet, use its reviewed executor with the existing operator release name and namespace. Bind the installed chart, operator image, protected collector state and actual rollback revision first. Do not install over the collector release. A failed invariance check requires the packet's rollback and stop procedure. Missing telemetry remains UNKNOWN with its stated limits.
