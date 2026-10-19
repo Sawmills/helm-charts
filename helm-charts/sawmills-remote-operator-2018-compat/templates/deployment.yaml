@@ -1,0 +1,163 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sawmills-remote-operator.fullname" . }}
+  labels:
+    {{- include "sawmills-remote-operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "sawmills-remote-operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        rollme: {{ .Values | toYaml | sha256sum }}
+      labels:
+        {{- include "sawmills-remote-operator.labels" . | nindent 8 }}
+        sawmills.ai/health-gated-recovery: v1
+      name: remote-operator
+    spec:
+      serviceAccountName: {{ .Values.rbac.serviceAccountName }}
+      terminationGracePeriodSeconds: 14400
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: remote-operator
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        command: [/remote-operator]
+        args: [operator]
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports: []
+        volumeMounts:
+        - mountPath: /cache
+          name: cache-volume
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: OPERATOR_ADDRESS
+          value: {{ .Values.operatorAddress }}
+        {{ if .Values.grpcTrace }}
+        - name: GRPC_TRACE
+          value: {{ .Values.grpcTrace }}
+        {{ end }}
+        - name: OPERATOR_NAME
+          value: {{ tpl .Values.collectorName $ }}/$(POD_NAME)
+        {{- if .Values.apiKeyExistingSecret }}
+        - name: LEVEL
+          value: {{ .Values.logLevel }}
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.apiKeyExistingSecret | quote }}
+              key: {{ .Values.apiKeyExistingSecretKey | quote }}
+        {{- else }}
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: remote-operator
+              key: api-key
+        {{- end }}
+        - name: REMOTE_WRITE_URL
+          value: {{ .Values.remoteWriteUrl }}
+        - name: SELF_MANAGED
+          value: {{ printf "%t" .Values.selfManaged | quote }}
+        {{- $proxy := default dict .Values.proxy }}
+        {{- with $proxy.http }}
+        - name: HTTP_PROXY
+          value: {{ tpl . $ | quote }}
+        {{- end }}
+        {{- with $proxy.https }}
+        - name: HTTPS_PROXY
+          value: {{ tpl . $ | quote }}
+        {{- end }}
+        {{- $noProxy := include "sawmills-remote-operator.noProxyValue" . }}
+        {{- if or $proxy.http $proxy.https $noProxy }}
+        - name: NO_PROXY
+          {{- if or $proxy.http $proxy.https }}
+            {{- if $noProxy }}
+          value: {{ printf "%s,$(POD_IP)" $noProxy | quote }}
+            {{- else }}
+          value: "$(POD_IP)"
+            {{- end }}
+          {{- else }}
+          value: {{ $noProxy | quote }}
+          {{- end }}
+        {{- end }}
+        - name: OPERATOR_KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        {{- $managedChartsValues := default .Values.managedCharts .Values.managedChartsValues }}
+        - name: MANAGED_CHARTS_VALUES
+          value: {{ tpl ($managedChartsValues | toJson | quote) $ }}
+        {{- $managedCharts := default (dict) .Values.managedChartsOverrides }}
+        - name: MANAGED_CHARTS
+          value: {{ tpl ($managedCharts | toJson | quote) $ }}
+        resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 8086
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /ready # separate to a readiness check with /ready
+            port: 8086
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - curl --noproxy '*' --fail --silent --show-error -X POST http://127.0.0.1:8086/drain
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: cache-volume
+        emptyDir:
+          sizeLimit: {{ .Values.cacheVolume.sizeLimit }}

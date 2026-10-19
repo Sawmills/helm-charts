@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: 0.343.0
+description: Compatibility upgrade for remote-operator chart 2.0.18 installations
+name: sawmills-remote-operator-2018-compat-chart
+type: application
+version: 2.0.18
