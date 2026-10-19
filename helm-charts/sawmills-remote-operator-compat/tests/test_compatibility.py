@@ -3,11 +3,11 @@
 import copy
 import hashlib
 from pathlib import Path
-import subprocess
 import tempfile
 import unittest
 
 import yaml
+from child_receipts import run
 
 CHART = Path(__file__).resolve().parents[1]
 BASELINE = CHART / "tests/operator-2.0.5.tgz"
@@ -18,7 +18,7 @@ def render(chart, values):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml") as source:
         yaml.safe_dump(values, source)
         source.flush()
-        result = subprocess.run(
+        result = run(
             [
                 "helm",
                 "template",
@@ -32,6 +32,7 @@ def render(chart, values):
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
     if result.returncode:
         raise AssertionError(f"helm template failed: {result.stderr}")
@@ -206,6 +207,17 @@ class CompatibilityTest(unittest.TestCase):
                             metadata = item["spec"]["template"]["metadata"]
                             remove_version_labels(metadata)
                     self.assertEqual(new, old, f"unapproved render change: {identity}")
+
+
+def load_tests(loader, tests, pattern):
+    """Run the legacy-family contract from the existing compatibility CI step."""
+    tests.addTests(
+        loader.discover(
+            str(CHART.parent / "sawmills-remote-operator-0163-compat/tests"),
+            pattern="test_compatibility_0163.py",
+        )
+    )
+    return tests
 
 
 if __name__ == "__main__":
