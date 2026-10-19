@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "helm-charts/sawmills-remote-operator-compat/**"
+      - "!helm-charts/sawmills-remote-operator-compat/tests/**"
 
 jobs:
   version-and-tag:
