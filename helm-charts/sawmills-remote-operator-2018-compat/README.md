@@ -16,3 +16,25 @@ Run the focused checks on the devbox:
 helm lint helm-charts/sawmills-remote-operator-2018-compat
 python3 helm-charts/sawmills-remote-operator-2018-compat/tests/test_compatibility_2018.py
 ```
+
+## Installation
+
+This package requires a separate approved release packet. First bind its published digest and image to an accepted owned staging proof. Then use the reviewed executor with the existing operator release name and namespace. Reuse installed values and set the approved image tag explicitly. Retain the previous operator revision as the rollback target. Do not install this chart over the collector release.
+
+## Configuration and Example
+
+The supported settings are in `values.yaml`. They retain the 2.0.18 names and meanings. Use an existing Secret reference for credentials. Keep credential values out of shell arguments and saved examples.
+
+This synthetic example renders resources without installing them:
+
+```sh
+helm template sawmills-remote-operator \
+  helm-charts/sawmills-remote-operator-2018-compat \
+  --namespace proof \
+  --set apiKeyExistingSecret=synthetic-existing-secret \
+  --set collectorName=synthetic-proof
+```
+
+## Troubleshooting
+
+If rendering fails, retain the bounded error and compare the selected settings with the pinned 2.0.18 baseline. If readiness or native invariance fails after an approved upgrade, use the packet's bound operator rollback and stop. If a metric family is absent, report UNKNOWN with its detection limit. Do not infer zero loss from an empty result or repeat a consumed customer attempt.

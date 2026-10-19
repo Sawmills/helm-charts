@@ -146,17 +146,6 @@ spec:
               - /bin/sh
               - -c
               - curl --noproxy '*' --fail --silent --show-error -X POST http://127.0.0.1:8086/drain
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 10001
-          runAsGroup: 10001
-          seccompProfile:
-            type: RuntimeDefault
-          readOnlyRootFilesystem: false
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
       volumes:
       - name: cache-volume
         emptyDir:
