@@ -2,7 +2,7 @@
 
 This package updates the operator while it preserves the public chart 2.0.18 contract. It targets operator image 0.343.0.
 
-Resource names, selectors, RBAC, references, proxy handling, managed-chart values, scheduling, cache and resources stay unchanged. The default memory limit remains 1Gi. Values for analytics Secret injection and the embedded autoscaler remain ignored, as in 2.0.18. The 2.0.23 compatibility package has different behavior for these values and a 2Gi default memory limit.
+Resource names, selectors, RBAC, references, proxy handling, managed-chart values, scheduling, cache and resources stay unchanged. Its default memory limit remains 1Gi. Values for analytics Secret injection and the embedded autoscaler remain ignored, as in 2.0.18. Chart 2.0.23 compatibility has different behavior for these values and a 2Gi default memory limit.
 
 Declared changes are the operator image, the POD_UID field reference, the recovery label, a 14,400-second termination grace and the preStop drain hook. The hook uses the existing `/drain` endpoint. An upgrade changes the operator release only. It does not authorize a collector deployment or a customer upgrade.
 
