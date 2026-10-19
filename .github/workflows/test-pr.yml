@@ -37,6 +37,11 @@ jobs:
       - name: Lint 2.0.23 compatibility chart
         run: helm lint helm-charts/sawmills-remote-operator-2023-compat
 
+      - name: Compare against installed chart 2.0.18
+        run: python3 helm-charts/sawmills-remote-operator-2018-compat/tests/test_compatibility_2018.py
+      - name: Lint 2.0.18 compatibility chart
+        run: helm lint helm-charts/sawmills-remote-operator-2018-compat
+
   check-codeowners:
     uses: ./.github/workflows/check-codeowners.yml
 
