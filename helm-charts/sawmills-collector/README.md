@@ -725,7 +725,7 @@ rollout:
 
 ### LB Membership Discovery
 
-Set `loadBalancer.membershipDiscovery.enabled: true` with a compatible membership-aware collector and generated configuration. The default is `false`. With the load balancer enabled, this creates one namespace Role and RoleBinding for the collector workload service account. The Role grants only `list` and `watch` on `discovery.k8s.io/endpointslices`. It grants no Pod or Secret access and no cluster permissions. Older charts must not receive the collector discovery field from the producer.
+Set `loadBalancer.membershipDiscovery.enabled: true` with a compatible membership-aware collector and generated configuration. Also set `automountServiceAccountToken: true` so that discovery can authenticate to the Kubernetes API. The default is `false`. With the load balancer enabled, this creates one namespace Role and RoleBinding for the collector workload service account. The Role grants only `list` and `watch` on `discovery.k8s.io/endpointslices`. It grants no Pod or Secret access and no cluster permissions. Older charts must not receive the collector discovery field from the producer.
 
 The binding uses `serviceAccount.name`. When `serviceAccount.create` is `false` and no name is set, it uses the namespace's `default` ServiceAccount. Every workload using that account gains the same EndpointSlice access. Use a release-specific account for discovery: set `serviceAccount.create: true` and an explicit `serviceAccount.name`, or name an existing account dedicated to this release. The collector workers and load balancers share that account.
 
@@ -1232,3 +1232,17 @@ With load-balancer storage enabled, its existing `fsGroup: 10001` remains unless
 `networkPolicy.enabled` defaults to `false`. Enable it with an explicit `networkPolicy.egress` list to restrict outbound traffic for this release. An enabled policy with no rules denies all egress. Inbound traffic is unchanged by this policy.
 
 See [NetworkPolicy configuration](../../docs/network-policy.md) for required destinations, DNS and Kubernetes API rules, and cluster-specific limits. No internet, API, or DNS allowance is added automatically.
+
+## Service-Account Token Mounting
+
+Worker Deployment/DaemonSet, load-balancer and scaler Pods set `automountServiceAccountToken: false` by default. This keeps cluster credentials out of Pods that do not use the Kubernetes API. Service-account names and RBAC remain unchanged.
+
+| Value | Default | Purpose |
+| --- | --- | --- |
+| `automountServiceAccountToken` | `false` | Mount cluster credentials for collector configurations that require them. |
+
+Set the value to `true` for API-dependent components, including Kubernetes receivers, k8sattributes, Kubernetes observers, Prometheus Kubernetes discovery and Kubernetes load-balancing resolvers. This is a release-level switch: enabling it mounts a token in all worker, load-balancer and scaler Pods. Custom components and manually supplied or S3-hosted configurations require the same review; Helm cannot inspect opaque S3 configuration.
+
+`loadBalancer.membershipDiscovery.enabled=true` requires this switch to be `true`; otherwise rendering fails. DNS-only membership does not require a token. The opt-in CPU observer keeps its dedicated API-enabled service account.
+
+Use a collectors-service generator that supports this chart's token switch before adopting this chart. The matching generator derives the switch from worker, load-balancer and telemetry configurations before replacing them with S3 references. For manually managed values, set the switch explicitly when the configuration needs Kubernetes API credentials.

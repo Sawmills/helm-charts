@@ -20,6 +20,7 @@ tests:
     set:
       loadBalancer.enabled: true
       loadBalancer.membershipDiscovery.enabled: true
+      automountServiceAccountToken: true
       serviceAccount.name: collector-workload
     asserts:
       - hasDocuments:
@@ -56,6 +57,7 @@ tests:
   - it: grants no access without a load balancer
     set:
       loadBalancer.membershipDiscovery.enabled: true
+      automountServiceAccountToken: true
     asserts:
       - hasDocuments:
           count: 0
@@ -63,6 +65,7 @@ tests:
     set:
       loadBalancer.enabled: true
       loadBalancer.membershipDiscovery.enabled: true
+      automountServiceAccountToken: true
     asserts:
       - equal:
           path: subjects[0].name
@@ -72,6 +75,7 @@ tests:
     set:
       loadBalancer.enabled: true
       loadBalancer.membershipDiscovery.enabled: true
+      automountServiceAccountToken: true
       serviceAccount.create: true
     asserts:
       - equal:

@@ -136,6 +136,7 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken | default false }}
 
       terminationGracePeriodSeconds: {{ $terminationGracePeriodSeconds }}
       {{- if not (empty .Values.nodeSelector) }}
