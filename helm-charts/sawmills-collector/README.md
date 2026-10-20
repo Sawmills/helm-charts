@@ -1245,4 +1245,4 @@ Set the value to `true` for API-dependent components, including Kubernetes recei
 
 `loadBalancer.membershipDiscovery.enabled=true` requires this switch to be `true`; otherwise rendering fails. DNS-only membership does not require a token. The opt-in CPU observer keeps its dedicated API-enabled service account.
 
-Deploy the matching collectors-service generator before publishing or pinning this chart. The generator derives the switch from generated worker, load-balancer and telemetry configurations before S3 externalization. Its compatibility boundary must equal the first published collector chart version that contains this feature. Item 2 published collector chart `3.0.0` without this feature. The provisional boundary is `4.0.0`; the Voice must recheck the first actual published version at publish time.
+Use a collectors-service generator that supports this chart's token switch before adopting this chart. The matching generator derives the switch from worker, load-balancer and telemetry configurations before replacing them with S3 references. For manually managed values, set the switch explicitly when the configuration needs Kubernetes API credentials.
