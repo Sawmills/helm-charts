@@ -1212,6 +1212,11 @@ Outbound HTTP/HTTPS proxies are unsupported and cause rendering to stop.
 
 ## Pod Security Defaults
 
+| Value | Default | Purpose |
+| --- | --- | --- |
+| `podSecurityContext.runAsNonRoot` | `true` | Require non-root containers without a container-level override. |
+| `podSecurityContext.seccompProfile.type` | `RuntimeDefault` | Use the container runtime's default system-call filter. |
+
 Pods use `podSecurityContext.runAsNonRoot: true` and `podSecurityContext.seccompProfile.type: RuntimeDefault` by default. Existing container security settings take precedence. The chart does not add pod UID, GID or volume-group defaults.
 
 pod runAsNonRoot is now true by default; a custom root sidecar must set its own runAsUser or the release fails to start

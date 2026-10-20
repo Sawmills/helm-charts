@@ -39,6 +39,16 @@ tests:
           path: spec.template.spec.securityContext.fsGroup
           value: 20001
 
+  - it: When explicitly setting volume group zero, then the pod map still takes precedence
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+      podSecurityContext.fsGroup: 0
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 0
+
   - it: When using a native HAProxy sidecar, then its explicit non-root UID remains
     set:
       loadBalancer.enabled: true

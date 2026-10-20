@@ -105,7 +105,7 @@ spec:
       serviceAccountName:  {{ include "sawmills-collector.serviceAccountName" . }}
       {{- $podSecurityContext := deepCopy (default dict .Values.podSecurityContext) }}
       {{- if .Values.loadBalancer.storage.enabled }}
-      {{- $podSecurityContext = merge $podSecurityContext (dict "fsGroup" 10001) }}
+      {{- $podSecurityContext = mergeOverwrite (dict "fsGroup" 10001) $podSecurityContext }}
       {{- end }}
       {{- with $podSecurityContext }}
       securityContext:
