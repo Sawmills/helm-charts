@@ -177,4 +177,4 @@ The pinned operator has no application-level maximum file-transfer size. The tem
 
 Container UID/GID 10001 and existing security settings remain unchanged. Set `securityContext.readOnlyRootFilesystem: false` only for a reviewed security exception. This opt-out remains a scan finding.
 
-Staging install, upgrade and rollback acceptance remains pending. Rendering and client dry runs do not establish runtime write access or successful operator operations.
+Before you publish a chart version, test install, upgrade and rollback in staging with the intended operator image. Rendering and client dry runs do not establish runtime write access or successful operator operations.
