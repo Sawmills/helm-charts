@@ -1,4 +1,8 @@
 {{- if .Values.loadBalancer.enabled }}
+{{- $membershipDiscovery := .Values.loadBalancer.membershipDiscovery | default dict }}
+{{- if and $membershipDiscovery.enabled (not .Values.automountServiceAccountToken) }}
+{{- fail "loadBalancer.membershipDiscovery requires automountServiceAccountToken=true" }}
+{{- end }}
 {{- include "sawmills-collector.validateLoadBalancerQueueCompression" . }}
 {{- $lbOtelConfig := default dict .Values.loadBalancer.otelConfig }}
 {{- $lbOtelS3Path := default "" $lbOtelConfig.s3path }}
@@ -104,6 +108,7 @@ spec:
     spec:
       serviceAccountName:  {{ include "sawmills-collector.serviceAccountName" . }}
       {{- $podSecurityContext := deepCopy (default dict .Values.podSecurityContext) }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken | default false }}
       {{- if .Values.loadBalancer.storage.enabled }}
       {{- $podSecurityContext = mergeOverwrite (dict "fsGroup" 10001) $podSecurityContext }}
       {{- end }}

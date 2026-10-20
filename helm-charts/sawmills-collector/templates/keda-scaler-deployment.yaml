@@ -33,6 +33,7 @@ spec:
         {{- toYaml $podLabels | nindent 8 }}
     spec:
       serviceAccountName: {{ include "sawmills-collector.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken | default false }}
       securityContext:
         {{- toYaml (mergeOverwrite (deepCopy (default dict .Values.podSecurityContext)) (default dict .Values.kedaScaler.podSecurityContext)) | nindent 8 }}
       containers:

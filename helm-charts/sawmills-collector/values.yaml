@@ -1159,6 +1159,10 @@ telemetryConfig:
                   temporality_preference: delta
                   compression: gzip
 
+# -- Mount cluster credentials only when collector configuration needs Kubernetes API access.
+# Applies to worker, load-balancer and scaler Pods. Opaque/custom configs need an explicit true.
+automountServiceAccountToken: false
+
 serviceAccount:
   # -- Whether to create a service account for the Sawmills Collector deployment.
   create: false
