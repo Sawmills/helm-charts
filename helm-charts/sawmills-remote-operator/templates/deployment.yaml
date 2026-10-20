@@ -18,6 +18,10 @@ spec:
       name: remote-operator
     spec:
       serviceAccountName: {{ .Values.rbac.serviceAccountName }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if .Values.affinity }}
       affinity:
         {{- toYaml .Values.affinity | nindent 8 }}

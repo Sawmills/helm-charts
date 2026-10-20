@@ -103,9 +103,13 @@ spec:
         {{- include "sawmills-collector.loadBalancerLabels" . | nindent 8 }}
     spec:
       serviceAccountName:  {{ include "sawmills-collector.serviceAccountName" . }}
+      {{- $podSecurityContext := deepCopy (default dict .Values.podSecurityContext) }}
       {{- if .Values.loadBalancer.storage.enabled }}
+      {{- $podSecurityContext = mergeOverwrite (dict "fsGroup" 10001) $podSecurityContext }}
+      {{- end }}
+      {{- with $podSecurityContext }}
       securityContext:
-        fsGroup: 10001
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: {{ .Values.loadBalancer.terminationGracePeriodSeconds }}
       {{- if not (empty .Values.loadBalancer.nodeSelector) }}

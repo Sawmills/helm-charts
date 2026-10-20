@@ -140,6 +140,21 @@ managedChartsOverrides:
     version: 1.2.3
 ```
 
+## Pod Security Defaults
+
+| Value | Default | Purpose |
+| --- | --- | --- |
+| `podSecurityContext.runAsNonRoot` | `true` | Require non-root containers without a container-level override. |
+| `podSecurityContext.seccompProfile.type` | `RuntimeDefault` | Use the container runtime's default system-call filter. |
+
+Pods use `podSecurityContext.runAsNonRoot: true` and `podSecurityContext.seccompProfile.type: RuntimeDefault` by default. Existing container security settings take precedence. The chart does not add pod UID, GID or volume-group defaults.
+
+pod runAsNonRoot is now true by default; a custom root sidecar must set its own runAsUser or the release fails to start
+
+Use a non-zero numeric `securityContext.runAsUser` for a custom sidecar, or an image with a numeric non-root `USER`. Recheck this requirement when you override an image or container security settings.
+
+Set `podSecurityContext.runAsNonRoot: false` only for a reviewed security exception. This override remains a scan finding. Existing container contexts still enforce their own settings.
+
 ## Optional Egress NetworkPolicy
 
 `networkPolicy.enabled` defaults to `false`. Enable it with an explicit `networkPolicy.egress` list to restrict outbound traffic for this release. An enabled policy with no rules denies all egress. Inbound traffic is unchanged by this policy.

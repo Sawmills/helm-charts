@@ -296,6 +296,13 @@ tolerations: []
 #   prometheus.io/scrape: "true"
 podAnnotations: {}
 
+# Pod defaults for collector, load balancer and scaler containers.
+# Container UID/GID and existing load-balancer storage ownership stay separate.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
 # Pod labels for the Sawmills collector
 # These labels will be added to the pod template metadata
 # Example:

@@ -83,6 +83,13 @@ resources:
     memory: 2Gi
     cpu: 500m
 
+# Pod defaults apply to containers that do not override these fields.
+# Container UID/GID and volume ownership stay configured separately.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
 # The security context for the Sawmills operator
 securityContext:
   runAsUser: 1000
