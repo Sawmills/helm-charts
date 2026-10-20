@@ -168,10 +168,12 @@ The operator uses a read-only container root filesystem by default. Writable emp
 | Value | Default | Purpose |
 | --- | --- | --- |
 | `securityContext.readOnlyRootFilesystem` | `true` | Keep the image filesystem read-only. |
-| `tmpVolume.sizeLimit` | `500Mi` | Bound temporary files and the Go Helm client's repository files. |
+| `tmpVolume.sizeLimit` | `""` (no per-volume cap) | Optionally bound temporary files, transfers and SDK repository files. |
 | `helmVolume.sizeLimit` | `500Mi` | Bound Helm CLI cache, configuration and data. |
 
 `TMPDIR=/tmp`, `KUBECACHEDIR=/tmp/.kube/cache`, `HELM_CACHE_HOME=/helm/cache`, `HELM_CONFIG_HOME=/helm/config` and `HELM_DATA_HOME=/helm/data` point into writable volumes. The Go Helm client also writes `/tmp/.helmrepo` and `/tmp/.helmcache`; Helm environment variables do not redirect those SDK defaults. Kubernetes discovery also uses the temporary volume through `KUBECACHEDIR`.
+
+The pinned operator has no application-level maximum file-transfer size. The temporary volume therefore has no default size limit; existing node and Pod ephemeral-storage constraints still apply. A configured limit covers all concurrent transfers, temporary files and discovery/repository caches. Exceeding that limit can fail transfers or evict the Pod. Size an explicit limit for supported workloads before rollout.
 
 Container UID/GID 10001 and existing security settings remain unchanged. Set `securityContext.readOnlyRootFilesystem: false` only for a reviewed security exception. This opt-out remains a scan finding.
 

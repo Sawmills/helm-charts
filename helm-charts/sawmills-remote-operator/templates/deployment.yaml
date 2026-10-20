@@ -200,8 +200,13 @@ spec:
         emptyDir:
           sizeLimit: {{ .Values.cacheVolume.sizeLimit }}
       - name: tmp-volume
+        {{- $tmpSizeLimit := dig "sizeLimit" "" (default dict .Values.tmpVolume) }}
+        {{- if $tmpSizeLimit }}
         emptyDir:
-          sizeLimit: {{ dig "sizeLimit" "500Mi" (default dict .Values.tmpVolume) }}
+          sizeLimit: {{ $tmpSizeLimit }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
       - name: helm-volume
         emptyDir:
           sizeLimit: {{ dig "sizeLimit" "500Mi" (default dict .Values.helmVolume) }}

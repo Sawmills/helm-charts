@@ -17,7 +17,7 @@ tests:
           path: spec.template.spec.containers[0].securityContext.runAsGroup
           value: 10001
 
-  - it: When the root is read-only, then Helm and temporary writes use bounded writable mounts
+  - it: When the root is read-only, then Helm and temporary writes use dedicated writable mounts
     set:
       apiKeyExistingSecret: point72-placeholder
       collectorName: point72
@@ -33,7 +33,7 @@ tests:
           content: {name: cache-volume, mountPath: /cache}
       - contains:
           path: spec.template.spec.volumes
-          content: {name: tmp-volume, emptyDir: {sizeLimit: 500Mi}}
+          content: {name: tmp-volume, emptyDir: {}}
       - contains:
           path: spec.template.spec.volumes
           content: {name: helm-volume, emptyDir: {sizeLimit: 500Mi}}
@@ -83,7 +83,7 @@ tests:
           path: spec.template.spec.volumes
           content: {name: helm-volume, emptyDir: {sizeLimit: 128Mi}}
 
-  - it: When old values lack the new volume maps, then bounded writable defaults remain
+  - it: When old values lack the new volume maps, then temporary writes gain no new capacity ceiling
     set:
       apiKeyExistingSecret: point72-placeholder
       collectorName: point72
@@ -92,7 +92,7 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.volumes
-          content: {name: tmp-volume, emptyDir: {sizeLimit: 500Mi}}
+          content: {name: tmp-volume, emptyDir: {}}
       - contains:
           path: spec.template.spec.volumes
           content: {name: helm-volume, emptyDir: {sizeLimit: 500Mi}}

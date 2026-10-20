@@ -80,7 +80,9 @@ cacheVolume:
 
 # Writable temporary files, including SDK repository cache/config and file transfers.
 tmpVolume:
-  sizeLimit: 500Mi
+  # No default per-volume cap: file transfers have no application-level maximum.
+  # Node and Pod ephemeral-storage constraints still apply.
+  sizeLimit: ""
 
 # Writable Helm CLI cache, configuration and data on a read-only root filesystem.
 helmVolume:
