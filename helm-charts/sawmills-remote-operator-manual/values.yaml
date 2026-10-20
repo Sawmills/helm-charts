@@ -196,3 +196,9 @@ managedCharts: {}
 #     chartName: oci://registry.example.com/sawmills-collector
 #     version: 1.2.3
 managedChartsOverrides: {}
+
+# Optional release-scoped egress policy. Requires a NetworkPolicy-capable CNI.
+# See ../../docs/network-policy.md before enabling; an empty list denies all egress.
+networkPolicy:
+  enabled: false
+  egress: []

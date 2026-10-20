@@ -1226,3 +1226,9 @@ Use a non-zero numeric `securityContext.runAsUser` for a custom sidecar, or an i
 Set `podSecurityContext.runAsNonRoot: false` only for a reviewed security exception. This override remains a scan finding. Existing container contexts still enforce their own settings.
 
 With load-balancer storage enabled, its existing `fsGroup: 10001` remains unless the pod map explicitly overrides it. Other Pods gain no volume group. The scaler merges these defaults with `kedaScaler.podSecurityContext`; scaler-specific settings take precedence.
+
+## Optional Egress NetworkPolicy
+
+`networkPolicy.enabled` defaults to `false`. Enable it with an explicit `networkPolicy.egress` list to restrict outbound traffic for this release. An enabled policy with no rules denies all egress. Inbound traffic is unchanged by this policy.
+
+See [NetworkPolicy configuration](../../docs/network-policy.md) for required destinations, DNS and Kubernetes API rules, and cluster-specific limits. No internet, API, or DNS allowance is added automatically.

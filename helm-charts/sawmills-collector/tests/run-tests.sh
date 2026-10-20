@@ -58,6 +58,19 @@ if [[ ${invalid_config_source_output} != *'rollout.main.drain.configSource must 
 fi
 
 echo ""
+# A quoted false must fail validation rather than enable a deny-all policy.
+if invalid_network_policy_output=$(helm template network-policy-validation . \
+	--set apiKeyExistingSecret=render-test-existing \
+	--set collectorName=synthetic-collector \
+	--set-string networkPolicy.enabled=false 2>&1 >/dev/null); then
+	echo "Expected a string networkPolicy.enabled to fail schema validation" >&2
+	exit 1
+fi
+if [[ ${invalid_network_policy_output} != *networkPolicy* || ${invalid_network_policy_output} != *enabled* || ${invalid_network_policy_output} != *boolean* ]]; then
+	echo "${invalid_network_policy_output}" >&2
+	exit 1
+fi
+
 echo "📋 Running all tests..."
 helm unittest . --color
 
