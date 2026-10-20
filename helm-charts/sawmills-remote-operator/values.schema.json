@@ -10,6 +10,13 @@
       },
       "additionalProperties": false
     },
+    "securityContext": {
+      "type": "object",
+      "properties": {
+        "readOnlyRootFilesystem": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
     "autoscaler": {
       "type": "object",
       "properties": {

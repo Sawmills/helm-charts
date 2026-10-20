@@ -160,3 +160,19 @@ Set `podSecurityContext.runAsNonRoot: false` only for a reviewed security except
 `networkPolicy.enabled` defaults to `false`. Enable it with an explicit `networkPolicy.egress` list to restrict outbound traffic for this release. An enabled policy with no rules denies all egress. Inbound traffic is unchanged by this policy.
 
 See [NetworkPolicy configuration](../../docs/network-policy.md) for required destinations, DNS and Kubernetes API rules, and cluster-specific limits. No internet, API, or DNS allowance is added automatically.
+
+## Read-Only Operator Filesystem
+
+The operator uses a read-only container root filesystem by default. Writable emptyDir volumes keep its state at `/cache`, temporary files at `/tmp`, and Helm files at `/helm`. These files disappear when the Pod is replaced.
+
+| Value | Default | Purpose |
+| --- | --- | --- |
+| `securityContext.readOnlyRootFilesystem` | `true` | Keep the image filesystem read-only. |
+| `tmpVolume.sizeLimit` | `500Mi` | Bound temporary files and the Go Helm client's repository files. |
+| `helmVolume.sizeLimit` | `500Mi` | Bound Helm CLI cache, configuration and data. |
+
+`TMPDIR=/tmp`, `KUBECACHEDIR=/tmp/.kube/cache`, `HELM_CACHE_HOME=/helm/cache`, `HELM_CONFIG_HOME=/helm/config` and `HELM_DATA_HOME=/helm/data` point into writable volumes. The Go Helm client also writes `/tmp/.helmrepo` and `/tmp/.helmcache`; Helm environment variables do not redirect those SDK defaults. Kubernetes discovery also uses the temporary volume through `KUBECACHEDIR`.
+
+Container UID/GID 10001 and existing security settings remain unchanged. Set `securityContext.readOnlyRootFilesystem: false` only for a reviewed security exception. This opt-out remains a scan finding.
+
+Staging install, upgrade and rollback acceptance remains pending. Rendering and client dry runs do not establish runtime write access or successful operator operations.

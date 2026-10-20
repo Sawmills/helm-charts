@@ -74,6 +74,14 @@ grpcTrace: ""
 cacheVolume:
   sizeLimit: 500Mi
 
+# Writable temporary files, including SDK repository cache/config and file transfers.
+tmpVolume:
+  sizeLimit: 500Mi
+
+# Writable Helm CLI cache, configuration and data on a read-only root filesystem.
+helmVolume:
+  sizeLimit: 500Mi
+
 # The resources for the Sawmills operator
 resources:
   requests:
@@ -92,6 +100,8 @@ podSecurityContext:
 
 # The security context for the Sawmills operator
 securityContext:
+  # Set false only for a reviewed security exception. UID/GID remain template-owned.
+  readOnlyRootFilesystem: true
   runAsUser: 1000
   runAsGroup: 1000
 

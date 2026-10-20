@@ -44,7 +44,21 @@ spec:
         volumeMounts:
         - mountPath: /cache
           name: cache-volume
+        - mountPath: /tmp
+          name: tmp-volume
+        - mountPath: /helm
+          name: helm-volume
         env:
+        - name: TMPDIR
+          value: /tmp
+        - name: KUBECACHEDIR
+          value: /tmp/.kube/cache
+        - name: HELM_CACHE_HOME
+          value: /helm/cache
+        - name: HELM_CONFIG_HOME
+          value: /helm/config
+        - name: HELM_DATA_HOME
+          value: /helm/data
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -176,7 +190,7 @@ spec:
           runAsGroup: 10001
           seccompProfile:
             type: RuntimeDefault
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: {{ dig "readOnlyRootFilesystem" true (default dict .Values.securityContext) }}
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -185,3 +199,9 @@ spec:
       - name: cache-volume
         emptyDir:
           sizeLimit: {{ .Values.cacheVolume.sizeLimit }}
+      - name: tmp-volume
+        emptyDir:
+          sizeLimit: {{ dig "sizeLimit" "500Mi" (default dict .Values.tmpVolume) }}
+      - name: helm-volume
+        emptyDir:
+          sizeLimit: {{ dig "sizeLimit" "500Mi" (default dict .Values.helmVolume) }}
