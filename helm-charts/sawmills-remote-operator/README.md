@@ -120,3 +120,13 @@ managedChartsOverrides:
     chartName: oci://registry.example.com/sawmills-collector
     version: 1.2.3
 ```
+
+## Pod Security Defaults
+
+Pods use `podSecurityContext.runAsNonRoot: true` and `podSecurityContext.seccompProfile.type: RuntimeDefault` by default. Existing container security settings take precedence. The chart does not add pod UID, GID or volume-group defaults.
+
+pod runAsNonRoot is now true by default; a custom root sidecar must set its own runAsUser or the release fails to start
+
+Use a non-zero numeric `securityContext.runAsUser` for a custom sidecar, or an image with a numeric non-root `USER`. Recheck this requirement when you override an image or container security settings.
+
+Set `podSecurityContext.runAsNonRoot: false` only for a reviewed security exception. This override remains a scan finding. Existing container contexts still enforce their own settings.

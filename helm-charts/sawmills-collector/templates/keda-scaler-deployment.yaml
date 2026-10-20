@@ -34,7 +34,7 @@ spec:
     spec:
       serviceAccountName: {{ include "sawmills-collector.serviceAccountName" . }}
       securityContext:
-        {{- toYaml .Values.kedaScaler.podSecurityContext | nindent 8 }}
+        {{- toYaml (mergeOverwrite (deepCopy (default dict .Values.podSecurityContext)) (default dict .Values.kedaScaler.podSecurityContext)) | nindent 8 }}
       containers:
         - name: otel-scaler
           image: {{ include "sawmills-collector.image" . }}

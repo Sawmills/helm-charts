@@ -1,0 +1,56 @@
+suite: load balancer pod security context
+templates:
+  - load-balancer.yaml
+capabilities:
+  majorVersion: 1
+  minorVersion: 35
+tests:
+  - it: When enabling the load balancer, then its pod uses the secure defaults
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+
+  - it: When enabling durable storage, then its existing volume group is retained
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            fsGroup: 10001
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+
+  - it: When explicitly customizing the volume group, then the pod map takes precedence
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+      podSecurityContext.fsGroup: 20001
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 20001
+
+  - it: When using a native HAProxy sidecar, then its explicit non-root UID remains
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: true
+      haproxy.nativeSidecar: "true"
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsUser
+          value: 99
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsNonRoot
+          value: true
