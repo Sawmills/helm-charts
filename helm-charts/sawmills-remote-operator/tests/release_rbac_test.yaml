@@ -14,13 +14,26 @@ tests:
           path: rules[?(@.apiGroups[0] == "rbac.authorization.k8s.io")].verbs
           value: [create, delete, get, list, patch, update, watch]
       - notContains:
-          path: rules[?(@.apiGroups[0] == "rbac.authorization.k8s.io")].verbs
+          path: rules[*].verbs
           content: bind
       - notContains:
-          path: rules[?(@.apiGroups[0] == "rbac.authorization.k8s.io")].verbs
+          path: rules[*].verbs
           content: escalate
-      - notExists:
-          path: rules[?(@.apiGroups[0] == "*")]
+      - notContains:
+          path: rules[*].verbs
+          content: "*"
+      - notContains:
+          path: rules[*].resources
+          content: clusterroles
+      - notContains:
+          path: rules[*].resources
+          content: clusterrolebindings
+      - notContains:
+          path: rules[*].resources
+          content: "*"
+      - notContains:
+          path: rules[*].apiGroups
+          content: "*"
 
   - it: creates only namespace-scoped RBAC by default
     asserts:
