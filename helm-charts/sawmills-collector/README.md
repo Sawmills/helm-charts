@@ -1209,3 +1209,9 @@ CPU-target absence and read success are separate gauges. Failed or stale reads
 remain unknown. Bind the declared organization to the actual release and its
 telemetry credential before installation; Kubernetes cannot verify tenant identity.
 Outbound HTTP/HTTPS proxies are unsupported and cause rendering to stop.
+
+## Optional Egress NetworkPolicy
+
+`networkPolicy.enabled` defaults to `false`. Enable it with an explicit `networkPolicy.egress` list to restrict outbound traffic for this release. An enabled policy with no rules denies all egress. Inbound traffic is unchanged by this policy.
+
+See [NetworkPolicy configuration](../../docs/network-policy.md) for required destinations, DNS and Kubernetes API rules, and cluster-specific limits. No internet, API, or DNS allowance is added automatically.
