@@ -1,0 +1,43 @@
+suite: managed release RBAC permissions
+templates:
+  - sawmills-role.yaml
+  - role-binding.yaml
+  - storageclass-rbac.yaml
+tests:
+  - it: preserves the historical namespace RBAC envelope for rollback
+    template: sawmills-role.yaml
+    asserts:
+      - equal:
+          path: rules[?(@.apiGroups[0] == "rbac.authorization.k8s.io")].resources
+          value: [roles, rolebindings]
+      - equal:
+          path: rules[?(@.apiGroups[0] == "rbac.authorization.k8s.io")].verbs
+          value: [create, delete, get, list, patch, update, watch]
+      - notContains:
+          path: rules[?(@.apiGroups[0] == "rbac.authorization.k8s.io")].verbs
+          content: bind
+      - notContains:
+          path: rules[?(@.apiGroups[0] == "rbac.authorization.k8s.io")].verbs
+          content: escalate
+      - notExists:
+          path: rules[?(@.apiGroups[0] == "*")]
+
+  - it: creates only namespace-scoped RBAC by default
+    asserts:
+      - isKind:
+          of: Role
+        template: sawmills-role.yaml
+      - isKind:
+          of: RoleBinding
+        template: role-binding.yaml
+      - hasDocuments:
+          count: 0
+        template: storageclass-rbac.yaml
+
+  - it: omits the namespace Role when role creation is disabled
+    set:
+      rbac.createRole: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: sawmills-role.yaml
