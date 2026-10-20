@@ -45,7 +45,21 @@ spec:
         volumeMounts:
         - mountPath: /cache
           name: cache-volume
+        - mountPath: /tmp
+          name: tmp-volume
+        - mountPath: /helm
+          name: helm-volume
         env:
+        - name: TMPDIR
+          value: /tmp
+        - name: KUBECACHEDIR
+          value: /tmp/.kube/cache
+        - name: HELM_CACHE_HOME
+          value: /helm/cache
+        - name: HELM_CONFIG_HOME
+          value: /helm/config
+        - name: HELM_DATA_HOME
+          value: /helm/data
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -158,7 +172,7 @@ spec:
             port: 8086
           initialDelaySeconds: 5
           periodSeconds: 5
-        {{- $defaultSecurityContext := dict "runAsNonRoot" true "runAsUser" 10001 "runAsGroup" 10001 "seccompProfile" (dict "type" "RuntimeDefault") "readOnlyRootFilesystem" false "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL")) }}
+        {{- $defaultSecurityContext := dict "runAsNonRoot" true "runAsUser" 10001 "runAsGroup" 10001 "seccompProfile" (dict "type" "RuntimeDefault") "readOnlyRootFilesystem" true "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL")) }}
         {{- $securityContext := mergeOverwrite (deepCopy $defaultSecurityContext) (default dict .Values.securityContext) }}
         securityContext:
           {{- toYaml $securityContext | nindent 10 }}
@@ -166,3 +180,14 @@ spec:
       - name: cache-volume
         emptyDir:
           sizeLimit: {{ .Values.cacheVolume.sizeLimit }}
+      - name: tmp-volume
+        {{- $tmpSizeLimit := dig "sizeLimit" "" (default dict .Values.tmpVolume) }}
+        {{- if $tmpSizeLimit }}
+        emptyDir:
+          sizeLimit: {{ $tmpSizeLimit }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: helm-volume
+        emptyDir:
+          sizeLimit: {{ dig "sizeLimit" "500Mi" (default dict .Values.helmVolume) }}
