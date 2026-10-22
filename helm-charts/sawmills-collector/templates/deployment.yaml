@@ -132,6 +132,11 @@ spec:
         {{- end }}
     spec:
       serviceAccountName:  {{ include "sawmills-collector.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken | default false }}
 
       terminationGracePeriodSeconds: {{ $terminationGracePeriodSeconds }}
       {{- if not (empty .Values.nodeSelector) }}

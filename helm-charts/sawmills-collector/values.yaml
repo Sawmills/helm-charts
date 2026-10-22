@@ -199,8 +199,8 @@ rollout:
 podDisruptionBudget:
   enabled: true
   # Explicit availability settings. minAvailable takes precedence over
-  # maxUnavailable. When both are unset, maxUnavailable defaults to 1 so node
-  # drains cannot remove a percentage of a large fleet at once.
+  # maxUnavailable. When both are unset, maxUnavailable defaults to 5% so node
+  # drains retain the same disruption floor across large fleets.
   minAvailable: null
   maxUnavailable: null
   # Deprecated compatibility alias for autoscaled releases that previously
@@ -295,6 +295,13 @@ tolerations: []
 #   foo: bar
 #   prometheus.io/scrape: "true"
 podAnnotations: {}
+
+# Pod defaults for collector, load balancer and scaler containers.
+# Container UID/GID and existing load-balancer storage ownership stay separate.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
 
 # Pod labels for the Sawmills collector
 # These labels will be added to the pod template metadata
@@ -1152,6 +1159,10 @@ telemetryConfig:
                   temporality_preference: delta
                   compression: gzip
 
+# -- Mount cluster credentials only when collector configuration needs Kubernetes API access.
+# Applies to worker, load-balancer and scaler Pods. Opaque/custom configs need an explicit true.
+automountServiceAccountToken: false
+
 serviceAccount:
   # -- Whether to create a service account for the Sawmills Collector deployment.
   create: false
@@ -1477,8 +1488,8 @@ loadBalancer:
   podDisruptionBudget:
     enabled: true
     # Explicit availability settings. minAvailable takes precedence over
-    # maxUnavailable. When both are unset, maxUnavailable defaults to 1 so node
-    # drains cannot remove a percentage of a large LB fleet at once.
+    # maxUnavailable. When both are unset, maxUnavailable defaults to 5% so node
+    # drains retain the same disruption floor across large LB fleets.
     minAvailable: null
     maxUnavailable: null
     # Deprecated compatibility alias for autoscaled releases that previously
@@ -1594,3 +1605,9 @@ workerCPUObserver:
   image: ""
   organizationId: ""
   allowedCollectorIds: []
+
+# Optional release-scoped egress policy. Requires a NetworkPolicy-capable CNI.
+# See ../../docs/network-policy.md before enabling; an empty list denies all egress.
+networkPolicy:
+  enabled: false
+  egress: []

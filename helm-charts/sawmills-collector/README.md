@@ -725,7 +725,7 @@ rollout:
 
 ### LB Membership Discovery
 
-Set `loadBalancer.membershipDiscovery.enabled: true` with a compatible membership-aware collector and generated configuration. The default is `false`. With the load balancer enabled, this creates one namespace Role and RoleBinding for the collector workload service account. The Role grants only `list` and `watch` on `discovery.k8s.io/endpointslices`. It grants no Pod or Secret access and no cluster permissions. Older charts must not receive the collector discovery field from the producer.
+Set `loadBalancer.membershipDiscovery.enabled: true` with a compatible membership-aware collector and generated configuration. Also set `automountServiceAccountToken: true` so that discovery can authenticate to the Kubernetes API. The default is `false`. With the load balancer enabled, this creates one namespace Role and RoleBinding for the collector workload service account. The Role grants only `list` and `watch` on `discovery.k8s.io/endpointslices`. It grants no Pod or Secret access and no cluster permissions. Older charts must not receive the collector discovery field from the producer.
 
 The binding uses `serviceAccount.name`. When `serviceAccount.create` is `false` and no name is set, it uses the namespace's `default` ServiceAccount. Every workload using that account gains the same EndpointSlice access. Use a release-specific account for discovery: set `serviceAccount.create: true` and an explicit `serviceAccount.name`, or name an existing account dedicated to this release. The collector workers and load balancers share that account.
 
@@ -774,13 +774,27 @@ Keep `rollout.main.drain.duration + rollout.main.preStopSleepSeconds + rollout.m
 podDisruptionBudget:
   enabled: true
   minAvailable: null
-  maxUnavailable: null # defaults to 1
+  # Defaults to 5%; explicit budgets must retain the 5% disruption floor
+  # at every reachable scale ≥ 10.
+  maxUnavailable: null
   unhealthyPodEvictionPolicy: AlwaysAllow
 ```
 
-Worker and load balancer PDBs default to `maxUnavailable: 1`, for both static and autoscaled fleets. This serializes healthy-pod eviction during voluntary disruptions and prevents a node drain from removing a percentage of a large ingest tier at once. On Kubernetes 1.27+, `unhealthyPodEvictionPolicy: AlwaysAllow` lets an already-unhealthy pod be evicted without consuming the healthy-pod budget, preventing drains from deadlocking behind a failed pod.
+Worker and load balancer PDBs default to `maxUnavailable: 5%`, for both static
+and autoscaled fleets. Explicit budgets must allow at least
+`max(1, ceil(5% * N))` disruptions at every reachable desired scale `N >= 10`.
+This sets a bounded healthy-pod eviction budget during voluntary disruptions
+and prevents a node drain from removing too much of a large ingest tier at once.
+On
+Kubernetes 1.27+, `unhealthyPodEvictionPolicy: AlwaysAllow` lets an
+already-unhealthy pod be evicted without consuming the healthy-pod budget,
+preventing drains from deadlocking behind a failed pod.
 
 Explicit `minAvailable` or `maxUnavailable` values override the default. For autoscaled workloads only, the deprecated `autoscaledMaxUnavailable` key remains a lower-precedence compatibility alias for existing releases; use `maxUnavailable` for new configuration. Static workloads ignore the legacy alias. Raising the value makes planned node maintenance faster at the direct cost of more simultaneous ingest capacity loss. PDBs govern Eviction API requests such as node drains and Karpenter consolidation; they do not limit Deployment or StatefulSet rolling updates, which are controlled by each workload's rollout strategy. Involuntary node loss, including an expired Spot interruption window, can bypass a PDB.
+
+Upgrade note: an explicit budget below the 5% floor now fails Helm rendering at
+reachable desired scales of 10 or more. Update that value before upgrading;
+the chart intentionally has no opt-out for a restrictive budget.
 
 When `kedaScaler.enabled: true`, the chart protects the single-replica KEDA otel scaler with a `karpenter.sh/do-not-disrupt: "true"` pod annotation by default, because losing the scaler leaves the HPA without its external metric. The scaler intentionally remains single-replica: it holds an in-memory metric store, so multiple replicas behind the Service would split OTLP streams and undercount the fleet. Its PDB defaults to `maxUnavailable: 1` and, on Kubernetes 1.27+, `unhealthyPodEvictionPolicy: AlwaysAllow`, allowing deliberate node drains and upgrades even when the scaler is unhealthy instead of making its node permanently undrainable. The chart automatically omits the newer field on older supported clusters. At one replica, this PDB does not block eviction of a healthy scaler; the Karpenter annotation provides the default voluntary-disruption protection. Generic `podAnnotations` cannot override that shield; set `kedaScaler.doNotDisrupt: false` to opt out explicitly. Explicit `minAvailable` or `maxUnavailable` values override the PDB default, and an empty `unhealthyPodEvictionPolicy` omits that field.
 
@@ -900,7 +914,10 @@ pre-2.17.3 chart can briefly default an autoscaled load balancer Deployment or
 StatefulSet to one replica, so observe load balancer readiness and queue age
 until the autoscaler has converged.
 
-The LB PDB uses the same `maxUnavailable: 1` default as the worker tier. Set `loadBalancer.podDisruptionBudget.minAvailable` or `loadBalancer.podDisruptionBudget.maxUnavailable` explicitly only when the maintenance-throughput trade-off is understood.
+The LB PDB uses the same `maxUnavailable: 5%` default as the worker tier. Set
+`loadBalancer.podDisruptionBudget.minAvailable` or
+`loadBalancer.podDisruptionBudget.maxUnavailable` explicitly only when the
+maintenance-throughput trade-off is understood.
 
 ```yaml
 loadBalancer:
@@ -1209,3 +1226,40 @@ CPU-target absence and read success are separate gauges. Failed or stale reads
 remain unknown. Bind the declared organization to the actual release and its
 telemetry credential before installation; Kubernetes cannot verify tenant identity.
 Outbound HTTP/HTTPS proxies are unsupported and cause rendering to stop.
+
+## Pod Security Defaults
+
+| Value | Default | Purpose |
+| --- | --- | --- |
+| `podSecurityContext.runAsNonRoot` | `true` | Require non-root containers without a container-level override. |
+| `podSecurityContext.seccompProfile.type` | `RuntimeDefault` | Use the container runtime's default system-call filter. |
+
+Pods use `podSecurityContext.runAsNonRoot: true` and `podSecurityContext.seccompProfile.type: RuntimeDefault` by default. Existing container security settings take precedence. The chart does not add pod UID, GID or volume-group defaults.
+
+pod runAsNonRoot is now true by default; a custom root sidecar must set its own runAsUser or the release fails to start
+
+Use a non-zero numeric `securityContext.runAsUser` for a custom sidecar, or an image with a numeric non-root `USER`. Recheck this requirement when you override an image or container security settings. Arbitrary `additionalContainers` images are outside the chart's default-container startup proof.
+
+Set `podSecurityContext.runAsNonRoot: false` only for a reviewed security exception. This override remains a scan finding. Existing container contexts still enforce their own settings.
+
+With load-balancer storage enabled, its existing `fsGroup: 10001` remains unless the pod map explicitly overrides it. Other Pods gain no volume group. The scaler merges these defaults with `kedaScaler.podSecurityContext`; scaler-specific settings take precedence.
+
+## Optional Egress NetworkPolicy
+
+`networkPolicy.enabled` defaults to `false`. Enable it with an explicit `networkPolicy.egress` list to restrict outbound traffic for this release. An enabled policy with no rules denies all egress. Inbound traffic is unchanged by this policy.
+
+See [NetworkPolicy configuration](../../docs/network-policy.md) for required destinations, DNS and Kubernetes API rules, and cluster-specific limits. No internet, API, or DNS allowance is added automatically.
+
+## Service-Account Token Mounting
+
+Worker Deployment/DaemonSet, load-balancer and scaler Pods set `automountServiceAccountToken: false` by default. This keeps cluster credentials out of Pods that do not use the Kubernetes API. Service-account names and RBAC remain unchanged.
+
+| Value | Default | Purpose |
+| --- | --- | --- |
+| `automountServiceAccountToken` | `false` | Mount cluster credentials for collector configurations that require them. |
+
+Set the value to `true` for API-dependent components, including Kubernetes receivers, k8sattributes, Kubernetes observers, Prometheus Kubernetes discovery and Kubernetes load-balancing resolvers. This is a release-level switch: enabling it mounts a token in all worker, load-balancer and scaler Pods. Custom components and manually supplied or S3-hosted configurations require the same review; Helm cannot inspect opaque S3 configuration.
+
+`loadBalancer.membershipDiscovery.enabled=true` requires this switch to be `true`; otherwise rendering fails. DNS-only membership does not require a token. The opt-in CPU observer keeps its dedicated API-enabled service account.
+
+Use a collectors-service generator that supports this chart's token switch before adopting this chart. The matching generator derives the switch from worker, load-balancer and telemetry configurations before replacing them with S3 references. For manually managed values, set the switch explicitly when the configuration needs Kubernetes API credentials.

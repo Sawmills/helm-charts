@@ -1,0 +1,29 @@
+suite: scaler pod security context
+templates:
+  - keda-scaler-deployment.yaml
+tests:
+  - it: When enabling the scaler, then its pod uses the secure defaults
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+
+  - it: When customizing scaler pod security, then its existing override wins
+    set:
+      kedaScaler.enabled: true
+      kedaScaler.podSecurityContext:
+        runAsNonRoot: false
+        supplementalGroups: [20001]
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: false
+            seccompProfile:
+              type: RuntimeDefault
+            supplementalGroups: [20001]

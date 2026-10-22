@@ -2,6 +2,21 @@
   "$schema": "https://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
+    "networkPolicy": {
+      "type": ["object", "null"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "egress": { "type": "array", "items": { "type": "object" } }
+      },
+      "additionalProperties": false
+    },
+    "securityContext": {
+      "type": "object",
+      "properties": {
+        "readOnlyRootFilesystem": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
     "autoscaler": {
       "type": "object",
       "properties": {

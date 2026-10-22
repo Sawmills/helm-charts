@@ -18,6 +18,10 @@ spec:
       name: remote-operator
     spec:
       serviceAccountName: {{ .Values.rbac.serviceAccountName }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if .Values.affinity }}
       affinity:
         {{- toYaml .Values.affinity | nindent 8 }}
@@ -40,7 +44,21 @@ spec:
         volumeMounts:
         - mountPath: /cache
           name: cache-volume
+        - mountPath: /tmp
+          name: tmp-volume
+        - mountPath: /helm
+          name: helm-volume
         env:
+        - name: TMPDIR
+          value: /tmp
+        - name: KUBECACHEDIR
+          value: /tmp/.kube/cache
+        - name: HELM_CACHE_HOME
+          value: /helm/cache
+        - name: HELM_CONFIG_HOME
+          value: /helm/config
+        - name: HELM_DATA_HOME
+          value: /helm/data
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -172,7 +190,7 @@ spec:
           runAsGroup: 10001
           seccompProfile:
             type: RuntimeDefault
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: {{ dig "readOnlyRootFilesystem" true (default dict .Values.securityContext) }}
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -181,3 +199,14 @@ spec:
       - name: cache-volume
         emptyDir:
           sizeLimit: {{ .Values.cacheVolume.sizeLimit }}
+      - name: tmp-volume
+        {{- $tmpSizeLimit := dig "sizeLimit" "" (default dict .Values.tmpVolume) }}
+        {{- if $tmpSizeLimit }}
+        emptyDir:
+          sizeLimit: {{ $tmpSizeLimit }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: helm-volume
+        emptyDir:
+          sizeLimit: {{ dig "sizeLimit" "500Mi" (default dict .Values.helmVolume) }}
