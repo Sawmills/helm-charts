@@ -748,6 +748,143 @@ Compute effective replica count (always at least 1).
 {{- end }}
 
 {{/*
+Return the number of disruptions allowed by a PDB value at a given scale.
+Kubernetes rounds percentage maxUnavailable up and percentage minAvailable up
+for the number of pods that must remain healthy.
+*/}}
+{{- define "sawmills-collector.pdbAllowedDisruptions" -}}
+{{- $value := .value -}}
+{{- $replicas := int .replicas -}}
+{{- $quantity := 0 -}}
+{{- if kindIs "string" $value -}}
+  {{- if hasSuffix "%" $value -}}
+    {{- $percentText := trimSuffix "%" $value -}}
+    {{- if not (regexMatch "^-?[0-9]+(\\.[0-9]+)?$" $percentText) -}}
+      {{- fail (printf "PDB %s value %q is not a valid integer or percentage" .field $value) -}}
+    {{- end -}}
+    {{- $percent := $percentText | float64 -}}
+    {{- $quantity = ceil (mulf (float64 $replicas) (divf $percent 100.0)) | int -}}
+  {{- else -}}
+    {{- if not (regexMatch "^-?[0-9]+$" $value) -}}
+      {{- fail (printf "PDB %s value %q is not a valid integer or percentage" .field $value) -}}
+    {{- end -}}
+    {{- $quantity = int $value -}}
+  {{- end -}}
+{{- else -}}
+  {{- $quantity = int $value -}}
+{{- end -}}
+{{- if eq .field "minAvailable" -}}
+  {{- sub $replicas $quantity -}}
+{{- else -}}
+  {{- $quantity -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Fail closed when an explicit PDB setting permits less than five percent,
+rounded up, at any reachable desired scale of ten or more replicas.
+*/}}
+{{- define "sawmills-collector.validatePdbBudget" -}}
+{{- $maxReplicas := int .maxReplicas -}}
+{{- $field := .field -}}
+{{- $value := .value -}}
+{{- $role := .role -}}
+{{- if ge $maxReplicas 10 -}}
+  {{- $minReplicas := int .minReplicas -}}
+  {{- if lt $minReplicas 10 -}}
+    {{- $minReplicas = 10 -}}
+  {{- end -}}
+  {{- $offendingScale := -1 -}}
+  {{- if kindIs "string" $value -}}
+    {{- $percentText := $value | trimSuffix "%" -}}
+    {{- if not (hasSuffix "%" $value) -}}
+      {{- $percentText = "" -}}
+    {{- end -}}
+    {{- if ne $percentText "" -}}
+      {{- if not (regexMatch "^-?[0-9]+(\\.[0-9]+)?$" $percentText) -}}
+        {{- fail (printf "%s PDB %s value %q is not a valid integer or percentage" $role $field $value) -}}
+      {{- end -}}
+      {{- $percent := $percentText | float64 -}}
+      {{- $firstBlock := add (ceil (divf (float64 (sub $minReplicas 1)) 20.0) | int) 1 -}}
+      {{- if eq $field "minAvailable" -}}
+        {{- $allowedAtMin := include "sawmills-collector.pdbAllowedDisruptions" (dict "field" $field "value" $value "replicas" $minReplicas) | int -}}
+        {{- $requiredAtMin := ceil (mulf (float64 $minReplicas) 0.05) | int -}}
+        {{- if lt $requiredAtMin 1 -}}
+          {{- $requiredAtMin = 1 -}}
+        {{- end -}}
+        {{- if lt $allowedAtMin $requiredAtMin -}}
+          {{- $offendingScale = $minReplicas -}}
+        {{- else -}}
+          {{- $allowedPercent := subf 100.0 $percent -}}
+          {{- if le $allowedPercent 5.0 -}}
+            {{- $candidate := add (mulf (float64 (sub $firstBlock 1)) 20 | int) 1 -}}
+            {{- if le $candidate $maxReplicas }}
+              {{- $offendingScale = $candidate -}}
+            {{- end -}}
+          {{- else -}}
+            {{- $lastFailingBlock := sub (ceil (divf (mulf 19.0 $allowedPercent) (mulf 20.0 (subf $allowedPercent 5.0))) | int) 1 -}}
+            {{- if le $firstBlock $lastFailingBlock -}}
+              {{- $candidate := add (mulf (float64 (sub $firstBlock 1)) 20 | int) 1 -}}
+              {{- if le $candidate $maxReplicas }}
+                {{- $offendingScale = $candidate -}}
+              {{- end -}}
+            {{- end -}}
+          {{- end -}}
+        {{- end -}}
+      {{- else if lt $percent 5.0 -}}
+        {{- $allowedAtMin := include "sawmills-collector.pdbAllowedDisruptions" (dict "field" $field "value" $value "replicas" $minReplicas) | int -}}
+        {{- $requiredAtMin := ceil (mulf (float64 $minReplicas) 0.05) | int -}}
+        {{- if lt $requiredAtMin 1 -}}
+          {{- $requiredAtMin = 1 -}}
+        {{- end -}}
+        {{- if lt $allowedAtMin $requiredAtMin -}}
+          {{- $offendingScale = $minReplicas -}}
+        {{- else -}}
+          {{- $firstFailingBlock := ceil (divf (subf 100.0 (mulf 19.0 $percent)) (mulf 20.0 (subf 5.0 $percent))) | int -}}
+          {{- if lt $firstFailingBlock 1 -}}
+            {{- $firstFailingBlock = 1 -}}
+          {{- end -}}
+          {{- if lt $firstBlock $firstFailingBlock -}}
+            {{- $firstBlock = $firstFailingBlock -}}
+          {{- end -}}
+          {{- $candidate := add (mulf (float64 (sub $firstBlock 1)) 20 | int) 1 -}}
+          {{- if le $candidate $maxReplicas }}
+            {{- $offendingScale = $candidate -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+    {{- else -}}
+      {{- if not (regexMatch "^-?[0-9]+$" $value) -}}
+        {{- fail (printf "%s PDB %s value %q is not a valid integer or percentage" $role $field $value) -}}
+      {{- end -}}
+      {{- if eq $field "minAvailable" -}}
+        {{- $offendingScale = $minReplicas -}}
+      {{- else -}}
+        {{- $offendingScale = $maxReplicas -}}
+      {{- end -}}
+    {{- end -}}
+  {{- else if eq $field "minAvailable" -}}
+    {{- $offendingScale = $minReplicas -}}
+  {{- else -}}
+    {{- $offendingScale = $maxReplicas -}}
+  {{- end -}}
+  {{- if ge $offendingScale 10 -}}
+    {{- $allowed := include "sawmills-collector.pdbAllowedDisruptions" (dict "field" $field "value" $value "replicas" $offendingScale) | int -}}
+    {{- $required := ceil (mulf (float64 $offendingScale) 0.05) | int -}}
+    {{- if lt $required 1 -}}
+      {{- $required = 1 -}}
+    {{- end -}}
+    {{- if lt $allowed $required -}}
+      {{- fail (printf
+        "%s PDB %s %v allows %d disruptions at scale %d, below required %d"
+        $role $field $value $allowed $offendingScale $required
+      ) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Default maxUnavailable based on replica count.
 */}}
 {{- define "sawmills-collector.defaultMaxUnavailable" -}}

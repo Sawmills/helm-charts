@@ -199,8 +199,8 @@ rollout:
 podDisruptionBudget:
   enabled: true
   # Explicit availability settings. minAvailable takes precedence over
-  # maxUnavailable. When both are unset, maxUnavailable defaults to 1 so node
-  # drains cannot remove a percentage of a large fleet at once.
+  # maxUnavailable. When both are unset, maxUnavailable defaults to 5% so node
+  # drains retain the same disruption floor across large fleets.
   minAvailable: null
   maxUnavailable: null
   # Deprecated compatibility alias for autoscaled releases that previously
@@ -1488,8 +1488,8 @@ loadBalancer:
   podDisruptionBudget:
     enabled: true
     # Explicit availability settings. minAvailable takes precedence over
-    # maxUnavailable. When both are unset, maxUnavailable defaults to 1 so node
-    # drains cannot remove a percentage of a large LB fleet at once.
+    # maxUnavailable. When both are unset, maxUnavailable defaults to 5% so node
+    # drains retain the same disruption floor across large LB fleets.
     minAvailable: null
     maxUnavailable: null
     # Deprecated compatibility alias for autoscaled releases that previously
