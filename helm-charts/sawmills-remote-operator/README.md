@@ -2,6 +2,12 @@
 
 This chart deploys the Sawmills Remote Operator, which maintains a bidirectional gRPC session with `controller.sawmills.ai` and optionally forwards Prometheus remote-write metrics. Use the values below to configure outbound connectivity.
 
+## API Key Configuration
+
+Set `apiKeyExistingSecret` to the name of an existing Secret. Its key defaults to `api-key`; use `apiKeyExistingSecretKey` to select another key.
+The existing Secret takes precedence over the deprecated inline `apiKey` value, and the chart does not create a Secret on this path.
+If `apiKeyExistingSecret` is empty, the chart requires a non-empty `apiKey` and refuses to render without it. Avoid storing real credentials in values files or rendered manifests.
+
 ## Storage Class Discovery Permissions
 
 Set `rbac.storageClassDiscovery.enabled=true` to add a separate ClusterRole and ClusterRoleBinding for storage class discovery.
