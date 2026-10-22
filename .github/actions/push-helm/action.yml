@@ -104,6 +104,6 @@ runs:
         aws ecr-public get-login-password \
           --region "$AWS_REGION" | helm registry login \
           --username AWS \
-          --password-stdin "$CHART_REPO"
+          --password-stdin "${CHART_REPO%%/*}"
 
         helm push "${package}-${version}.tgz" "oci://$CHART_REPO"
