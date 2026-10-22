@@ -6,6 +6,13 @@ permissions:
   packages: write
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing remote-operator chart tag to publish without a version bump
+        type: string
+        required: true
+        default: remote-operator-v5.0.0
   pull_request:
     types:
       - closed
@@ -15,6 +22,41 @@ on:
       - "helm-charts/sawmills-remote-operator/**"
 
 jobs:
+  republish:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout current publisher
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Prepare existing tagged chart
+        shell: bash
+        env:
+          PUBLISH_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$PUBLISH_TAG" =~ ^remote-operator-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected an existing remote-operator-vMAJOR.MINOR.PATCH tag" >&2
+            exit 1
+          fi
+          git rev-parse --verify "refs/tags/$PUBLISH_TAG^{commit}"
+          git worktree add --detach "$RUNNER_TEMP/tagged-chart" "refs/tags/$PUBLISH_TAG"
+      - name: Publish existing tagged chart with current publisher
+        uses: ./.github/actions/push-helm
+        with:
+          chart-path: ${{ runner.temp }}/tagged-chart/helm-charts/sawmills-remote-operator
+          chart-repo: public.ecr.aws/s7a5m1b4
+          chart-name: sawmills-remote-operator-chart
+          checkout-ref: main
+          aws_region: ${{ vars.AWS_REGION }}
+          aws_role: ${{ vars.AWS_ROLE }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          tag: ${{ inputs.tag }}
+
   version-and-tag:
     if: github.event.pull_request.merged == true
     uses: ./.github/workflows/deploy-helm-chart.yml
