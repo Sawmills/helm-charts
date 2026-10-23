@@ -19,7 +19,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.metadata.annotations["checksum/haproxy-config"]
-          value: 58b130611d6f515363d6375595e3fb269d4ce15197ca96e448f62e31df80d2f3
+          value: 819d26b884156bbaa0ebe425eeef4b68c36f155ffd96423fdcd07375a19e1d97
       - matchRegex:
           path: spec.template.metadata.annotations["checksum/haproxy-config"]
           pattern: '^[0-9a-f]{64}$'
@@ -36,7 +36,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.metadata.annotations["checksum/haproxy-config"]
-          value: 58b130611d6f515363d6375595e3fb269d4ce15197ca96e448f62e31df80d2f3
+          value: 819d26b884156bbaa0ebe425eeef4b68c36f155ffd96423fdcd07375a19e1d97
 
   - it: changes the checksum when only rendered HAProxy config content changes
     template: load-balancer.yaml
@@ -48,10 +48,10 @@ tests:
     asserts:
       - equal:
           path: spec.template.metadata.annotations["checksum/haproxy-config"]
-          value: 51404dda017e9b94c036bb476fcdf724e0c1ad788a3e56ad742eab7455cdf484
+          value: 838edd79a013b58e0a968a35dbb76b04887f87c0104cc7682761cd1b2d9def2d
       - notEqual:
           path: spec.template.metadata.annotations["checksum/haproxy-config"]
-          value: 58b130611d6f515363d6375595e3fb269d4ce15197ca96e448f62e31df80d2f3
+          value: 819d26b884156bbaa0ebe425eeef4b68c36f155ffd96423fdcd07375a19e1d97
       - equal:
           path: spec.template.metadata.annotations.owner
           value: platform

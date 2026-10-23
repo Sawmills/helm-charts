@@ -121,7 +121,11 @@ frontend stats
   stats enable
   stats uri {{ .Values.haproxy.stats.uri | default "/" }}
   stats refresh {{ .Values.haproxy.stats.refresh | default "10s" }}
-  stats auth {{ .Values.haproxy.stats.auth | default "admin:admin" }}
+  {{- if .Values.haproxy.stats.auth }}
+  stats auth {{ .Values.haproxy.stats.auth }}
+  {{- else }}
+  stats auth "${HAPROXY_STATS_AUTH}"
+  {{- end }}
   no log
 {{- end }}
 

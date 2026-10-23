@@ -1227,6 +1227,13 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
   restartPolicy: Always
   {{- end }}
   env:
+    {{- if and $root.Values.haproxy.stats.enabled (not $root.Values.haproxy.stats.auth) }}
+    - name: HAPROXY_STATS_AUTH
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "sawmills-collector.haproxyStatsSecretName" $root }}
+          key: auth
+    {{- end }}
     - name: MY_POD_IP
       valueFrom:
         fieldRef:
