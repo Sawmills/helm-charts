@@ -410,7 +410,7 @@ haproxy:
     port: 8406
     uri: "/"
     refresh: "10s"
-    auth: "admin:admin"
+    auth: "" # Generate a per-release credential in a chart Secret.
   healthcheck:
     enabled: true
     port: 13135
@@ -422,6 +422,10 @@ haproxy:
       rise: 2
       fall: 2
 ```
+
+With stats enabled, an empty `haproxy.stats.auth` creates an Opaque Secret named `<resource-base-name>-haproxy-stats` in the release namespace. The credential uses username `stats` and a random 32-character password. HAProxy reads `data.auth` through a Secret-backed environment variable; the ConfigMap contains only the variable reference. Helm reuses the installed Secret on upgrades through `lookup`. Offline rendering cannot read the cluster and generates a new credential for that render.
+
+**Migration:** the chart no longer supplies a fixed stats login. Scrapers that used the old default must use the generated credential or set `haproxy.stats.auth` explicitly to keep a fixed `username:password` login. An explicit value takes precedence and stays in the HAProxy ConfigMap. Treat it as sensitive configuration. Disabling stats removes the stats frontend and generated Secret. Switching to explicit auth also removes the generated Secret; switching back generates a new credential.
 
 The HAProxy container defaults to numeric UID/GID `99` with `runAsNonRoot` so clusters enforcing non-root pod security can verify the official HAProxy image user. Override `haproxy.securityContext` when using a custom HAProxy image that requires a different numeric user or additional container hardening fields.
 

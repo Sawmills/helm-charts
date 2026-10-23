@@ -1,0 +1,174 @@
+suite: HAProxy stats credentials
+templates:
+  - haproxy-configmap.yaml
+  - haproxy-stats-secret.yaml
+  - deployment.yaml
+  - load-balancer.yaml
+release:
+  name: sawmills-collector
+  namespace: sawmills-test
+set:
+  haproxy.enabled: true
+tests:
+  - it: uses a Secret reference instead of the default login
+    template: haproxy-configmap.yaml
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'admin:admin'
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'stats auth "\$\{HAPROXY_STATS_AUTH\}"'
+
+  - it: creates a per-release stats Secret with an opaque credential
+    template: haproxy-stats-secret.yaml
+    asserts:
+      - isKind:
+          of: Secret
+      - equal:
+          path: metadata.name
+          value: sawmills-collector-haproxy-stats
+      - equal:
+          path: type
+          value: Opaque
+      - matchRegex:
+          path: data.auth
+          pattern: '^[A-Za-z0-9+/]{51}=$'
+
+  - it: retains the installed credential during an upgrade
+    template: haproxy-stats-secret.yaml
+    release:
+      upgrade: true
+    kubernetesProvider:
+      scheme:
+        "v1/Secret":
+          gvr:
+            group: ""
+            version: v1
+            resource: secrets
+          namespaced: true
+      objects:
+        - apiVersion: v1
+          kind: Secret
+          metadata:
+            name: sawmills-collector-haproxy-stats
+            namespace: sawmills-test
+          data:
+            auth: c3RhdHM6c3ludGhldGljLXRlc3Qtb25seQ==
+    asserts:
+      - equal:
+          path: data.auth
+          value: c3RhdHM6c3ludGhldGljLXRlc3Qtb25seQ==
+
+  - it: gives the HAProxy container the generated credential through a Secret reference
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HAPROXY_STATS_AUTH
+            valueFrom:
+              secretKeyRef:
+                name: sawmills-collector-haproxy-stats
+                key: auth
+
+  - it: gives the collector sidecar the same Secret reference
+    template: deployment.yaml
+    set:
+      loadBalancer.enabled: false
+      haproxy.nativeSidecar: "false"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HAPROXY_STATS_AUTH
+            valueFrom:
+              secretKeyRef:
+                name: sawmills-collector-haproxy-stats
+                key: auth
+
+  - it: gives the load balancer native sidecar the same Secret reference
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.nativeSidecar: "true"
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: HAPROXY_STATS_AUTH
+            valueFrom:
+              secretKeyRef:
+                name: sawmills-collector-haproxy-stats
+                key: auth
+
+  - it: preserves an explicit login in the stats frontend
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.stats.auth: fixed-user:synthetic-only
+    asserts:
+      - matchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'stats auth fixed-user:synthetic-only'
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'HAPROXY_STATS_AUTH'
+
+  - it: creates no generated Secret for an explicit login
+    template: haproxy-stats-secret.yaml
+    set:
+      haproxy.stats.auth: fixed-user:synthetic-only
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: requires no generated Secret in the container for an explicit login
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.stats.auth: fixed-user:synthetic-only
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HAPROXY_STATS_AUTH
+          any: true
+
+  - it: omits the stats frontend when stats are disabled
+    template: haproxy-configmap.yaml
+    set:
+      haproxy.stats.enabled: false
+    asserts:
+      - notMatchRegex:
+          path: data["haproxy.cfg"]
+          pattern: 'frontend stats|stats auth'
+
+  - it: creates no stats Secret when stats are disabled
+    template: haproxy-stats-secret.yaml
+    set:
+      haproxy.stats.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: requires no stats Secret in the container when stats are disabled
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.stats.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HAPROXY_STATS_AUTH
+          any: true
+
+  - it: creates no stats Secret when HAProxy is disabled
+    template: haproxy-stats-secret.yaml
+    set:
+      haproxy.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
