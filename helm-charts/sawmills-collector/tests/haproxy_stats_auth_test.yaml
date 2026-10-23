@@ -108,6 +108,7 @@ tests:
     template: haproxy-configmap.yaml
     set:
       haproxy.stats.auth: fixed-user:synthetic-only
+      haproxy.stats.existingSecret: synthetic-stats-auth
     asserts:
       - matchRegex:
           path: data["haproxy.cfg"]
@@ -120,6 +121,7 @@ tests:
     template: haproxy-stats-secret.yaml
     set:
       haproxy.stats.auth: fixed-user:synthetic-only
+      haproxy.stats.existingSecret: synthetic-stats-auth
     asserts:
       - hasDocuments:
           count: 0
@@ -129,6 +131,7 @@ tests:
     set:
       loadBalancer.enabled: true
       haproxy.stats.auth: fixed-user:synthetic-only
+      haproxy.stats.existingSecret: synthetic-stats-auth
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].env
@@ -172,3 +175,80 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: leaves an existing stats Secret under its external owner
+    template: haproxy-stats-secret.yaml
+    set:
+      haproxy.stats.existingSecret: synthetic-stats-auth
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: reads an externally managed stats Secret without lookup
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.stats.existingSecret: synthetic-stats-auth
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HAPROXY_STATS_AUTH
+            valueFrom:
+              secretKeyRef:
+                name: synthetic-stats-auth
+                key: auth
+
+  - it: reads the existing stats Secret in the collector sidecar
+    template: deployment.yaml
+    set:
+      loadBalancer.enabled: false
+      haproxy.nativeSidecar: "false"
+      haproxy.stats.existingSecret: synthetic-stats-auth
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HAPROXY_STATS_AUTH
+            valueFrom:
+              secretKeyRef:
+                name: synthetic-stats-auth
+                key: auth
+
+  - it: reads the existing stats Secret in the native LB sidecar
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.nativeSidecar: "true"
+      haproxy.stats.existingSecret: synthetic-stats-auth
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: HAPROXY_STATS_AUTH
+            valueFrom:
+              secretKeyRef:
+                name: synthetic-stats-auth
+                key: auth
+
+  - it: omits the existing Secret reference when stats are disabled
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.stats.enabled: false
+      haproxy.stats.existingSecret: synthetic-stats-auth
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HAPROXY_STATS_AUTH
+          any: true
+
+  - it: keeps generated credential data out of the offline LB rollout checksum
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/haproxy-config"]
+          value: 819d26b884156bbaa0ebe425eeef4b68c36f155ffd96423fdcd07375a19e1d97

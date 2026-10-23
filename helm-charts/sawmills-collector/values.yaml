@@ -866,6 +866,7 @@ haproxy:
     uri: "/"
     refresh: "10s"
     auth: "" # Empty uses a generated per-release credential stored in a Secret.
+    existingSecret: "" # Existing Secret with key auth (username:password); explicit auth wins.
     # Logging is always disabled for stats frontend
 
   # Healthcheck configuration

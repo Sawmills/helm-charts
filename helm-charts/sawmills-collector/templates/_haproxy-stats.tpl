@@ -1,6 +1,6 @@
-{{/* Stable per-release name shared by the Secret and HAProxy containers. */}}
+{{/* Select the externally managed Secret, otherwise the stable per-release name. */}}
 {{- define "sawmills-collector.haproxyStatsSecretName" -}}
-{{- printf "%s-haproxy-stats" (include "sawmills-collector.fullname" .) -}}
+{{- .Values.haproxy.stats.existingSecret | default (printf "%s-haproxy-stats" (include "sawmills-collector.fullname" .)) -}}
 {{- end -}}
 
 {{/* Secret data is generated only here, never in values or the ConfigMap. */}}

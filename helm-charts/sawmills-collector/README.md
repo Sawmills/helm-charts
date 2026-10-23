@@ -411,6 +411,7 @@ haproxy:
     uri: "/"
     refresh: "10s"
     auth: "" # Generate a per-release credential in a chart Secret.
+    existingSecret: "" # Optional existing Secret with key auth (username:password).
   healthcheck:
     enabled: true
     port: 13135
@@ -423,7 +424,11 @@ haproxy:
       fall: 2
 ```
 
-With stats enabled, an empty `haproxy.stats.auth` creates an Opaque Secret named `<resource-base-name>-haproxy-stats` in the release namespace. The credential uses username `stats` and a random 32-character password. HAProxy reads `data.auth` through a Secret-backed environment variable; the ConfigMap contains only the variable reference. Helm reuses the installed Secret on upgrades through `lookup`. Offline rendering cannot read the cluster and generates a new credential for that render.
+With stats enabled and both `haproxy.stats.auth` and `haproxy.stats.existingSecret` empty, the chart creates an Opaque Secret named `<resource-base-name>-haproxy-stats` in the release namespace. The credential uses username `stats` and a random 32-character password. HAProxy reads `data.auth` through a Secret-backed environment variable; the ConfigMap contains only the variable reference. Helm reuses the installed Secret on upgrades through `lookup`. Offline rendering cannot read the cluster and generates a new credential for that render.
+
+**GitOps rule:** Argo CD and other offline renderers must supply `haproxy.stats.existingSecret` or an explicit, stable `haproxy.stats.auth` before upgrading. Offline `lookup` cannot preserve an installed credential. With `existingSecret`, create a Secret in the release namespace whose `auth` key contains the full `username:password` credential. The chart references that Secret and does not create, update, or delete it. An explicit `auth` value takes precedence over `existingSecret`. If you rotate the existing Secret, restart HAProxy pods to load the new environment value.
+
+The generated credential stays out of the HAProxy config checksum and the pod template. Repeated offline renders therefore do not restart LB pods merely because generation returns a different credential. This does not make generated credentials durable in GitOps; use one of the stable sources above.
 
 **Migration:** the chart no longer supplies a fixed stats login. Scrapers that used the old default must use the generated credential or set `haproxy.stats.auth` explicitly to keep a fixed `username:password` login. An explicit value takes precedence and stays in the HAProxy ConfigMap. Treat it as sensitive configuration. Disabling stats removes the stats frontend and generated Secret. Switching to explicit auth also removes the generated Secret; switching back generates a new credential.
 
