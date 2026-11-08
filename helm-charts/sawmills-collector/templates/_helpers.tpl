@@ -67,6 +67,12 @@ Build the collector image reference. If image.digest is set, pin by digest and i
 {{- end -}}
 {{- end -}}
 
+{{/* Retain each public trust revision while older ReplicaSets can still use it. */}}
+{{- define "sawmills-collector.loadBalancerTelemetryTrustConfigName" -}}
+{{- $bundleHash := include "sawmills-collector.loadBalancerTelemetryCaBundle" . | sha256sum | trunc 12 -}}
+{{- printf "%s-lb-telemetry-trust-%s" (include "sawmills-collector.fullname" .) $bundleHash -}}
+{{- end }}
+
 {{/*
 Name backend drain config by collector image so old ReplicaSets never consume
 config rendered for a newer binary that may contain unsupported extensions.

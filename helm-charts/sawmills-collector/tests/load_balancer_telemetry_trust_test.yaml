@@ -7,6 +7,32 @@ values:
   - ../values.yaml
   - fixtures/telemetry-trust/bundle-values.yaml
 tests:
+  - it: retains immutable trust for older ReplicaSets
+    template: load-balancer-telemetry-trust-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: -lb-telemetry-trust-453dcf42055d$
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+      - equal:
+          path: immutable
+          value: true
+  - it: binds the volume to its exact public bundle revision
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          any: true
+          content:
+            name: sawmills-telemetry-trust
+            configMap:
+              name: RELEASE-NAME-lb-telemetry-trust-453dcf42055d
   - it: mounts public trust into both load balancer collectors
     template: load-balancer.yaml
     set:
@@ -128,3 +154,10 @@ tests:
       - notEqual:
           path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
           value: 453dcf42055d1f0af4684aa0590048d3f08144c59875a384c5fe73080e420630
+      - contains:
+          path: spec.template.spec.volumes
+          any: true
+          content:
+            name: sawmills-telemetry-trust
+            configMap:
+              name: RELEASE-NAME-lb-telemetry-trust-7e827d8a46eb

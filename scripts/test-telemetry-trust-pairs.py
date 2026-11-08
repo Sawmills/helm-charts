@@ -14,6 +14,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from http.client import HTTPException
 from pathlib import Path
 
 import yaml
@@ -73,13 +74,14 @@ def inspect(name):
 
 
 def http(url, body=None):
+    timeout = BUDGET.timeout(2)
     request = urllib.request.Request(
         url, data=body, headers={"Content-Type": "application/json"}
     )
     try:
-        with urllib.request.urlopen(request, timeout=BUDGET.timeout(2)) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.status, response.read(4 * 1024 * 1024).decode()
-    except urllib.error.URLError:
+    except (urllib.error.URLError, OSError, HTTPException):
         return None, ""
 
 
@@ -595,6 +597,16 @@ def main():
         assert (
             der.returncode == 0
             and hashlib.sha256(der.stdout).hexdigest() == binding["ca_sha256"]
+        )
+        valid = subprocess.run(
+            ["openssl", "x509", "-in", str(pem), "-checkend", "0", "-noout"],
+            capture_output=True,
+            check=False,
+            timeout=BUDGET.timeout(10),
+        )
+        assert valid.returncode == 0, (
+            f"fixture certificate expired for {role}; refresh the pinned image pair "
+            "and its public CA fixtures"
         )
         if subprocess.run(
             ["docker", "image", "inspect", binding["image"]],

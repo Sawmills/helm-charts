@@ -17,6 +17,8 @@ It does not perform cryptographic validation of certificate contents.
 
 You can supply the file with `--set-file loadBalancer.telemetryTrust.caBundlePem=/path/to/public-ca-bundle.pem`.
 A bundle checksum changes the LB Pod template because existing single-file mounts do not refresh.
+Each bundle has an immutable, retained ConfigMap so older Pods keep their own trust file during a rollout.
+Remove an unused trust ConfigMap only after no Pod or retained ReplicaSet references it.
 Apply the change through your guarded rollout process. Worker Pods do not receive the bundle.
 Keep both CAs until rollback can no longer use either server identity.
 Each new image digest needs the mixed-version trust tests again.

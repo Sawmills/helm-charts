@@ -476,7 +476,7 @@ spec:
         {{- if $lbTelemetryCaBundle }}
         - name: sawmills-telemetry-trust
           configMap:
-            name: {{ include "sawmills-collector.fullname" . }}-lb-telemetry-trust
+            name: {{ include "sawmills-collector.loadBalancerTelemetryTrustConfigName" . }}
         {{- end }}
         {{- if .Values.haproxy.enabled }}
         - name: haproxy-config
