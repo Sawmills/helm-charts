@@ -119,6 +119,33 @@ tests:
       - matchRegex:
           path: data["keda.yaml"]
           pattern: not IsMatch\(name,\s*"[^"]*otelcol_loadbalancer_central_queue_oldest_item_age
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: not IsMatch\(name,\s*"[^"]*otelcol_loadbalancer_backend_inflight_oldest_age
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: not IsMatch\(name,\s*"[^"]*otelcol_loadbalancer_backend_request_bytes_total
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: not IsMatch\(name,\s*"[^"]*otelcol_loadbalancer_backend_timeout_total
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: not IsMatch\(name,\s*"[^"]*otelcol_loadbalancer_backend_count
+
+  - it: preserves load balancer source pod identity before the keda filter
+    template: telemetry-keda-configmap.yaml
+    set:
+      kedaScaler.enabled: true
+    asserts:
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: '(?m)^\s*transform/keda_source:\s*$'
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: '(?s)transform/keda_source:\s*error_mode: ignore\s*metric_statements:\s*- context: datapoint\s*statements:\s*- set\(attributes\["source_pod"\], resource\.attributes\["pod"\]\) where resource\.attributes\["pod"\]\s*!= nil\s*service:'
+      - matchRegex:
+          path: data["keda.yaml"]
+          pattern: '(?s)metrics/keda:.*processors:\s*- transform/keda_source\s*- filter/keda'
 
   - it: resolves keda otlp exporter endpoint and preserves literal template-like config
     template: telemetry-keda-configmap.yaml

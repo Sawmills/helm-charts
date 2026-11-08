@@ -2,6 +2,14 @@
   "$schema": "https://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
+    "networkPolicy": {
+      "type": ["object", "null"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "egress": { "type": "array", "items": { "type": "object" } }
+      },
+      "additionalProperties": false
+    },
     "autoscaler": {
       "type": "object",
       "description": "Unsupported in manual mode. Any non-default autoscaler setting will cause template rendering to fail.",

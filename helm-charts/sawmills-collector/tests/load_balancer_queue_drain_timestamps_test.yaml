@@ -1,0 +1,22 @@
+suite: queue drain producer timestamps
+templates:
+  - templates/load-balancer-telemetry-configmap.yaml
+tests:
+  - it: leaves pressure timestamps unchanged when queue waiting is off
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+    asserts:
+      - notMatchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?m)^  prometheus/pressure_readiness:\n(?:    [^\n]*\n)*    send_timestamps: true(?:\n|$)'
+  - it: preserves producer timestamps for queue-aware drain
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.waitForQueue: true
+      loadBalancer.terminationGracePeriodSeconds: 360
+    asserts:
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
+          pattern: '(?m)^  prometheus/pressure_readiness:\n(?:    [^\n]*\n)*    send_timestamps: true(?:\n|$)'

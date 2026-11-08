@@ -40,6 +40,39 @@ Build the collector image reference. If image.digest is set, pin by digest and i
 {{- end -}}
 {{- end }}
 
+{{/* Public trust shared by both LB collectors; never replace their server keys. */}}
+{{- define "sawmills-collector.loadBalancerTelemetryCaBundle" -}}
+{{- $trust := .Values.loadBalancer.telemetryTrust | default dict -}}
+{{- $bundle := ($trust.caBundlePem | default "") | trim -}}
+{{- if $bundle -}}
+{{- if gt (len $bundle) 32768 -}}
+{{- fail "loadBalancer.telemetryTrust.caBundlePem exceeds 32768 bytes" -}}
+{{- end -}}
+{{- $certificate := "-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\\r\\n]+-----END CERTIFICATE-----" -}}
+{{- if or (contains "PRIVATE KEY" $bundle) (eq (len (regexFindAll $certificate $bundle -1)) 0) (ne (regexReplaceAll $certificate $bundle "" | trim) "") -}}
+{{- fail "loadBalancer.telemetryTrust.caBundlePem must contain only public PEM certificates" -}}
+{{- end -}}
+{{- $mounts := .Values.loadBalancer.additionalVolumeMounts | default .Values.additionalVolumeMounts -}}
+{{- range $mounts -}}
+{{- if or (eq .mountPath "/etc/otel/certs/ca-cert.pem") (eq .name "sawmills-telemetry-trust") -}}
+{{- fail "telemetryTrust conflicts with an additional volume mount" -}}
+{{- end -}}
+{{- end -}}
+{{- range (.Values.loadBalancer.additionalVolumes | default .Values.additionalVolumes) -}}
+{{- if eq .name "sawmills-telemetry-trust" -}}
+{{- fail "telemetryTrust conflicts with an additional volume" -}}
+{{- end -}}
+{{- end -}}
+{{- printf "%s\n" $bundle -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Retain each public trust revision while older ReplicaSets can still use it. */}}
+{{- define "sawmills-collector.loadBalancerTelemetryTrustConfigName" -}}
+{{- $bundleHash := include "sawmills-collector.loadBalancerTelemetryCaBundle" . | sha256sum | trunc 12 -}}
+{{- printf "%s-lb-telemetry-trust-%s" (include "sawmills-collector.fullname" .) $bundleHash -}}
+{{- end }}
+
 {{/*
 Name backend drain config by collector image so old ReplicaSets never consume
 config rendered for a newer binary that may contain unsupported extensions.
@@ -584,7 +617,7 @@ Generate merged telemetry configuration with external labels
   {{- $pipelines := get $service "pipelines" | default dict }}
   {{- if and (not $hasExplicitLBPromRWOverride) (hasKey $pipelines "metrics/external/prometheusremotewrite") }}
   {{- $processors := get $config "processors" | default dict }}
-  {{- $_ := set $processors "filter/lb_remote_write" (dict "error_mode" "ignore" "metrics" (dict "metric" (list "not IsMatch(name, \"^(otelcol_loadbalancer_central_queue_(compressed_bytes|compressed_capacity|compressed_capacity_bytes|saturation|items|rejected_compressed_bytes(_total)?|retries|decode_failures|inflight_uncompressed_bytes|inflight_uncompressed_capacity|inflight_uncompressed_capacity_bytes|configured_consumers|active_load_balancer_replicas|effective_consumers|active_consumers|queue_demand_consumers|backend_safe_consumers_per_lb|consumer_limit_reason|consumer_pressure_state|lanes|effective_lanes|oldest_item_age(_milliseconds)?|ready_windows|ready_window_limit|ready_lanes|ready_uncompressed_bytes|scheduler_state)|otelcol_loadbalancer_backend_(latency.*|outcome.*|quarantine_total|unquarantine_total|fail_open_total|reroute_total|stale_total)|otelcol_loadbalancer_num_(backends|backend_updates|resolutions)|otelcol_loadbalancer_resolver_stale_age|otelcol_backend_drain_pressure_ready|otelcol_backend_drain_pressure_warning|otelcol_(receiver|processor)_(accepted|refused)_(log_records|metric_points|spans)(_total)?|otelcol_exporter_queue_(size|capacity|oldest_batch_age)|otelcol_process_(cpu_seconds(_total)?|memory_rss(_bytes)?|runtime_heap_alloc_bytes)|process_(cpu_seconds_total|resident_memory_bytes)|haproxy_frontend_(http_requests_total|current_sessions|sessions_total|connections_total|bytes_in_total)|haproxy_backend_(http_requests_total|http_responses_total|loadbalanced_total|current_sessions|sessions_total|bytes_in_total|active_servers|backup_servers|current_queue)|haproxy_server_(http_responses_total|current_sessions|sessions_total|bytes_in_total|connection_errors_total|check_up_down_total|status)|http\\\\.server\\\\.(duration|request\\\\.duration).*)$\")"))) }}
+  {{- $_ := set $processors "filter/lb_remote_write" (dict "error_mode" "ignore" "metrics" (dict "metric" (list "not IsMatch(name, \"^(otelcol_loadbalancer_central_queue_(compressed_bytes|compressed_capacity|compressed_capacity_bytes|saturation|items|rejected_compressed_bytes(_total)?|retries|decode_failures|shutdown_dropped_items(_total)?|storage_failures(_total)?|durable_pending_items|durable_pending_bytes|durable_oldest_enqueued_time(_seconds)?|durable_terminal_rejected_items|durable_deferred_items|routing_key_failures(_total)?|inflight_uncompressed_bytes|inflight_uncompressed_capacity|inflight_uncompressed_capacity_bytes|configured_consumers|active_load_balancer_replicas|effective_consumers|active_consumers|queue_demand_consumers|backend_safe_consumers_per_lb|consumer_limit_reason|consumer_pressure_state|lanes|effective_lanes|oldest_item_age(_milliseconds)?|ready_windows|ready_window_limit|ready_lanes|ready_uncompressed_bytes|scheduler_state)|otelcol_loadbalancer_backend_(latency.*|outcome.*|failed(_total)?|quarantine_total|unquarantine_total|fail_open_total|reroute_total|stale_total)|otelcol_loadbalancer_num_(backends|backend_updates|resolutions)|otelcol_loadbalancer_resolver_stale_age|otelcol_backend_drain_pressure_ready|otelcol_backend_drain_pressure_warning|otelcol_(receiver|processor)_(accepted|refused)_(log_records|metric_points|spans)(_total)?|otelcol_exporter_queue_(size|capacity|oldest_batch_age)|otelcol_process_(cpu_seconds(_total)?|memory_rss(_bytes)?|runtime_heap_alloc_bytes)|process_(cpu_seconds_total|resident_memory_bytes)|haproxy_frontend_(http_requests_total|current_sessions|sessions_total|connections_total|bytes_in_total)|haproxy_backend_(http_requests_total|http_responses_total|loadbalanced_total|current_sessions|sessions_total|bytes_in_total|active_servers|backup_servers|current_queue)|haproxy_server_(http_responses_total|current_sessions|sessions_total|bytes_in_total|connection_errors_total|check_up_down_total|status)|http\\\\.server\\\\.(duration|request\\\\.duration).*)$\")"))) }}
   {{- $_ := set $config "processors" $processors }}
   {{- $exporters := get $config "exporters" | default dict }}
   {{- $promRW := get $exporters "prometheusremotewrite" | default dict }}
@@ -633,6 +666,9 @@ Generate merged telemetry configuration with external labels
   {{- $pressurePrometheusEndpoint := printf "${env:MY_POD_IP}:%v" (.Values.telemetry.pressurePrometheus.port | default 19466) }}
   {{- $pressureOverlay := (fromYaml (printf "exporters:\n  prometheus/pressure_readiness:\n    endpoint: %s\n    metric_expiration: 1m\nprocessors:\n  filter/pressure_readiness:\n    error_mode: ignore\n    metrics:\n      metric:\n        - not IsMatch(name, \"^(otelcol_loadbalancer_central_queue_compressed_bytes|otelcol_loadbalancer_central_queue_compressed_capacity|otelcol_loadbalancer_central_queue_compressed_capacity_bytes|otelcol_loadbalancer_central_queue_saturation|otelcol_loadbalancer_central_queue_inflight_uncompressed_bytes|otelcol_loadbalancer_central_queue_inflight_uncompressed_capacity|otelcol_loadbalancer_central_queue_inflight_uncompressed_capacity_bytes|otelcol_loadbalancer_central_queue_rejected_compressed_bytes|otelcol_loadbalancer_central_queue_rejected_compressed_bytes_total|otelcol_loadbalancer_central_queue_oldest_item_age|otelcol_loadbalancer_central_queue_oldest_item_age_milliseconds|otelcol_process_memory_rss|otelcol_process_memory_rss_bytes|otelcol_process_runtime_heap_alloc_bytes|otelcol_receiver_refused_log_records|otelcol_receiver_refused_log_records_total|otelcol_receiver_refused_metric_points|otelcol_receiver_refused_metric_points_total|otelcol_receiver_refused_spans|otelcol_receiver_refused_spans_total|otelcol_processor_refused_log_records|otelcol_processor_refused_log_records_total|otelcol_processor_refused_metric_points|otelcol_processor_refused_metric_points_total|otelcol_processor_refused_spans|otelcol_processor_refused_spans_total)$\")\nservice:\n  pipelines:\n    metrics/pressure_readiness:\n      receivers:\n        - forward\n      processors:\n        - filter/pressure_readiness\n      exporters:\n        - prometheus/pressure_readiness\n" $pressurePrometheusEndpoint)) }}
   {{- $config = merge $config $pressureOverlay }}
+  {{- if ($lbPressureReadiness.waitForQueue | default false) }}
+  {{- $_ := set (get $config.exporters "prometheus/pressure_readiness") "send_timestamps" true }}
+  {{- end }}
 {{- end }}
 {{- if eq .Values.telemetryExternalConfig.type "prometheus" }}
   {{- include "sawmills-collector.applyPrometheusRemoteWriteExternalLabels" (dict "root" . "config" $config) }}
@@ -742,6 +778,143 @@ Compute effective replica count (always at least 1).
   {{- $replicas = 1 -}}
 {{- end -}}
 {{- $replicas -}}
+{{- end }}
+
+{{/*
+Return the number of disruptions allowed by a PDB value at a given scale.
+Kubernetes rounds percentage maxUnavailable up and percentage minAvailable up
+for the number of pods that must remain healthy.
+*/}}
+{{- define "sawmills-collector.pdbAllowedDisruptions" -}}
+{{- $value := .value -}}
+{{- $replicas := int .replicas -}}
+{{- $quantity := 0 -}}
+{{- if kindIs "string" $value -}}
+  {{- if hasSuffix "%" $value -}}
+    {{- $percentText := trimSuffix "%" $value -}}
+    {{- if not (regexMatch "^-?[0-9]+(\\.[0-9]+)?$" $percentText) -}}
+      {{- fail (printf "PDB %s value %q is not a valid integer or percentage" .field $value) -}}
+    {{- end -}}
+    {{- $percent := $percentText | float64 -}}
+    {{- $quantity = ceil (mulf (float64 $replicas) (divf $percent 100.0)) | int -}}
+  {{- else -}}
+    {{- if not (regexMatch "^-?[0-9]+$" $value) -}}
+      {{- fail (printf "PDB %s value %q is not a valid integer or percentage" .field $value) -}}
+    {{- end -}}
+    {{- $quantity = int $value -}}
+  {{- end -}}
+{{- else -}}
+  {{- $quantity = int $value -}}
+{{- end -}}
+{{- if eq .field "minAvailable" -}}
+  {{- sub $replicas $quantity -}}
+{{- else -}}
+  {{- $quantity -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Fail closed when an explicit PDB setting permits less than five percent,
+rounded up, at any reachable desired scale of ten or more replicas.
+*/}}
+{{- define "sawmills-collector.validatePdbBudget" -}}
+{{- $maxReplicas := int .maxReplicas -}}
+{{- $field := .field -}}
+{{- $value := .value -}}
+{{- $role := .role -}}
+{{- if ge $maxReplicas 10 -}}
+  {{- $minReplicas := int .minReplicas -}}
+  {{- if lt $minReplicas 10 -}}
+    {{- $minReplicas = 10 -}}
+  {{- end -}}
+  {{- $offendingScale := -1 -}}
+  {{- if kindIs "string" $value -}}
+    {{- $percentText := $value | trimSuffix "%" -}}
+    {{- if not (hasSuffix "%" $value) -}}
+      {{- $percentText = "" -}}
+    {{- end -}}
+    {{- if ne $percentText "" -}}
+      {{- if not (regexMatch "^-?[0-9]+(\\.[0-9]+)?$" $percentText) -}}
+        {{- fail (printf "%s PDB %s value %q is not a valid integer or percentage" $role $field $value) -}}
+      {{- end -}}
+      {{- $percent := $percentText | float64 -}}
+      {{- $firstBlock := add (ceil (divf (float64 (sub $minReplicas 1)) 20.0) | int) 1 -}}
+      {{- if eq $field "minAvailable" -}}
+        {{- $allowedAtMin := include "sawmills-collector.pdbAllowedDisruptions" (dict "field" $field "value" $value "replicas" $minReplicas) | int -}}
+        {{- $requiredAtMin := ceil (mulf (float64 $minReplicas) 0.05) | int -}}
+        {{- if lt $requiredAtMin 1 -}}
+          {{- $requiredAtMin = 1 -}}
+        {{- end -}}
+        {{- if lt $allowedAtMin $requiredAtMin -}}
+          {{- $offendingScale = $minReplicas -}}
+        {{- else -}}
+          {{- $allowedPercent := subf 100.0 $percent -}}
+          {{- if le $allowedPercent 5.0 -}}
+            {{- $candidate := add (mulf (float64 (sub $firstBlock 1)) 20 | int) 1 -}}
+            {{- if le $candidate $maxReplicas }}
+              {{- $offendingScale = $candidate -}}
+            {{- end -}}
+          {{- else -}}
+            {{- $lastFailingBlock := sub (ceil (divf (mulf 19.0 $allowedPercent) (mulf 20.0 (subf $allowedPercent 5.0))) | int) 1 -}}
+            {{- if le $firstBlock $lastFailingBlock -}}
+              {{- $candidate := add (mulf (float64 (sub $firstBlock 1)) 20 | int) 1 -}}
+              {{- if le $candidate $maxReplicas }}
+                {{- $offendingScale = $candidate -}}
+              {{- end -}}
+            {{- end -}}
+          {{- end -}}
+        {{- end -}}
+      {{- else if lt $percent 5.0 -}}
+        {{- $allowedAtMin := include "sawmills-collector.pdbAllowedDisruptions" (dict "field" $field "value" $value "replicas" $minReplicas) | int -}}
+        {{- $requiredAtMin := ceil (mulf (float64 $minReplicas) 0.05) | int -}}
+        {{- if lt $requiredAtMin 1 -}}
+          {{- $requiredAtMin = 1 -}}
+        {{- end -}}
+        {{- if lt $allowedAtMin $requiredAtMin -}}
+          {{- $offendingScale = $minReplicas -}}
+        {{- else -}}
+          {{- $firstFailingBlock := ceil (divf (subf 100.0 (mulf 19.0 $percent)) (mulf 20.0 (subf 5.0 $percent))) | int -}}
+          {{- if lt $firstFailingBlock 1 -}}
+            {{- $firstFailingBlock = 1 -}}
+          {{- end -}}
+          {{- if lt $firstBlock $firstFailingBlock -}}
+            {{- $firstBlock = $firstFailingBlock -}}
+          {{- end -}}
+          {{- $candidate := add (mulf (float64 (sub $firstBlock 1)) 20 | int) 1 -}}
+          {{- if le $candidate $maxReplicas }}
+            {{- $offendingScale = $candidate -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+    {{- else -}}
+      {{- if not (regexMatch "^-?[0-9]+$" $value) -}}
+        {{- fail (printf "%s PDB %s value %q is not a valid integer or percentage" $role $field $value) -}}
+      {{- end -}}
+      {{- if eq $field "minAvailable" -}}
+        {{- $offendingScale = $minReplicas -}}
+      {{- else -}}
+        {{- $offendingScale = $maxReplicas -}}
+      {{- end -}}
+    {{- end -}}
+  {{- else if eq $field "minAvailable" -}}
+    {{- $offendingScale = $minReplicas -}}
+  {{- else -}}
+    {{- $offendingScale = $maxReplicas -}}
+  {{- end -}}
+  {{- if ge $offendingScale 10 -}}
+    {{- $allowed := include "sawmills-collector.pdbAllowedDisruptions" (dict "field" $field "value" $value "replicas" $offendingScale) | int -}}
+    {{- $required := ceil (mulf (float64 $offendingScale) 0.05) | int -}}
+    {{- if lt $required 1 -}}
+      {{- $required = 1 -}}
+    {{- end -}}
+    {{- if lt $allowed $required -}}
+      {{- fail (printf
+        "%s PDB %s %v allows %d disruptions at scale %d, below required %d"
+        $role $field $value $allowed $offendingScale $required
+      ) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
 {{- end }}
 
 {{/*
@@ -1087,6 +1260,13 @@ Caller passes context via dict with "root" (top-level context) and "nativeSideca
   restartPolicy: Always
   {{- end }}
   env:
+    {{- if and $root.Values.haproxy.stats.enabled (not $root.Values.haproxy.stats.auth) }}
+    - name: HAPROXY_STATS_AUTH
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "sawmills-collector.haproxyStatsSecretName" $root }}
+          key: auth
+    {{- end }}
     - name: MY_POD_IP
       valueFrom:
         fieldRef:

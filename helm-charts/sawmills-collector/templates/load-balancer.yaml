@@ -1,4 +1,8 @@
 {{- if .Values.loadBalancer.enabled }}
+{{- $membershipDiscovery := .Values.loadBalancer.membershipDiscovery | default dict }}
+{{- if and $membershipDiscovery.enabled (not .Values.automountServiceAccountToken) }}
+{{- fail "loadBalancer.membershipDiscovery requires automountServiceAccountToken=true" }}
+{{- end }}
 {{- include "sawmills-collector.validateLoadBalancerQueueCompression" . }}
 {{- $lbOtelConfig := default dict .Values.loadBalancer.otelConfig }}
 {{- $lbOtelS3Path := default "" $lbOtelConfig.s3path }}
@@ -6,10 +10,25 @@
 {{- $lbTelemetryOtelConfig := default (dict) .Values.loadBalancer.telemetryOtelConfig }}
 {{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
 {{- $lbTelemetryOtelEncryptionKey := default "" $lbTelemetryOtelConfig.encryptionKey }}
+{{- $lbTelemetryCaBundle := include "sawmills-collector.loadBalancerTelemetryCaBundle" . }}
 {{- include "sawmills-collector.validateTelemetryPprof" . }}
 {{- $lbStartupProbe := .Values.rollout.loadBalancer.probes.startup | default dict }}
 {{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict }}
 {{- $lbPressureReadinessEnabled := and .Values.loadBalancer.enabled ($lbPressureReadiness.enabled | default false) }}
+{{- $lbWaitForQueue := $lbPressureReadiness.waitForQueue | default false }}
+{{- $lbDrainRequestTimeoutSeconds := 0 }}
+{{- if and $lbWaitForQueue (not $lbPressureReadinessEnabled) }}
+{{- fail "loadBalancer.pressureReadiness.waitForQueue requires pressureReadiness.enabled=true" }}
+{{- end }}
+{{- if $lbWaitForQueue }}
+{{- $drainMs := include "sawmills-collector.durationToMilliseconds" (default "15s" $lbPressureReadiness.drainDuration) | atoi }}
+{{- $lbDrainRequestTimeoutSeconds = add 5 (div (add 999 $drainMs) 1000) }}
+{{- $reserveMs := include "sawmills-collector.durationToMilliseconds" (default "310s" $lbPressureReadiness.shutdownReserve) | atoi }}
+{{- $hookMs := max (mul (int .Values.rollout.loadBalancer.preStopSleepSeconds) 1000) (mul $lbDrainRequestTimeoutSeconds 1000) }}
+{{- if or (le $reserveMs 0) (ge (add $hookMs $reserveMs) (mul (int .Values.loadBalancer.terminationGracePeriodSeconds) 1000)) }}
+{{- fail "loadBalancer.pressureReadiness.waitForQueue requires termination grace greater than the preStop budget plus shutdownReserve (exporter shutdown_timeout plus cleanup)" }}
+{{- end }}
+{{- end }}
 {{- $lbPressureReadinessUseForPodReadiness := true }}
 {{- if hasKey $lbPressureReadiness "useForPodReadiness" }}
 {{- $lbPressureReadinessUseForPodReadiness = $lbPressureReadiness.useForPodReadiness }}
@@ -45,6 +64,11 @@ spec:
   {{- $lbStrategy := default (dict) .Values.loadBalancer.strategy }}
   {{- $lbStrategyType := default "RollingUpdate" $lbStrategy.type }}
   {{- if .Values.loadBalancer.storage.enabled }}
+  {{- if semverCompare ">=1.27-0" .Capabilities.KubeVersion.Version }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  {{- end }}
   updateStrategy:
     type: {{ $lbStrategyType }}
     {{- if eq $lbStrategyType "RollingUpdate" }}
@@ -69,16 +93,32 @@ spec:
   template:
     metadata:
       annotations:
-        {{- with .Values.loadBalancer.podAnnotations }}
+        {{- $annotations := deepCopy (.Values.loadBalancer.podAnnotations | default dict) }}
+        {{- if $lbTelemetryCaBundle }}
+        {{- $_ := set $annotations "checksum/lb-telemetry-trust" ($lbTelemetryCaBundle | sha256sum) }}
+        {{- end }}
+        {{- $protection := .Values.loadBalancer.removalProtection | default dict }}
+        {{- if $protection.preventConsolidation }}
+        {{- $_ := set $annotations "karpenter.sh/do-not-disrupt" "true" }}
+        {{- end }}
+        {{- with $annotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.haproxy.enabled }}
+        checksum/haproxy-config: {{ include "sawmills-collector.haproxy.config" . | sha256sum }}
         {{- end }}
       labels:
         {{- include "sawmills-collector.loadBalancerLabels" . | nindent 8 }}
     spec:
       serviceAccountName:  {{ include "sawmills-collector.serviceAccountName" . }}
+      {{- $podSecurityContext := deepCopy (default dict .Values.podSecurityContext) }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken | default false }}
       {{- if .Values.loadBalancer.storage.enabled }}
+      {{- $podSecurityContext = mergeOverwrite (dict "fsGroup" 10001) $podSecurityContext }}
+      {{- end }}
+      {{- with $podSecurityContext }}
       securityContext:
-        fsGroup: 10001
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: {{ .Values.loadBalancer.terminationGracePeriodSeconds }}
       {{- if not (empty .Values.loadBalancer.nodeSelector) }}
@@ -223,13 +263,31 @@ spec:
             periodSeconds: {{ default 5 $lbStartupProbe.periodSeconds }}
             failureThreshold: {{ default 24 $lbStartupProbe.failureThreshold }}
           {{- end }}
-          {{- if .Values.rollout.loadBalancer.preStopSleepSeconds }}
+          {{- if or .Values.rollout.loadBalancer.preStopSleepSeconds $lbWaitForQueue }}
           lifecycle:
             preStop:
               exec:
                 command:
+                  {{- if $lbPressureReadinessEnabled }}
+                  - /bin/sh
+                  - -c
+                  - |
+                    {{- if $lbWaitForQueue }}
+                    wget -Y off -T {{ $lbDrainRequestTimeoutSeconds }} -t 1 -q -O /dev/null "http://${MY_POD_IP}:{{ default 13137 $lbPressureReadiness.port }}{{ default "/drain" $lbPressureReadiness.drainPath }}?wait_for_queue=true" &
+                    drain_pid=$!
+                    /bin/sleep {{ .Values.rollout.loadBalancer.preStopSleepSeconds }}
+                    wait "$drain_pid" || { echo "LB queue drain incomplete; collector shutdown will retry within remaining grace" >&2; exit 1; }
+                    {{- else }}
+                    wget -Y off -q -O /dev/null "http://${MY_POD_IP}:{{ default 13137 $lbPressureReadiness.port }}{{ default "/drain" $lbPressureReadiness.drainPath }}" >/dev/null 2>&1 &
+                    drain_pid=$!
+                    /bin/sleep {{ .Values.rollout.loadBalancer.preStopSleepSeconds }}
+                    kill "$drain_pid" 2>/dev/null || true
+                    wait "$drain_pid" 2>/dev/null || true
+                    {{- end }}
+                  {{- else }}
                   - /bin/sleep
                   - "{{ .Values.rollout.loadBalancer.preStopSleepSeconds }}"
+                  {{- end }}
           {{- end }}
           resources:
             {{- if .Values.loadBalancer.resources.requests }}
@@ -246,6 +304,12 @@ spec:
               mountPath: /etc/otel/config.yaml
               subPath: config.yaml
           {{- end }}
+          {{- if $lbTelemetryCaBundle }}
+            - name: sawmills-telemetry-trust
+              mountPath: /etc/otel/certs/ca-cert.pem
+              subPath: ca-cert.pem
+              readOnly: true
+          {{- end }}
           {{- if $lbPressureReadinessEnabled }}
             - name: sawmills-load-balancer-readiness-config
               mountPath: /etc/otel/load-balancer-readiness-config.yaml
@@ -256,6 +320,14 @@ spec:
           {{- if .Values.loadBalancer.storage.enabled }}
             - name: {{ include "sawmills-collector.name" . }}-lb
               mountPath: /data
+          {{- end }}
+          {{- /* LB-specific additionalVolumeMounts take precedence; global additionalVolumeMounts used as fallback (mirrors the additionalVolumes handling in the pod volumes below) */ -}}
+          {{- with .Values.loadBalancer.additionalVolumeMounts }}
+          {{- toYaml . | nindent 12 }}
+          {{- else }}
+          {{- with .Values.additionalVolumeMounts }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- end }}
         - name: telemetry-collector
           securityContext:
@@ -362,9 +434,13 @@ spec:
               containerPort: {{ .Values.telemetry.remoteOperatorOtlpHttpPort | default 14319 }}
               protocol: TCP
           livenessProbe:
+            # SAW-10798: probe the Prometheus metrics endpoint, not the always-up
+            # health_check handler (13134). The metrics endpoint goes unresponsive
+            # when the exporter wedges under GC thrash, so a wedged sidecar now
+            # fails liveness and Kubernetes restarts it instead of running forever.
             httpGet:
-              path: /healthcheck
-              port: 13134
+              path: {{ .Values.rollout.telemetry.probes.liveness.path | default "/metrics" }}
+              port: {{ .Values.rollout.telemetry.probes.liveness.port | default .Values.telemetry.prometheus.port }}
             initialDelaySeconds: {{ .Values.rollout.telemetry.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.rollout.telemetry.probes.liveness.periodSeconds }}
             failureThreshold: {{ .Values.rollout.telemetry.probes.liveness.failureThreshold }}
@@ -383,6 +459,12 @@ spec:
               mountPath: /etc/otel/config.yaml
               subPath: telemetry-config.yaml
             {{- end }}
+            {{- if $lbTelemetryCaBundle }}
+            - name: sawmills-telemetry-trust
+              mountPath: /etc/otel/certs/ca-cert.pem
+              subPath: ca-cert.pem
+              readOnly: true
+            {{- end }}
             {{- if .Values.kedaScaler.enabled }}
             - name: sawmills-telemetry-keda-config
               mountPath: /etc/otel/keda.yaml
@@ -391,6 +473,11 @@ spec:
             - name: tmp
               mountPath: /tmp
       volumes:
+        {{- if $lbTelemetryCaBundle }}
+        - name: sawmills-telemetry-trust
+          configMap:
+            name: {{ include "sawmills-collector.loadBalancerTelemetryTrustConfigName" . }}
+        {{- end }}
         {{- if .Values.haproxy.enabled }}
         - name: haproxy-config
           configMap:

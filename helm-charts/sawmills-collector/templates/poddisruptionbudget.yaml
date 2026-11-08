@@ -1,5 +1,14 @@
 {{- $pdb := .Values.podDisruptionBudget | default dict }}
 {{- $workerAutoscaled := or (and .Values.keda (.Values.keda.enabled | default false)) (and .Values.autoscaling (.Values.autoscaling.enabled | default false)) }}
+{{- $workerMinReplicas := include "sawmills-collector.replicaCountValue" . | int }}
+{{- $workerMaxReplicas := $workerMinReplicas }}
+{{- if and .Values.keda (.Values.keda.enabled | default false) }}
+  {{- $workerMinReplicas = int .Values.keda.minReplicas }}
+  {{- $workerMaxReplicas = int .Values.keda.maxReplicas }}
+{{- else if and .Values.autoscaling (.Values.autoscaling.enabled | default false) }}
+  {{- $workerMinReplicas = int .Values.autoscaling.minReplicas }}
+  {{- $workerMaxReplicas = int .Values.autoscaling.maxReplicas }}
+{{- end }}
 {{- if and ($pdb.enabled | default false) (eq .Values.mode "deployment") }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -20,18 +29,39 @@ spec:
   {{- $maxUnavailableSet := and (hasKey $pdb "maxUnavailable") (not (kindIs "invalid" $pdb.maxUnavailable)) (not (and (kindIs "string" $pdb.maxUnavailable) (eq (trim $pdb.maxUnavailable) ""))) }}
   {{- $legacyAutoscaledMaxUnavailableSet := and (hasKey $pdb "autoscaledMaxUnavailable") (not (kindIs "invalid" $pdb.autoscaledMaxUnavailable)) (not (and (kindIs "string" $pdb.autoscaledMaxUnavailable) (eq (trim $pdb.autoscaledMaxUnavailable) ""))) }}
   {{- if $minAvailableSet }}
+  {{- include "sawmills-collector.validatePdbBudget" (dict
+    "role" "worker" "field" "minAvailable" "value" $pdb.minAvailable
+    "minReplicas" $workerMinReplicas "maxReplicas" $workerMaxReplicas
+  ) }}
   minAvailable: {{ $pdb.minAvailable }}
   {{- else if $maxUnavailableSet }}
+  {{- include "sawmills-collector.validatePdbBudget" (dict
+    "role" "worker" "field" "maxUnavailable" "value" $pdb.maxUnavailable
+    "minReplicas" $workerMinReplicas "maxReplicas" $workerMaxReplicas
+  ) }}
   maxUnavailable: {{ $pdb.maxUnavailable }}
   {{- else if and $workerAutoscaled $legacyAutoscaledMaxUnavailableSet }}
+  {{- include "sawmills-collector.validatePdbBudget" (dict
+    "role" "worker" "field" "autoscaledMaxUnavailable" "value" $pdb.autoscaledMaxUnavailable
+    "minReplicas" $workerMinReplicas "maxReplicas" $workerMaxReplicas
+  ) }}
   maxUnavailable: {{ $pdb.autoscaledMaxUnavailable }}
   {{- else }}
-  maxUnavailable: 1
+  maxUnavailable: 5%
   {{- end }}
 {{- end }}
 ---
 {{- $lbPdb := .Values.loadBalancer.podDisruptionBudget | default dict }}
 {{- $lbAutoscaled := or (and .Values.loadBalancer.keda (.Values.loadBalancer.keda.enabled | default false)) (and .Values.loadBalancer.autoscaling (.Values.loadBalancer.autoscaling.enabled | default false)) }}
+{{- $lbMinReplicas := int (default 1 .Values.loadBalancer.replicas) }}
+{{- $lbMaxReplicas := $lbMinReplicas }}
+{{- if and .Values.loadBalancer.keda (.Values.loadBalancer.keda.enabled | default false) }}
+  {{- $lbMinReplicas = int .Values.loadBalancer.keda.minReplicas }}
+  {{- $lbMaxReplicas = int .Values.loadBalancer.keda.maxReplicas }}
+{{- else if and .Values.loadBalancer.autoscaling (.Values.loadBalancer.autoscaling.enabled | default false) }}
+  {{- $lbMinReplicas = int .Values.loadBalancer.autoscaling.minReplicas }}
+  {{- $lbMaxReplicas = int .Values.loadBalancer.autoscaling.maxReplicas }}
+{{- end }}
 {{- if and .Values.loadBalancer.enabled ($lbPdb.enabled | default false) }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -52,12 +82,24 @@ spec:
   {{- $lbMaxUnavailableSet := and (hasKey $lbPdb "maxUnavailable") (not (kindIs "invalid" $lbPdb.maxUnavailable)) (not (and (kindIs "string" $lbPdb.maxUnavailable) (eq (trim $lbPdb.maxUnavailable) ""))) }}
   {{- $lbLegacyAutoscaledMaxUnavailableSet := and (hasKey $lbPdb "autoscaledMaxUnavailable") (not (kindIs "invalid" $lbPdb.autoscaledMaxUnavailable)) (not (and (kindIs "string" $lbPdb.autoscaledMaxUnavailable) (eq (trim $lbPdb.autoscaledMaxUnavailable) ""))) }}
   {{- if $lbMinAvailableSet }}
+  {{- include "sawmills-collector.validatePdbBudget" (dict
+    "role" "load balancer" "field" "minAvailable" "value" $lbPdb.minAvailable
+    "minReplicas" $lbMinReplicas "maxReplicas" $lbMaxReplicas
+  ) }}
   minAvailable: {{ $lbPdb.minAvailable }}
   {{- else if $lbMaxUnavailableSet }}
+  {{- include "sawmills-collector.validatePdbBudget" (dict
+    "role" "load balancer" "field" "maxUnavailable" "value" $lbPdb.maxUnavailable
+    "minReplicas" $lbMinReplicas "maxReplicas" $lbMaxReplicas
+  ) }}
   maxUnavailable: {{ $lbPdb.maxUnavailable }}
   {{- else if and $lbAutoscaled $lbLegacyAutoscaledMaxUnavailableSet }}
+  {{- include "sawmills-collector.validatePdbBudget" (dict
+    "role" "load balancer" "field" "autoscaledMaxUnavailable" "value" $lbPdb.autoscaledMaxUnavailable
+    "minReplicas" $lbMinReplicas "maxReplicas" $lbMaxReplicas
+  ) }}
   maxUnavailable: {{ $lbPdb.autoscaledMaxUnavailable }}
   {{- else }}
-  maxUnavailable: 1
+  maxUnavailable: 5%
   {{- end }}
 {{- end }}

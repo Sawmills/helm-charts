@@ -49,7 +49,14 @@ spec:
           averageUtilization: {{ .Values.loadBalancer.autoscaling.targetMemoryUtilizationPercentage }}
   {{- end }}
   {{- end }}
-  {{- with .Values.loadBalancer.autoscaling.behavior }}
+  {{- $behavior := deepCopy (.Values.loadBalancer.autoscaling.behavior | default dict) }}
+  {{- $protection := .Values.loadBalancer.removalProtection | default dict }}
+  {{- if $protection.disableScaleDown }}
+  {{- $scaleDown := deepCopy ($behavior.scaleDown | default dict) }}
+  {{- $_ := set $scaleDown "selectPolicy" "Disabled" }}
+  {{- $_ := set $behavior "scaleDown" $scaleDown }}
+  {{- end }}
+  {{- with $behavior }}
   behavior:
     {{- toYaml . | nindent 4 }}
   {{- end }}

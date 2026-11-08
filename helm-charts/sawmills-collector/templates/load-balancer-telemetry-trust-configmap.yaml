@@ -1,0 +1,17 @@
+{{- if .Values.loadBalancer.enabled }}
+{{- $bundle := include "sawmills-collector.loadBalancerTelemetryCaBundle" . }}
+{{- if $bundle }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sawmills-collector.loadBalancerTelemetryTrustConfigName" . }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+immutable: true
+data:
+  ca-cert.pem: |
+    {{- $bundle | nindent 4 }}
+{{- end }}
+{{- end }}

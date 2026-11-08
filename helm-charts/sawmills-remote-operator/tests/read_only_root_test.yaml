@@ -1,0 +1,86 @@
+suite: read-only operator root filesystem
+templates:
+  - deployment.yaml
+tests:
+  - it: When using defaults, then the operator root is read-only and its identity stays non-root
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 10001
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsGroup
+          value: 10001
+
+  - it: When the root is read-only, then Helm and temporary writes use dedicated writable mounts
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: tmp-volume, mountPath: /tmp}
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: helm-volume, mountPath: /helm}
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: cache-volume, mountPath: /cache}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: tmp-volume, emptyDir: {}}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: helm-volume, emptyDir: {sizeLimit: 500Mi}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: TMPDIR, value: /tmp}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: KUBECACHEDIR, value: /tmp/.kube/cache}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: HELM_CACHE_HOME, value: /helm/cache}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: HELM_CONFIG_HOME, value: /helm/config}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: HELM_DATA_HOME, value: /helm/data}
+
+  - it: When explicitly requesting a security exception, then only the root filesystem setting changes
+    set:
+      securityContext.readOnlyRootFilesystem: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 10001
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+
+  - it: When sizing writable storage, then both temporary and Helm volume bounds are configurable
+    set:
+      tmpVolume.sizeLimit: 64Mi
+      helmVolume.sizeLimit: 128Mi
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: tmp-volume, emptyDir: {sizeLimit: 64Mi}}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: helm-volume, emptyDir: {sizeLimit: 128Mi}}
+
+  - it: When old values lack the new volume maps, then temporary writes gain no new capacity ceiling
+    set:
+      tmpVolume: null
+      helmVolume: null
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: tmp-volume, emptyDir: {}}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: helm-volume, emptyDir: {sizeLimit: 500Mi}}

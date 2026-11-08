@@ -1,0 +1,99 @@
+suite: optional egress network policy
+templates:
+  - networkpolicy.yaml
+release:
+  name: customer-west
+  namespace: customer
+tests:
+  - it: creates no policy by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: creates no policy for reused values without a policy map
+    set:
+      networkPolicy: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: isolates only egress for this release when enabled
+    set:
+      networkPolicy.enabled: true
+    asserts:
+      - isKind:
+          of: NetworkPolicy
+      - equal:
+          path: apiVersion
+          value: networking.k8s.io/v1
+      - equal:
+          path: metadata.namespace
+          value: customer
+      - equal:
+          path: spec.podSelector.matchLabels
+          value:
+            app.kubernetes.io/instance: customer-west
+      - equal:
+          path: spec.policyTypes
+          value: [Egress]
+      - equal:
+          path: spec.egress
+          value: []
+      - notExists:
+          path: spec.ingress
+
+  - it: renders only the explicit destination and port rules
+    set:
+      networkPolicy.enabled: true
+      networkPolicy.egress:
+        - to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: kube-system
+              podSelector:
+                matchLabels:
+                  k8s-app: kube-dns
+          ports:
+            - protocol: UDP
+              port: 53
+            - protocol: TCP
+              port: 53
+        - to:
+            - ipBlock:
+                cidr: 203.0.113.10/32
+          ports:
+            - protocol: TCP
+              port: 443
+    asserts:
+      - equal:
+          path: spec.egress
+          value:
+            - to:
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: kube-system
+                  podSelector:
+                    matchLabels:
+                      k8s-app: kube-dns
+              ports:
+                - protocol: UDP
+                  port: 53
+                - protocol: TCP
+                  port: 53
+            - to:
+                - ipBlock:
+                    cidr: 203.0.113.10/32
+              ports:
+                - protocol: TCP
+                  port: 443
+
+  - it: keeps the flag authoritative when rules are present
+    set:
+      networkPolicy.enabled: false
+      networkPolicy.egress:
+        - ports:
+            - protocol: TCP
+              port: 443
+    asserts:
+      - hasDocuments:
+          count: 0

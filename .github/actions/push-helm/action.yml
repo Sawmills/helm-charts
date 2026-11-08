@@ -13,6 +13,14 @@ inputs:
   tag:
     description: "Docker image tag"
     required: true
+  app-version:
+    description: "Application version override; empty retains the tag-derived version"
+    required: false
+    default: ""
+  checkout-ref:
+    description: "Source ref to package; empty retains the event ref"
+    required: false
+    default: ""
   aws_region:
     description: "AWS region"
     required: true
@@ -27,9 +35,10 @@ runs:
   using: "composite"
   steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         fetch-depth: 0
+        ref: ${{ inputs.checkout-ref }}
     - name: Authenticate with AWS
       uses: ./.github/actions/aws-auth
       with:
@@ -37,11 +46,9 @@ runs:
         aws_role: ${{ inputs.aws_role }}
         ecr_account_id: ${{ inputs.ecr_account_id }}
     - name: Set up Helm
-      shell: bash
-      run: |
-        curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-        chmod 700 get_helm.sh
-        ./get_helm.sh
+      uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+      with:
+        version: v3.18.0
     - name: Prepare Helm chart
       shell: bash
       env:
@@ -49,6 +56,7 @@ runs:
         CHART_PATH: ${{ inputs.chart-path }}
         CHART_REPO: ${{ inputs.chart-repo }}
         INPUT_TAG: ${{ inputs.tag }}
+        INPUT_APP_VERSION: ${{ inputs.app-version }}
         AWS_REGION: ${{ inputs.aws_region }}
         RUNNER_TEMP_DIR: ${{ runner.temp }}
       run: |
@@ -68,6 +76,10 @@ runs:
           # Fallback: use tag as-is
           version="$tag"
           appVersion="$tag"
+        fi
+
+        if [[ -n "$INPUT_APP_VERSION" ]]; then
+          appVersion="$INPUT_APP_VERSION"
         fi
 
         echo "Extracted version: $version"
@@ -92,6 +104,6 @@ runs:
         aws ecr-public get-login-password \
           --region "$AWS_REGION" | helm registry login \
           --username AWS \
-          --password-stdin "$CHART_REPO"
+          --password-stdin "${CHART_REPO%%/*}"
 
         helm push "${package}-${version}.tgz" "oci://$CHART_REPO"

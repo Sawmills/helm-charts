@@ -1,0 +1,47 @@
+suite: pod security context
+templates:
+  - deployment.yaml
+tests:
+  - it: When using defaults, then the pod requires non-root and runtime seccomp
+    set:
+      apiKeyExistingSecret: point72-placeholder
+      collectorName: point72
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+
+  - it: When adding pod groups, then the secure defaults remain configurable
+    set:
+      apiKeyExistingSecret: point72-placeholder
+      collectorName: point72
+      podSecurityContext:
+        supplementalGroups: [20001]
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            supplementalGroups: [20001]
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 10001
+
+  - it: When explicitly opting out, then the pod override leaves container hardening intact
+    set:
+      apiKeyExistingSecret: point72-placeholder
+      collectorName: point72
+      podSecurityContext:
+        runAsNonRoot: false
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true

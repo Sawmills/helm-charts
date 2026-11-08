@@ -28,7 +28,9 @@ resourceBaseName: ""
 # Rollout configuration
 rollout:
   # Global rollout settings
-  terminationGracePeriodSeconds: 150
+  # Leave null to use the legacy 150s no-LoadBalancer grace and the measured
+  # 135s LoadBalancer drain grace. Set this value to override both topologies.
+  terminationGracePeriodSeconds: null
   minReadySeconds: 15
 
   # Deployment strategy configuration
@@ -119,10 +121,18 @@ rollout:
       serviceExtensions:
         - health_check
         - cgroup_runtime
-      # Keep drain.duration + shutdownReserve below
-      # rollout.terminationGracePeriodSeconds so the collector still has time
-      # to handle SIGTERM after the drain hook returns.
-      duration: 120s
+      # Keep drain.duration + preStopSleepSeconds + shutdownReserve below this
+      # effective grace period so the collector still has time to handle
+      # SIGTERM after the drain hook returns.
+      # Leave null to use the measured 135s LoadBalancer drain grace. The
+      # parent rollout.terminationGracePeriodSeconds remains the shared
+      # override when set.
+      terminationGracePeriodSeconds: null
+      # 100s = ceil(82.659s run-20106 all-LB convergence * 1.2). The chart's
+      # active HAProxy fallback check is interval 2s with fall 5; this drain
+      # budget includes margin above that 10s detection budget and the measured
+      # in-flight counter quieting before worker termination.
+      duration: 100s
       # Reserve explicit post-drain shutdown time inside the pod termination
       # grace period for collector shutdown and kubelet bookkeeping.
       shutdownReserve: 10s
@@ -134,6 +144,13 @@ rollout:
         initialDelaySeconds: 5
         periodSeconds: 5
         failureThreshold: 5
+        # SAW-10798: probe the Prometheus metrics endpoint (goes unresponsive when
+        # the exporter wedges) instead of the always-up health_check handler, so a
+        # wedged sidecar self-restarts. `port` is intentionally left unset so the
+        # template couples it to telemetry.prometheus.port — hardcoding it here
+        # would break liveness if that port is customized. Override path/port only
+        # to point the probe elsewhere.
+        path: /metrics
       readiness:
         initialDelaySeconds: 5
         periodSeconds: 5
@@ -174,14 +191,16 @@ rollout:
         periodSeconds: 5
         # 120s budget: twice the hotreload processor's 60s fail-closed startup scan.
         failureThreshold: 24
+    # Start backend drain during this window when pressureReadiness is enabled.
+    # SIGTERM and collector queue shutdown follow after this bounded window.
     preStopSleepSeconds: 20
 
 # Pod disruption budget to keep collectors available during voluntary disruptions
 podDisruptionBudget:
   enabled: true
   # Explicit availability settings. minAvailable takes precedence over
-  # maxUnavailable. When both are unset, maxUnavailable defaults to 1 so node
-  # drains cannot remove a percentage of a large fleet at once.
+  # maxUnavailable. When both are unset, maxUnavailable defaults to 5% so node
+  # drains retain the same disruption floor across large fleets.
   minAvailable: null
   maxUnavailable: null
   # Deprecated compatibility alias for autoscaled releases that previously
@@ -276,6 +295,13 @@ tolerations: []
 #   foo: bar
 #   prometheus.io/scrape: "true"
 podAnnotations: {}
+
+# Pod defaults for collector, load balancer and scaler containers.
+# Container UID/GID and existing load-balancer storage ownership stay separate.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
 
 # Pod labels for the Sawmills collector
 # These labels will be added to the pod template metadata
@@ -839,7 +865,8 @@ haproxy:
     port: 8406
     uri: "/"
     refresh: "10s"
-    auth: "admin:admin"
+    auth: "" # Empty uses a generated per-release credential stored in a Secret.
+    existingSecret: "" # Existing Secret with key auth (username:password); explicit auth wins.
     # Logging is always disabled for stats frontend
 
   # Healthcheck configuration
@@ -907,6 +934,8 @@ haproxy:
       # Active load balancing defaults to the local pressure-readiness port.
       # Backup-only fallback defaults to the local pressure-readiness port when
       # local backend checks apply, or forwarding health (13136) otherwise.
+      # The bounded peer-retry tier always uses the local backend health port
+      # (or 13133 when that check is disabled) before selecting the vendor.
       port: null
       # Check interval in milliseconds
       interval: 3000
@@ -1131,6 +1160,10 @@ telemetryConfig:
                   temporality_preference: delta
                   compression: gzip
 
+# -- Mount cluster credentials only when collector configuration needs Kubernetes API access.
+# Applies to worker, load-balancer and scaler Pods. Opaque/custom configs need an explicit true.
+automountServiceAccountToken: false
+
 serviceAccount:
   # -- Whether to create a service account for the Sawmills Collector deployment.
   create: false
@@ -1199,12 +1232,19 @@ kedaScaler:
       memory: 128Mi
   telemetryConfig:
     processors:
+      # Preserve the source load-balancer pod on each KEDA datapoint before filtering.
+      transform/keda_source:
+        error_mode: ignore
+        metric_statements:
+          - context: datapoint
+            statements:
+              - set(attributes["source_pod"], resource.attributes["pod"]) where resource.attributes["pod"] != nil
       filter/keda:
         error_mode: ignore
         metrics:
           metric:
             # Drop every metric that is not in the KEDA scaler store allowlist.
-            - not IsMatch(name, "^(haproxy_server_http_responses_total|http\\.server\\.duration|otelcol_exporter_queue_size|otelcol_exporter_queue_capacity|otelcol_loadbalancer_central_queue_compressed_bytes|otelcol_loadbalancer_central_queue_compressed_capacity|otelcol_loadbalancer_central_queue_saturation|otelcol_loadbalancer_central_queue_oldest_item_age|http\\.server\\.request\\.duration)$")
+            - not IsMatch(name, "^(haproxy_server_http_responses_total|http\\.server\\.duration|otelcol_exporter_queue_size|otelcol_exporter_queue_capacity|otelcol_loadbalancer_central_queue_compressed_bytes|otelcol_loadbalancer_central_queue_compressed_capacity|otelcol_loadbalancer_central_queue_saturation|otelcol_loadbalancer_central_queue_oldest_item_age|otelcol_loadbalancer_backend_count|otelcol_loadbalancer_backend_inflight_oldest_age|otelcol_loadbalancer_backend_request_bytes_total|otelcol_loadbalancer_backend_timeout_total|http\\.server\\.request\\.duration)$")
     exporters:
       otlp/keda:
         endpoint: '{{ include "sawmills-collector.kedaScalerSvcFQDN" . }}:${env:KEDA_SCALER_OTLP_RECEIVER_PORT}'
@@ -1217,6 +1257,7 @@ kedaScaler:
           exporters:
             - otlp/keda
           processors:
+            - transform/keda_source
             - filter/keda
           receivers:
             - forward
@@ -1293,6 +1334,19 @@ kedaScaler:
 
 loadBalancer:
   enabled: false
+  removalProtection:
+    # Opt-in per collector. Retains idle LB capacity, including when queues empty.
+    # HPA limits, manual deletion and forceful disruption can still remove LBs.
+    disableScaleDown: false
+    # Opt-in Karpenter marker. Nodes with these LBs cannot be consolidated;
+    # forced disruption, node loss and non-Karpenter evictions are not prevented.
+    preventConsolidation: false
+  membershipDiscovery:
+    # -- Grant namespace-local EndpointSlice list/watch to the collector service account.
+    enabled: false
+  dnsMembership:
+    # -- Publish all LB peer addresses through a separate membership-only Service; grants no API access.
+    enabled: false
   replicas: 3
   minReadySeconds: 15
   strategy:
@@ -1392,6 +1446,14 @@ loadBalancer:
     readinessPath: /ready
     drainPath: /drain
     drainDuration: 15s
+    # Opt-in queue-aware preStop (requires a collector supporting wait_for_queue).
+    # drainDuration becomes a maximum queue-wait budget. Missing gauges fail closed.
+    # Set LB termination grace to cover preStop plus central_queue.shutdown_timeout
+    # and cleanup; e.g. 360s for a 15s preStop drain and the 5m exporter default.
+    waitForQueue: false
+    # Must cover the actual exporter shutdown timeout plus cleanup, including
+    # external/S3 config. Rendering rejects grace <= preStop + this reserve.
+    shutdownReserve: 310s
     # Defaults to HAProxy /ready when HAProxy HTTP readiness is enabled,
     # otherwise to collector health_check.
     healthCheckEndpoint: ""
@@ -1427,8 +1489,8 @@ loadBalancer:
   podDisruptionBudget:
     enabled: true
     # Explicit availability settings. minAvailable takes precedence over
-    # maxUnavailable. When both are unset, maxUnavailable defaults to 1 so node
-    # drains cannot remove a percentage of a large LB fleet at once.
+    # maxUnavailable. When both are unset, maxUnavailable defaults to 5% so node
+    # drains retain the same disruption floor across large LB fleets.
     minAvailable: null
     maxUnavailable: null
     # Deprecated compatibility alias for autoscaled releases that previously
@@ -1446,9 +1508,20 @@ loadBalancer:
       memory: 512Mi
       cpu: 500m
   additionalVolumes: []
+  # Public PEM CA certificates trusted by both LB collectors. Empty keeps image defaults.
+  # Include every server CA needed by the image pair during upgrade and rollback.
+  telemetryTrust:
+    caBundlePem: ""
+  # -- Extra volume mounts for the load balancer collector container. Falls back
+  # to the top-level `additionalVolumeMounts` when unset. Pair with
+  # `loadBalancer.additionalVolumes` (or the global `additionalVolumes`) to mount
+  # extra files — e.g. a GCP service-account key for the Pub/Sub pull receiver.
+  additionalVolumeMounts: []
   storage:
     # Required when using a persistent sending_queue (sending_queue.storage).
-    # The chart mounts this PVC at /data for the load balancer collector.
+    # Also supports central_queue.storage with a compatible collector release.
+    # Storage mode uses a StatefulSet and mounts each ordinal's claim at /data.
+    # Claims remain after scale-in or deletion; the recovery owner must drain them.
     enabled: false
     size: 1Gi
     className: "standard"
@@ -1529,3 +1602,17 @@ loadBalancer:
           - type: Percent
             value: 25
             periodSeconds: 120
+
+# Explicit per-release opt-in; the default creates no observer resources.
+workerCPUObserver:
+  enabled: false
+  # Required immutable image published from agent-scripts.
+  image: ""
+  organizationId: ""
+  allowedCollectorIds: []
+
+# Optional release-scoped egress policy. Requires a NetworkPolicy-capable CNI.
+# See ../../docs/network-policy.md before enabling; an empty list denies all egress.
+networkPolicy:
+  enabled: false
+  egress: []

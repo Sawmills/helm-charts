@@ -22,14 +22,63 @@ tests:
       - equal:
           path: spec.template.spec.containers[2].name
           value: telemetry-collector
+      # SAW-10798: liveness probes the prometheus metrics endpoint (which goes
+      # unresponsive when the exporter wedges under GC thrash), not the
+      # always-up health_check handler on 13134.
       - equal:
           path: spec.template.spec.containers[2].livenessProbe.httpGet.port
-          value: 13134
+          value: 19465
       - equal:
           path: spec.template.spec.containers[2].livenessProbe.httpGet.path
-          value: /healthcheck
+          value: /metrics
       - notExists:
           path: spec.template.spec.containers[2].readinessProbe
+
+  - it: should allow overriding the telemetry liveness probe target
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: false
+      haproxy.enabled: true
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+      rollout.telemetry.probes.liveness.path: /healthz
+      rollout.telemetry.probes.liveness.port: 18888
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[2].livenessProbe.httpGet.port
+          value: 18888
+      - equal:
+          path: spec.template.spec.containers[2].livenessProbe.httpGet.path
+          value: /healthz
+
+  - it: should couple the liveness probe port to a customized telemetry.prometheus.port
+    template: load-balancer.yaml
+    values:
+      - ../values.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: false
+      haproxy.enabled: true
+      haproxy.mapping.logs_http_10000.from: 10000
+      haproxy.mapping.logs_http_10000.to.port: 10518
+      haproxy.mapping.logs_http_10000.to.protocol: "TCP"
+      telemetry.prometheus.port: 20000
+    asserts:
+      # Probe port must follow the actual metrics port, not a stale hardcoded default.
+      - equal:
+          path: spec.template.spec.containers[2].livenessProbe.httpGet.port
+          value: 20000
+      - equal:
+          path: spec.template.spec.containers[2].livenessProbe.httpGet.path
+          value: /metrics
+      # sanity: the container actually serves that port
+      - equal:
+          path: spec.template.spec.containers[2].ports[0].containerPort
+          value: 20000
 
   - it: should not gate lb statefulset readiness on telemetry sidecar health
     template: load-balancer.yaml
@@ -51,11 +100,14 @@ tests:
       - equal:
           path: spec.template.spec.containers[2].name
           value: telemetry-collector
+      # SAW-10798: liveness probes the prometheus metrics endpoint (which goes
+      # unresponsive when the exporter wedges under GC thrash), not the
+      # always-up health_check handler on 13134.
       - equal:
           path: spec.template.spec.containers[2].livenessProbe.httpGet.port
-          value: 13134
+          value: 19465
       - equal:
           path: spec.template.spec.containers[2].livenessProbe.httpGet.path
-          value: /healthcheck
+          value: /metrics
       - notExists:
           path: spec.template.spec.containers[2].readinessProbe

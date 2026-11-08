@@ -78,6 +78,16 @@ grpcTrace: ""
 cacheVolume:
   sizeLimit: 500Mi
 
+# Writable temporary files, including SDK repository cache/config and file transfers.
+tmpVolume:
+  # No default per-volume cap: file transfers have no application-level maximum.
+  # Node and Pod ephemeral-storage constraints still apply.
+  sizeLimit: ""
+
+# Writable Helm CLI cache, configuration and data on a read-only root filesystem.
+helmVolume:
+  sizeLimit: 500Mi
+
 # The resources for the Sawmills operator
 resources:
   requests:
@@ -87,6 +97,13 @@ resources:
     memory: 2Gi
     cpu: 500m
 
+# Pod defaults apply to containers that do not override these fields.
+# Container UID/GID and volume ownership stay configured separately.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
 # The security context for the Sawmills operator
 securityContext:
   runAsNonRoot: true
@@ -94,7 +111,7 @@ securityContext:
   runAsGroup: 10001
   seccompProfile:
     type: RuntimeDefault
-  readOnlyRootFilesystem: false
+  readOnlyRootFilesystem: true
   allowPrivilegeEscalation: false
   capabilities:
     drop:
@@ -189,3 +206,9 @@ managedCharts: {}
 #     chartName: oci://registry.example.com/sawmills-collector
 #     version: 1.2.3
 managedChartsOverrides: {}
+
+# Optional release-scoped egress policy. Requires a NetworkPolicy-capable CNI.
+# See ../../docs/network-policy.md before enabling; an empty list denies all egress.
+networkPolicy:
+  enabled: false
+  egress: []

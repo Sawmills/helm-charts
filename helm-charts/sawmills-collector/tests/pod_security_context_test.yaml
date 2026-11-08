@@ -1,0 +1,93 @@
+suite: pod security context
+templates:
+  - deployment.yaml
+tests:
+  - it: When using defaults, then the pod requires non-root and runtime seccomp
+    set:
+      apiKeyExistingSecret: point72-placeholder
+      collectorName: point72
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+
+  - it: When using a DaemonSet, then its pod uses the same secure defaults
+    set:
+      mode: daemonSet
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+
+  - it: When enabling LB storage, then its volume group does not leak to workers
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.storage.enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.securityContext.fsGroup
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].securityContext.runAsUser
+          value: 10001
+
+  - it: When adding pod groups, then the secure defaults remain configurable
+    set:
+      podSecurityContext:
+        supplementalGroups: [20001]
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            supplementalGroups: [20001]
+
+  - it: When adding a non-root sidecar, then its identity and main hardening remain
+    set:
+      additionalContainers:
+        custom-sidecar:
+          image: busybox:1.35
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 20001
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="custom-sidecar")].securityContext.runAsUser
+          value: 20001
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+
+  - it: When using HAProxy, then its explicit UID remains separate from the pod defaults
+    set:
+      haproxy.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="haproxy")].securityContext.runAsUser
+          value: 99
+      - equal:
+          path: spec.template.spec.securityContext.seccompProfile.type
+          value: RuntimeDefault
+
+  - it: When explicitly opting out, then the pod override leaves collector hardening intact
+    set:
+      podSecurityContext.runAsNonRoot: false
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: false
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="main-collector")].securityContext.runAsNonRoot
+          value: true

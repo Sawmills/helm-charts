@@ -29,6 +29,23 @@ spec:
       targetPort: {{ $config.from }}
       name: {{ $name }}
     {{- end }}
+    {{- /* Client-facing HAProxy ports: <collector-id>.collectors.sawmills.ai resolves
+    to this Service's ClusterIP, so every haproxy.mapping frontend must be exposed here. */}}
+    {{- if .Values.haproxy.enabled }}
+    {{- $usedServicePorts := list (int .Values.telemetry.prometheus.port) (int (.Values.telemetry.remoteOperatorOtlpHttpPort | default 14319)) }}
+    {{- range $name, $config := .Values.loadBalancer.service.ports }}
+    {{- $usedServicePorts = append $usedServicePorts (int $config.to.port) }}
+    {{- end }}
+    {{- range $name, $config := .Values.haproxy.mapping }}
+    {{- if has (int $config.from) $usedServicePorts }}
+    {{- fail (printf "haproxy.mapping.%s.from port %d conflicts with an existing load balancer Service port" $name (int $config.from)) }}
+    {{- end }}
+    - protocol: TCP
+      port: {{ $config.from }}
+      targetPort: {{ $config.from }}
+      name: {{ printf "hp-%d" (int $config.from) }}
+    {{- end }}
+    {{- end }}
   selector:
     {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 4 }}
 {{- end }}

@@ -36,3 +36,23 @@ spec:
   selector:
     {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 4 }}
 {{- end }}
+{{- $dnsMembership := .Values.loadBalancer.dnsMembership | default dict }}
+{{- if and .Values.loadBalancer.enabled (get $dnsMembership "enabled") }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ printf "%s-lb-peers" (include "sawmills-collector.fullname" . | trunc 54 | trimSuffix "-") }}
+  labels:
+    {{- include "sawmills-collector.loadBalancerLabels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: membership
+      protocol: TCP
+      port: {{ .Values.telemetry.prometheus.port }}
+      targetPort: {{ .Values.telemetry.prometheus.port }}
+  selector:
+    {{- include "sawmills-collector.loadBalancerSelectorLabels" . | nindent 4 }}
+{{- end }}

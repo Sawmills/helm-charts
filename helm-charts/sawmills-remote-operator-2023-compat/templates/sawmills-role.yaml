@@ -1,0 +1,84 @@
+{{- if .Values.rbac.createRole }}
+{{- if not .Values.rbac.roleName }}
+{{- fail "roleName must be set when createRole is true" }}
+{{- end }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: sawmills-operator
+  name: {{ .Values.rbac.roleName }}
+rules:
+  - apiGroups: [""]
+    resources:
+      [
+        configmaps,
+        persistentvolumeclaims,
+        pods,
+        serviceaccounts,
+        services,
+        pods/log,
+        secrets,
+      ]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [""]
+    resources: [pods/metrics]
+    verbs: [get, list]
+  - apiGroups: [metrics.k8s.io]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [apps]
+    resources: [daemonsets, deployments, statefulsets]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [create, get, list, update]
+  - apiGroups: [monitoring.coreos.com]
+    resources: [podmonitors, servicemonitors]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [opentelemetry.io]
+    resources: [instrumentations]
+    verbs: [get, list, patch, update, watch]
+  - apiGroups: [opentelemetry.io]
+    resources: [opampbridges]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [opentelemetry.io]
+    resources: [opampbridges/finalizers]
+    verbs: [update]
+  - apiGroups: [opentelemetry.io]
+    resources: [opampbridges/status]
+    verbs: [get, patch, update]
+  - apiGroups: [opentelemetry.io]
+    resources: [opentelemetrycollectors]
+    verbs: [get, list, patch, update, watch]
+  - apiGroups: [opentelemetry.io]
+    resources: [opentelemetrycollectors/finalizers]
+    verbs: [get, patch, update]
+  - apiGroups: [opentelemetry.io]
+    resources: [opentelemetrycollectors/status]
+    verbs: [get, patch, update]
+  - apiGroups: [policy]
+    resources: [poddisruptionbudgets]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [roles, rolebindings]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [keda.sh]
+    resources: [scaledobjects]
+    verbs: [create, delete, get, list, patch, update, watch]
+{{- end }}
