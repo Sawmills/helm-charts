@@ -95,6 +95,23 @@
           }
         }
       }
+    },
+    "telemetryConfig": {
+      "service": {
+        "pipelines": {
+          "metrics/external/prometheusremotewrite": {
+            "receivers": [
+              "forward"
+            ],
+            "processors": [
+              "batch"
+            ],
+            "exporters": [
+              "prometheusremotewrite"
+            ]
+          }
+        }
+      }
     }
   },
   "telemetryExternalConfig": {

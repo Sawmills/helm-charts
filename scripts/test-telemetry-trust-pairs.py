@@ -30,13 +30,36 @@ CASES = {
 }
 
 
+class ExecutionBudget:
+    """One batch owner reserves cleanup time inside each hard case deadline."""
+
+    def __init__(self):
+        self.batch_end = time.monotonic() + 1200
+        self.case_end = float("inf")
+        self.cleaning = False
+
+    def timeout(self, requested):
+        reserve = 0 if self.cleaning else 30
+        remaining = min(self.batch_end, self.case_end) - time.monotonic() - reserve
+        if remaining <= 0:
+            raise TimeoutError("telemetry trust execution budget exhausted")
+        return min(requested, remaining)
+
+
+BUDGET = ExecutionBudget()
+
+
 def utc():
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
 def command(args, *, timeout=45):
     result = subprocess.run(
-        args, capture_output=True, check=False, text=True, timeout=timeout
+        args,
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=BUDGET.timeout(timeout),
     )
     if result.returncode:
         raise RuntimeError(
@@ -54,7 +77,7 @@ def http(url, body=None):
         url, data=body, headers={"Content-Type": "application/json"}
     )
     try:
-        with urllib.request.urlopen(request, timeout=2) as response:
+        with urllib.request.urlopen(request, timeout=BUDGET.timeout(2)) as response:
             return response.status, response.read(4 * 1024 * 1024).decode()
     except urllib.error.URLError:
         return None, ""
@@ -187,6 +210,7 @@ def prepare(directory):
 
 
 def run_case(case, directory, images):
+    BUDGET.case_end = time.monotonic() + 300
     directory.mkdir()
     mounts = prepare(directory)
     run = "telemetry-trust-" + uuid.uuid4().hex[:12]
@@ -301,6 +325,8 @@ def run_case(case, directory, images):
         before = {name: inspect(name) for name in owned}
         ip = before[run + "-main"]["NetworkSettings"]["Networks"][network]["IPAddress"]
         start, complete = time.monotonic(), []
+        previous_counters = {}
+        last_complete_epoch = 0
         while time.monotonic() - start < 120:
             payload = {
                 "resourceLogs": [
@@ -335,7 +361,7 @@ def run_case(case, directory, images):
                 capture_output=True,
                 check=False,
                 text=True,
-                timeout=10,
+                timeout=BUDGET.timeout(10),
             )
             assert log_read.returncode == 0
             points = receiver_points(log_read.stdout + log_read.stderr)
@@ -361,10 +387,46 @@ def run_case(case, directory, images):
                 < 30
             ]
             covered = metrics_status == 200 and all(k in names for k in required)
-            accepted = any(
-                "receiver_accepted_log_records" in p["name"] and p["value"] > 0
-                for p in fresh
+            received = {
+                name: [p for p in fresh if p["name"] == name] for name in required
+            }
+            remote_covered = all(received.values())
+            epochs = [
+                max(
+                    datetime.datetime.fromisoformat(
+                        p["timestamp"]
+                        .replace(" +0000 UTC", "+00:00")
+                        .replace("Z", "+00:00")
+                    ).timestamp()
+                    for p in group
+                )
+                for group in received.values()
+                if group
+            ]
+            coverage_epoch = min(epochs) if remote_covered else 0
+            accepted = all(
+                any(p["value"] > 0 for p in received[name])
+                for name in [
+                    "otelcol_receiver_accepted_log_records_total",
+                    "otelcol_exporter_sent_log_records_total",
+                ]
             )
+            counters = {}
+            for name in [
+                "otelcol_receiver_accepted_log_records_total",
+                "otelcol_exporter_sent_log_records_total",
+            ]:
+                for point in received[name]:
+                    key = json.dumps(
+                        [name, point["resource"], point["attributes"]], sort_keys=True
+                    )
+                    if key not in counters or point["timestamp"] > counters[key][0]:
+                        counters[key] = (point["timestamp"], point["value"])
+            assert all(
+                key not in previous_counters or value[1] >= previous_counters[key][1]
+                for key, value in counters.items()
+            ), "unresolved main counter reset"
+            previous_counters.update(counters)
             sample = {
                 "at": utc(),
                 "http": status,
@@ -373,16 +435,22 @@ def run_case(case, directory, images):
                 "fresh_received_main_points": len(fresh),
                 "coverage": covered,
                 "positive_received_traffic": accepted,
+                "fresh_received_families": sorted(
+                    name for name, group in received.items() if group
+                ),
+                "received_coverage_epoch": coverage_epoch,
             }
             result["samples"].append(sample)
-            if covered and accepted and status == 200:
-                complete.append(time.monotonic())
+            if covered and remote_covered and accepted and status == 200:
+                if coverage_epoch > last_complete_epoch:
+                    complete.append(time.monotonic())
+                    last_complete_epoch = coverage_epoch
                 if len(complete) >= 2 and complete[-1] - complete[0] >= 5:
                     result["pass"] = True
                     break
             else:
                 complete = []
-            time.sleep(10)
+            time.sleep(BUDGET.timeout(10))
         for name in owned:
             after = inspect(name)
             assert after["State"]["Running"] and after["RestartCount"] == 0
@@ -395,7 +463,7 @@ def run_case(case, directory, images):
             capture_output=True,
             check=False,
             text=True,
-            timeout=10,
+            timeout=BUDGET.timeout(10),
         )
         assert main_log.returncode == 0
         text = main_log.stdout + main_log.stderr
@@ -409,42 +477,93 @@ def run_case(case, directory, images):
         result["cause"] = (
             None if result["pass"] else "main_metrics_missing_or_tls_error"
         )
+    except Exception as error:
+        result["pass"] = False
+        result["error"] = str(error)
+        raise
     finally:
+        BUDGET.cleaning = True
         cleanup = []
+        cleanup_errors = []
         for name in reversed(owned):
-            found = subprocess.run(
-                ["docker", "inspect", name],
-                capture_output=True,
-                check=False,
-                text=True,
-                timeout=10,
+            try:
+                found = subprocess.run(
+                    ["docker", "inspect", name],
+                    capture_output=True,
+                    check=False,
+                    text=True,
+                    timeout=BUDGET.timeout(10),
+                )
+                if found.returncode:
+                    assert "No such" in found.stderr, found.stderr
+                    continue
+                assert (
+                    json.loads(found.stdout)[0]["Config"]["Labels"][
+                        "telemetry.trust.test"
+                    ]
+                    == run
+                )
+                command(["docker", "rm", "-f", name])
+                cleanup.append(name)
+            except (
+                AssertionError,
+                KeyError,
+                OSError,
+                RuntimeError,
+                ValueError,
+                subprocess.SubprocessError,
+            ) as error:
+                cleanup_errors.append({"name": name, "error": str(error)})
+        remaining = "UNKNOWN"
+        try:
+            remaining = len(
+                command(
+                    [
+                        "docker",
+                        "ps",
+                        "-aq",
+                        "--filter",
+                        "label=telemetry.trust.test=" + run,
+                    ]
+                ).split()
             )
-            if found.returncode:
-                continue
-            assert (
-                json.loads(found.stdout)[0]["Config"]["Labels"]["telemetry.trust.test"]
-                == run
-            )
-            command(["docker", "rm", "-f", name])
-            cleanup.append(name)
-        remaining = command(
-            ["docker", "ps", "-aq", "--filter", "label=telemetry.trust.test=" + run]
-        ).strip()
-        assert not remaining
-        networks = command(
-            [
-                "docker",
-                "network",
-                "ls",
-                "-q",
-                "--filter",
-                "label=telemetry.trust.test=" + run,
-            ]
-        ).strip()
-        if networks:
-            command(["docker", "network", "rm", network])
-        result.update({"cleanup_at": utc(), "removed": cleanup, "owned_remaining": 0})
+            networks = command(
+                [
+                    "docker",
+                    "network",
+                    "ls",
+                    "-q",
+                    "--filter",
+                    "label=telemetry.trust.test=" + run,
+                ]
+            ).strip()
+            if networks:
+                command(["docker", "network", "rm", network])
+        except (
+            AssertionError,
+            KeyError,
+            OSError,
+            RuntimeError,
+            ValueError,
+            subprocess.SubprocessError,
+        ) as error:
+            cleanup_errors.append({"stage": "ownership_readback", "error": str(error)})
+        if cleanup_errors or remaining != 0:
+            result["pass"] = False
+        result.update(
+            {
+                "cleanup_at": utc(),
+                "removed": cleanup,
+                "owned_remaining": remaining,
+                "cleanup_errors": cleanup_errors,
+            }
+        )
         (directory / "result.json").write_text(json.dumps(result, indent=2))
+        BUDGET.case_end = float("inf")
+        BUDGET.cleaning = False
+        assert (
+            not cleanup_errors and remaining == 0
+        ), "owned resource cleanup incomplete"
     print(json.dumps(result), flush=True)
     return result
 
@@ -471,7 +590,7 @@ def main():
             ["openssl", "x509", "-in", str(pem), "-outform", "DER"],
             capture_output=True,
             check=False,
-            timeout=10,
+            timeout=BUDGET.timeout(10),
         )
         assert (
             der.returncode == 0
@@ -481,6 +600,7 @@ def main():
             ["docker", "image", "inspect", binding["image"]],
             capture_output=True,
             check=False,
+            timeout=BUDGET.timeout(45),
         ).returncode:
             command(
                 ["docker", "pull", "--platform", "linux/arm64", binding["image"]],
