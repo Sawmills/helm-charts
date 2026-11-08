@@ -40,6 +40,33 @@ Build the collector image reference. If image.digest is set, pin by digest and i
 {{- end -}}
 {{- end }}
 
+{{/* Public trust shared by both LB collectors; never replace their server keys. */}}
+{{- define "sawmills-collector.loadBalancerTelemetryCaBundle" -}}
+{{- $trust := .Values.loadBalancer.telemetryTrust | default dict -}}
+{{- $bundle := ($trust.caBundlePem | default "") | trim -}}
+{{- if $bundle -}}
+{{- if gt (len $bundle) 32768 -}}
+{{- fail "loadBalancer.telemetryTrust.caBundlePem exceeds 32768 bytes" -}}
+{{- end -}}
+{{- $certificate := "-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\\r\\n]+-----END CERTIFICATE-----" -}}
+{{- if or (contains "PRIVATE KEY" $bundle) (eq (len (regexFindAll $certificate $bundle -1)) 0) (ne (regexReplaceAll $certificate $bundle "" | trim) "") -}}
+{{- fail "loadBalancer.telemetryTrust.caBundlePem must contain only public PEM certificates" -}}
+{{- end -}}
+{{- $mounts := .Values.loadBalancer.additionalVolumeMounts | default .Values.additionalVolumeMounts -}}
+{{- range $mounts -}}
+{{- if or (eq .mountPath "/etc/otel/certs/ca-cert.pem") (eq .name "sawmills-telemetry-trust") -}}
+{{- fail "telemetryTrust conflicts with an additional volume mount" -}}
+{{- end -}}
+{{- end -}}
+{{- range (.Values.loadBalancer.additionalVolumes | default .Values.additionalVolumes) -}}
+{{- if eq .name "sawmills-telemetry-trust" -}}
+{{- fail "telemetryTrust conflicts with an additional volume" -}}
+{{- end -}}
+{{- end -}}
+{{- printf "%s\n" $bundle -}}
+{{- end -}}
+{{- end -}}
+
 {{/*
 Name backend drain config by collector image so old ReplicaSets never consume
 config rendered for a newer binary that may contain unsupported extensions.

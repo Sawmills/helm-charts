@@ -2,6 +2,29 @@
 
 A comprehensive Helm chart for deploying the Sawmills OpenTelemetry Collector with advanced observability features, autoscaling, and load balancing capabilities.
 
+## Shared telemetry trust for load balancers
+
+If the collector images trust different certificate authorities (CAs), set `loadBalancer.telemetryTrust.caBundlePem` to their public CA bundle.
+Both containers trust this bundle through a read-only mount of `/etc/otel/certs/ca-cert.pem`.
+Their server certificates and private keys stay inside their images.
+The empty default preserves the existing image trust files.
+
+Include the CA certificates needed by both image versions during upgrade and rollback.
+Use only public CA certificates. Never put a private key in this value.
+Before deployment, make sure that each certificate has the expected fingerprint and a valid expiry date.
+The chart rejects malformed PEM blocks, private-key input, and bundles larger than 32 KiB.
+It does not perform cryptographic validation of certificate contents.
+
+You can supply the file with `--set-file loadBalancer.telemetryTrust.caBundlePem=/path/to/public-ca-bundle.pem`.
+A bundle checksum changes the LB Pod template because existing single-file mounts do not refresh.
+Apply the change through your guarded rollout process. Worker Pods do not receive the bundle.
+Keep both CAs until rollback can no longer use either server identity.
+Each new image digest needs the mixed-version trust tests again.
+
+The regression uses exact arm64 v1.1223.0 and v1.1260.0 images, with public CA fixtures from those images.
+Run `python3 scripts/test-telemetry-trust-pairs.py --output /tmp/telemetry-trust-proof` on a native arm64 Docker host.
+It checks both mixed-version directions and both same-version controls through the rendered chart mounts.
+
 ## Overview
 
 The Sawmills Collector is a production-ready OpenTelemetry Collector distribution that collects, processes, and exports telemetry data (metrics, logs, and traces) to the Sawmills platform. This chart provides a complete deployment solution with enterprise-grade features.

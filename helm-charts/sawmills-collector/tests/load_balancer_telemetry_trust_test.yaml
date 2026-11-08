@@ -1,0 +1,76 @@
+suite: load balancer telemetry trust
+templates:
+  - load-balancer.yaml
+  - deployment.yaml
+values:
+  - ../values.yaml
+  - fixtures/telemetry-trust/bundle-values.yaml
+tests:
+  - it: mounts public trust into both load balancer collectors
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: sawmills-telemetry-trust
+            mountPath: /etc/otel/certs/ca-cert.pem
+            subPath: ca-cert.pem
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[1].volumeMounts
+          content:
+            name: sawmills-telemetry-trust
+            mountPath: /etc/otel/certs/ca-cert.pem
+            subPath: ca-cert.pem
+            readOnly: true
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
+          pattern: '^[0-9a-f]{64}$'
+  - it: omits trust wiring when the bundle is empty
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryTrust.caBundlePem: ""
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
+  - it: keeps the worker template outside the trust change
+    template: deployment.yaml
+    set:
+      loadBalancer.enabled: false
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: sawmills-telemetry-trust
+  - it: rejects non-certificate input before a deployment
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryTrust.caBundlePem: not a PEM certificate
+    asserts:
+      - failedTemplate:
+          errorMessage: loadBalancer.telemetryTrust.caBundlePem must contain only public PEM certificates
+  - it: rejects private key input
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryTrust.caBundlePem: PRIVATE KEY
+    asserts:
+      - failedTemplate:
+          errorMessage: loadBalancer.telemetryTrust.caBundlePem must contain only public PEM certificates
+  - it: rejects a conflicting custom CA mount
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.additionalVolumeMounts:
+        - name: custom
+          mountPath: /etc/otel/certs/ca-cert.pem
+    asserts:
+      - failedTemplate:
+          errorMessage: telemetryTrust conflicts with an additional volume mount

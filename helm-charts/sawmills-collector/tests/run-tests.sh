@@ -37,6 +37,8 @@ echo ""
 echo "📋 Running proxy helper tests..."
 helm unittest . -f 'tests/proxy_test.yaml' --color
 
+helm unittest . -f 'tests/load_balancer_telemetry_trust_test.yaml' --color
+
 echo ""
 echo "📋 Running sibling fallback tests..."
 helm unittest . -f 'tests/sibling_fallback_test.yaml' --color

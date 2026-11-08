@@ -1,0 +1,10 @@
+{
+  "old": {
+    "image": "public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:9fa9733aa775190411936612707081cd8d5369ff2917cbea90d9cc7309b4df9f",
+    "ca_sha256": "64d17bc2733937b5aba5ace505b16ef449ae26d32c0fcb61433404eb783f7eea"
+  },
+  "new": {
+    "image": "public.ecr.aws/s7a5m1b4/sawmills-collector@sha256:0e65fed7cebcfd3e2e365e8357a0a28b75297349d2bdac970d028df87912184f",
+    "ca_sha256": "7ee894960247fa17fa93b76a76dfbb397c85704aed3e33e3edcca964830951e0"
+  }
+}

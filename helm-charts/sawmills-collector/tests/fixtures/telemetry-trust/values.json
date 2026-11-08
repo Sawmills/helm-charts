@@ -1,0 +1,113 @@
+{
+  "loadBalancer": {
+    "enabled": true,
+    "replicas": 1,
+    "otelCollectorConfig": {
+      "extensions": {
+        "health_check": {
+          "endpoint": "0.0.0.0:13133"
+        }
+      },
+      "receivers": {
+        "otlp": {
+          "protocols": {
+            "http": {
+              "endpoint": "0.0.0.0:4318"
+            }
+          }
+        }
+      },
+      "exporters": {
+        "loadbalancing": {
+          "resolver": {
+            "static": {
+              "hostnames": [
+                "flt691-worker:4317"
+              ]
+            }
+          },
+          "protocol": {
+            "otlp": {
+              "tls": {
+                "insecure": true
+              },
+              "compression": "none",
+              "timeout": "2s",
+              "retry_on_failure": {
+                "enabled": false
+              }
+            }
+          },
+          "central_queue": {
+            "enabled": true,
+            "max_compressed_bytes": 1048576,
+            "payload_compression": "snappy",
+            "max_uncompressed_batch_bytes": 65536,
+            "max_inflight_uncompressed_bytes": 1048576,
+            "target_compressed_bytes": 1,
+            "max_batch_delay": "1ms",
+            "lane_count": 1,
+            "num_consumers": 1,
+            "shutdown_timeout": "5s"
+          }
+        }
+      },
+      "service": {
+        "extensions": [
+          "health_check"
+        ],
+        "pipelines": {
+          "logs": {
+            "receivers": [
+              "otlp"
+            ],
+            "exporters": [
+              "loadbalancing"
+            ]
+          }
+        },
+        "telemetry": {
+          "resource": {
+            "pod": "${env:MY_POD_NAME}"
+          },
+          "logs": {
+            "level": "info",
+            "encoding": "json"
+          },
+          "metrics": {
+            "readers": [
+              {
+                "periodic": {
+                  "interval": 15000,
+                  "timeout": 30000,
+                  "exporter": {
+                    "otlp": {
+                      "protocol": "grpc",
+                      "endpoint": "127.0.0.1:14317",
+                      "certificate": "/etc/otel/certs/ca-cert.pem",
+                      "temporality_preference": "delta",
+                      "compression": "gzip"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "telemetryExternalConfig": {
+    "type": "prometheus"
+  },
+  "prometheusremotewrite": {
+    "endpoint": "http://fixture.invalid:9999/api/v1/write",
+    "external_labels": {
+      "collector_id": "flt691-offline",
+      "collector_name": "flt691-offline"
+    }
+  },
+  "haproxy": {
+    "enabled": true
+  }
+}

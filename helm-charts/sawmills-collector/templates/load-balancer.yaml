@@ -10,6 +10,7 @@
 {{- $lbTelemetryOtelConfig := default (dict) .Values.loadBalancer.telemetryOtelConfig }}
 {{- $lbTelemetryOtelS3Path := default "" $lbTelemetryOtelConfig.s3path }}
 {{- $lbTelemetryOtelEncryptionKey := default "" $lbTelemetryOtelConfig.encryptionKey }}
+{{- $lbTelemetryCaBundle := include "sawmills-collector.loadBalancerTelemetryCaBundle" . }}
 {{- include "sawmills-collector.validateTelemetryPprof" . }}
 {{- $lbStartupProbe := .Values.rollout.loadBalancer.probes.startup | default dict }}
 {{- $lbPressureReadiness := .Values.loadBalancer.pressureReadiness | default dict }}
@@ -93,6 +94,9 @@ spec:
     metadata:
       annotations:
         {{- $annotations := deepCopy (.Values.loadBalancer.podAnnotations | default dict) }}
+        {{- if $lbTelemetryCaBundle }}
+        {{- $_ := set $annotations "checksum/lb-telemetry-trust" ($lbTelemetryCaBundle | sha256sum) }}
+        {{- end }}
         {{- $protection := .Values.loadBalancer.removalProtection | default dict }}
         {{- if $protection.preventConsolidation }}
         {{- $_ := set $annotations "karpenter.sh/do-not-disrupt" "true" }}
@@ -300,6 +304,12 @@ spec:
               mountPath: /etc/otel/config.yaml
               subPath: config.yaml
           {{- end }}
+          {{- if $lbTelemetryCaBundle }}
+            - name: sawmills-telemetry-trust
+              mountPath: /etc/otel/certs/ca-cert.pem
+              subPath: ca-cert.pem
+              readOnly: true
+          {{- end }}
           {{- if $lbPressureReadinessEnabled }}
             - name: sawmills-load-balancer-readiness-config
               mountPath: /etc/otel/load-balancer-readiness-config.yaml
@@ -449,6 +459,12 @@ spec:
               mountPath: /etc/otel/config.yaml
               subPath: telemetry-config.yaml
             {{- end }}
+            {{- if $lbTelemetryCaBundle }}
+            - name: sawmills-telemetry-trust
+              mountPath: /etc/otel/certs/ca-cert.pem
+              subPath: ca-cert.pem
+              readOnly: true
+            {{- end }}
             {{- if .Values.kedaScaler.enabled }}
             - name: sawmills-telemetry-keda-config
               mountPath: /etc/otel/keda.yaml
@@ -457,6 +473,11 @@ spec:
             - name: tmp
               mountPath: /tmp
       volumes:
+        {{- if $lbTelemetryCaBundle }}
+        - name: sawmills-telemetry-trust
+          configMap:
+            name: {{ include "sawmills-collector.fullname" . }}-lb-telemetry-trust
+        {{- end }}
         {{- if .Values.haproxy.enabled }}
         - name: haproxy-config
           configMap:

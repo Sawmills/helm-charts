@@ -1508,6 +1508,10 @@ loadBalancer:
       memory: 512Mi
       cpu: 500m
   additionalVolumes: []
+  # Public PEM CA certificates trusted by both LB collectors. Empty keeps image defaults.
+  # Include every server CA needed by the image pair during upgrade and rollback.
+  telemetryTrust:
+    caBundlePem: ""
   # -- Extra volume mounts for the load balancer collector container. Falls back
   # to the top-level `additionalVolumeMounts` when unset. Pair with
   # `loadBalancer.additionalVolumes` (or the global `additionalVolumes`) to mount
