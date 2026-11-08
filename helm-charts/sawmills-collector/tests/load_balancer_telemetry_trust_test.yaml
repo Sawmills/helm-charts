@@ -1,0 +1,163 @@
+suite: load balancer telemetry trust
+templates:
+  - load-balancer.yaml
+  - deployment.yaml
+  - load-balancer-telemetry-trust-configmap.yaml
+values:
+  - ../values.yaml
+  - fixtures/telemetry-trust/bundle-values.yaml
+tests:
+  - it: retains immutable trust for older ReplicaSets
+    template: load-balancer-telemetry-trust-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: -lb-telemetry-trust-453dcf42055d$
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+      - equal:
+          path: immutable
+          value: true
+  - it: binds the volume to its exact public bundle revision
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          any: true
+          content:
+            name: sawmills-telemetry-trust
+            configMap:
+              name: RELEASE-NAME-lb-telemetry-trust-453dcf42055d
+  - it: mounts public trust into both load balancer collectors
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: sawmills-telemetry-trust
+            mountPath: /etc/otel/certs/ca-cert.pem
+            subPath: ca-cert.pem
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[1].volumeMounts
+          content:
+            name: sawmills-telemetry-trust
+            mountPath: /etc/otel/certs/ca-cert.pem
+            subPath: ca-cert.pem
+            readOnly: true
+      - equal:
+          path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
+          value: 453dcf42055d1f0af4684aa0590048d3f08144c59875a384c5fe73080e420630
+  - it: omits trust wiring when the bundle is empty
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryTrust.caBundlePem: ""
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
+  - it: keeps the worker template outside the trust change
+    template: deployment.yaml
+    set:
+      loadBalancer.enabled: false
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
+      - notContains:
+          path: spec.template.spec.volumes
+          any: true
+          content:
+            name: sawmills-telemetry-trust
+  - it: rejects non-certificate input before a deployment
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryTrust.caBundlePem: not a PEM certificate
+    asserts:
+      - failedTemplate:
+          errorMessage: loadBalancer.telemetryTrust.caBundlePem must contain only public PEM certificates
+  - it: rejects private key input
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryTrust.caBundlePem: PRIVATE KEY
+    asserts:
+      - failedTemplate:
+          errorMessage: loadBalancer.telemetryTrust.caBundlePem must contain only public PEM certificates
+  - it: rejects a conflicting custom CA mount
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.additionalVolumeMounts:
+        - name: custom
+          mountPath: /etc/otel/certs/ca-cert.pem
+    asserts:
+      - failedTemplate:
+          errorMessage: telemetryTrust conflicts with an additional volume mount
+  - it: renders no trust ConfigMap for an empty bundle
+    template: load-balancer-telemetry-trust-configmap.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryTrust.caBundlePem: ""
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: renders no trust volume or mounts for an empty bundle
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: false
+      loadBalancer.telemetryTrust.caBundlePem: ""
+    asserts:
+      - notContains:
+          path: spec.template.spec.volumes
+          any: true
+          content:
+            name: sawmills-telemetry-trust
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          any: true
+          content:
+            name: sawmills-telemetry-trust
+      - notContains:
+          path: spec.template.spec.containers[1].volumeMounts
+          any: true
+          content:
+            name: sawmills-telemetry-trust
+  - it: keeps the known bundle checksum stable with unrelated annotations
+    template: load-balancer.yaml
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.podAnnotations.owner: test
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
+          value: 453dcf42055d1f0af4684aa0590048d3f08144c59875a384c5fe73080e420630
+  - it: changes the checksum when a certificate leaves the bundle
+    template: load-balancer.yaml
+    values:
+      - fixtures/telemetry-trust/old-bundle-values.yaml
+    set:
+      loadBalancer.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
+          value: 7e827d8a46ebf42d06ec069414d643630bdb4e572e0c8c03f66425f413a0384a
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/lb-telemetry-trust"]
+          value: 453dcf42055d1f0af4684aa0590048d3f08144c59875a384c5fe73080e420630
+      - contains:
+          path: spec.template.spec.volumes
+          any: true
+          content:
+            name: sawmills-telemetry-trust
+            configMap:
+              name: RELEASE-NAME-lb-telemetry-trust-7e827d8a46eb
