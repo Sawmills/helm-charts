@@ -54,6 +54,17 @@ def utc():
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
+def metric_epoch(timestamp):
+    """Accept Go's variable subsecond precision on Python 3.10 and newer."""
+    normalized = timestamp.replace(" +0000 UTC", "+00:00").replace("Z", "+00:00")
+    normalized = re.sub(
+        r"\.(\d+)(?=[+-]\d{2}:\d{2}$)",
+        lambda match: "." + match[1][:6].ljust(6, "0"),
+        normalized,
+    )
+    return datetime.datetime.fromisoformat(normalized).timestamp()
+
+
 def command(args, *, timeout=45):
     result = subprocess.run(
         args,
@@ -377,16 +388,7 @@ def run_case(case, directory, images):
             ]
             current = time.time()
             fresh = [
-                p
-                for p in points
-                if 0
-                <= current
-                - datetime.datetime.fromisoformat(
-                    p["timestamp"]
-                    .replace(" +0000 UTC", "+00:00")
-                    .replace("Z", "+00:00")
-                ).timestamp()
-                < 30
+                p for p in points if 0 <= current - metric_epoch(p["timestamp"]) < 30
             ]
             covered = metrics_status == 200 and all(k in names for k in required)
             received = {
@@ -394,14 +396,7 @@ def run_case(case, directory, images):
             }
             remote_covered = all(received.values())
             epochs = [
-                max(
-                    datetime.datetime.fromisoformat(
-                        p["timestamp"]
-                        .replace(" +0000 UTC", "+00:00")
-                        .replace("Z", "+00:00")
-                    ).timestamp()
-                    for p in group
-                )
+                max(metric_epoch(p["timestamp"]) for p in group)
                 for group in received.values()
                 if group
             ]
