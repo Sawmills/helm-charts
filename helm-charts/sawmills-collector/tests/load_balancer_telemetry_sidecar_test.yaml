@@ -1,0 +1,168 @@
+suite: load balancer telemetry shutdown ordering
+templates:
+  - load-balancer.yaml
+capabilities:
+  majorVersion: 1
+  minorVersion: 33
+tests:
+  - it: keeps telemetry alive after main with a native sidecar and a serving preStop
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryNativeSidecar: true
+      haproxy.enabled: false
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main-collector
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: telemetry-collector
+      - equal:
+          path: spec.template.spec.initContainers[0].restartPolicy
+          value: Always
+      - equal:
+          path: spec.template.spec.initContainers[0].lifecycle.preStop.exec.command
+          value: [/bin/sleep, "10"]
+      - notExists:
+          path: spec.template.spec.initContainers[0].readinessProbe
+
+  - it: preserves ordinary telemetry and older Kubernetes support by default
+    capabilities:
+      majorVersion: 1
+      minorVersion: 19
+    set:
+      loadBalancer.enabled: true
+      haproxy.enabled: false
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 2
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: telemetry-collector
+      - notExists:
+          path: spec.template.spec.containers[1].lifecycle
+      - notExists:
+          path: spec.template.spec.initContainers
+
+  - it: preserves ordinary telemetry when explicitly disabled
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryNativeSidecar: false
+      haproxy.enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: telemetry-collector
+      - notExists:
+          path: spec.template.spec.initContainers
+
+  - it: rejects opt in before native sidecars became GA
+    capabilities:
+      majorVersion: 1
+      minorVersion: 32
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryNativeSidecar: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "loadBalancer.telemetryNativeSidecar requires Kubernetes >= 1.33 (native sidecars GA)"
+
+  - it: leaves disabled LB installations independent of the feature gate
+    capabilities:
+      majorVersion: 1
+      minorVersion: 19
+    set:
+      loadBalancer.enabled: false
+      loadBalancer.telemetryNativeSidecar: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: orders telemetry last to stop when HAProxy is also a native sidecar
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryNativeSidecar: true
+      haproxy.enabled: true
+      haproxy.nativeSidecar: "true"
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.initContainers
+          count: 2
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: telemetry-collector
+      - equal:
+          path: spec.template.spec.initContainers[0].restartPolicy
+          value: Always
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: haproxy
+      - equal:
+          path: spec.template.spec.initContainers[1].restartPolicy
+          value: Always
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main-collector
+
+  - it: keeps HAProxy as a sibling when only telemetry opts in
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryNativeSidecar: true
+      haproxy.enabled: true
+      haproxy.nativeSidecar: "false"
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.initContainers
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: haproxy
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: main-collector
+
+  - it: supports StatefulSet storage and a zero-duration serving preStop
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryNativeSidecar: true
+      loadBalancer.storage.enabled: true
+      rollout.telemetry.preStopSleepSeconds: 0
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.template.spec.initContainers[0].restartPolicy
+          value: Always
+      - equal:
+          path: spec.template.spec.initContainers[0].lifecycle.preStop.exec.command
+          value: [/bin/sleep, "0"]
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: sawmills-load-balancer-telemetry-config
+            mountPath: /etc/otel/config.yaml
+            subPath: telemetry-config.yaml
+
+  - it: retains remote configuration KEDA and telemetry probe overrides
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.telemetryNativeSidecar: true
+      loadBalancer.telemetryOtelConfig.s3path: s3://synthetic/config.yaml
+      loadBalancer.telemetryOtelConfig.encryptionKey: synthetic
+      kedaScaler.enabled: true
+      rollout.telemetry.preStopSleepSeconds: 7
+      rollout.telemetry.probes.liveness.port: 20000
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].args
+          value: ["--config=s3://synthetic/config.yaml@synthetic", "--config=file:/etc/otel/keda.yaml"]
+      - equal:
+          path: spec.template.spec.initContainers[0].lifecycle.preStop.exec.command
+          value: [/bin/sleep, "7"]
+      - equal:
+          path: spec.template.spec.initContainers[0].livenessProbe.httpGet.port
+          value: 20000
