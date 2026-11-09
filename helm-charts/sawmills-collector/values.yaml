@@ -1334,6 +1334,9 @@ kedaScaler:
 
 loadBalancer:
   enabled: false
+  # Opt in only on Kubernetes >= 1.33. Telemetry stops after the LB main container.
+  # The preStop reuses rollout.telemetry.preStopSleepSeconds without closing receivers.
+  telemetryNativeSidecar: false
   removalProtection:
     # Opt-in per collector. Retains idle LB capacity, including when queues empty.
     # HPA limits, manual deletion and forceful disruption can still remove LBs.

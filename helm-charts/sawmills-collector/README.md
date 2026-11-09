@@ -902,6 +902,20 @@ tolerations:
 
 ### Load Balancer Component
 
+`loadBalancer.telemetryNativeSidecar` defaults to `false`. To enable it, set both
+`loadBalancer.enabled: true` and `loadBalancer.telemetryNativeSidecar: true` on Kubernetes 1.33 or newer.
+On older Kubernetes versions, the chart rejects an enabled LB with this value.
+With the default value, the chart still supports Kubernetes 1.19 or newer.
+
+The enabled mode places telemetry in `initContainers` with `restartPolicy: Always`.
+Kubernetes keeps this native sidecar alive until the main container stops, so it can receive
+main's final meter export at `127.0.0.1:14317`.
+Telemetry's exec `preStop` uses `rollout.telemetry.preStopSleepSeconds` (default 10) and leaves its receivers open.
+The Sawmills collector image supplies `/bin/sleep`. Custom images must also supply it.
+Native sidecars became beta in Kubernetes 1.29 and GA in 1.33. This value requires the GA version.
+The Pod termination grace period must cover main's shutdown and telemetry's cleanup.
+Forced termination, grace expiry, or a failed telemetry process can still interrupt the export.
+
 Enable a separate load balancer deployment:
 
 ```yaml
