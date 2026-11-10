@@ -45,6 +45,16 @@
     "loadBalancer": {
       "type": "object",
       "properties": {
+        "shutdownBudget": {
+          "type": ["object", "null"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "centralQueueDrain": { "type": ["string", "null"] },
+            "telemetryExport": { "type": "string" },
+            "cleanupReserve": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
         "telemetryNativeSidecar": {
           "type": "boolean",
           "description": "Opt in to LB telemetry shutdown ordering on Kubernetes 1.33 or newer. Defaults to false."

@@ -1362,7 +1362,19 @@ loadBalancer:
   # The OTel Collector handles SIGTERM gracefully (receivers→processors→exporters drain in order),
   # and we pair that with rollout.loadBalancer.preStopSleepSeconds (default 20s sleep) so HAProxy/main-collector
   # have time to drain in-flight traffic before the 60s grace period expires.
-  terminationGracePeriodSeconds: 60
+  # null preserves the legacy 60s grace unless shutdownBudget.enabled is true.
+  # A supplied value stays explicit and must cover the budget when opted in.
+  terminationGracePeriodSeconds: null
+  shutdownBudget:
+    # Opt in only after reviewing rollout duration and the actual collector configuration.
+    enabled: false
+    # Derived from enabled inline central queues. Required for external/S3 config.
+    # Must match or exceed the actual central_queue.shutdown_timeout in that config.
+    centralQueueDrain: null
+    # Main's final meter export can take 30s after pipeline/exporter shutdown.
+    telemetryExport: 30s
+    # Reserve for batch flush, child exporters, extensions and kubelet bookkeeping.
+    cleanupReserve: 10s
   nodeSelector: {}
   tolerations: []
   # Pod anti-affinity for the LB pods. Disabled by default so the scheduler can
