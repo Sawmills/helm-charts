@@ -1060,6 +1060,48 @@ For `central_queue.storage`, use a compatible collector release and configure
 The default LB remote-write filter forwards durable ownership, rejection and storage-failure
 metrics. Preserve those metrics when you supply a custom telemetry configuration.
 
+#### Load Balancer Shutdown Budget
+
+`loadBalancer.shutdownBudget.enabled` defaults to `false`. With this switch off,
+the chart preserves the existing Pod output, including the legacy 60s grace.
+It does not reject an existing shutdown budget that exceeds that grace.
+
+With the switch on, an unset `loadBalancer.terminationGracePeriodSeconds` computes
+the grace from preStop + all sequential central queue drains + telemetry export
++ cleanup reserve. An explicit grace must cover that total or rendering fails.
+Reused Helm values that contain `terminationGracePeriodSeconds: 60` remain explicit.
+Set that value to `null` to select automatic computation.
+
+Inline configuration supplies the actual queue timeouts. An enabled queue without
+an explicit timeout uses the collector's 5m default. With S3 configuration, supply
+`centralQueueDrain` as the sum of all enabled central queue timeouts. Helm cannot
+inspect that external file. For example, one external queue with a 5m timeout uses:
+
+```yaml
+loadBalancer:
+  enabled: true
+  terminationGracePeriodSeconds: null
+  shutdownBudget:
+    enabled: true
+    centralQueueDrain: 5m
+    telemetryExport: 30s
+    cleanupReserve: 10s
+```
+
+With the default 20s preStop, this computes 360s. Two such queues compute 660s.
+Fractional duration values round upward to a whole second. Queue-aware preStop
+uses its actual request budget, including the existing five-second request margin.
+Automatic grace also honors the existing pressure-readiness `shutdownReserve` floor.
+Cleanup reserve must cover batch flush, child exporters, extensions and
+kubelet work. Older batch implementations can ignore cancellation, so these
+configured allowances do not prove live exit-0 acceptance or loss-free draining.
+
+For 24 LBs with one-at-a-time shutdown, 24 x 360s is 144 minutes and 24 x 660s is
+264 minutes, before startup and readiness. A default 15s `minReadySeconds` can
+add six minutes across 24 serial replacements. `maxUnavailable: 1` alone does
+not serialize every terminating Pod or bound readiness failures. The actual
+rollout can overlap shutdowns or remain stalled. Review this cost before opting in.
+
 #### Load Balancer Pressure Readiness
 
 `loadBalancer.removalProtection.disableScaleDown` disables normal HPA scale-down

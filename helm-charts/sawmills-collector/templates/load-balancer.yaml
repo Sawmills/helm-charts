@@ -26,9 +26,28 @@
 {{- if $lbWaitForQueue }}
 {{- $drainMs := include "sawmills-collector.durationToMilliseconds" (default "15s" $lbPressureReadiness.drainDuration) | atoi }}
 {{- $lbDrainRequestTimeoutSeconds = add 5 (div (add 999 $drainMs) 1000) }}
+{{- end }}
+{{- $lbShutdownBudget := .Values.loadBalancer.shutdownBudget | default dict }}
+{{- $lbTerminationGraceSeconds := 60 }}
+{{- $lbGraceExplicit := ne .Values.loadBalancer.terminationGracePeriodSeconds nil }}
+{{- if $lbGraceExplicit }}
+{{- $lbTerminationGraceSeconds = .Values.loadBalancer.terminationGracePeriodSeconds }}
+{{- end }}
+{{- if $lbShutdownBudget.enabled }}
+{{- if and $lbGraceExplicit (not (regexMatch "^[0-9]+$" (toString $lbTerminationGraceSeconds))) }}
+{{- fail "LB shutdown budget requires integer loadBalancer.terminationGracePeriodSeconds" }}
+{{- end }}
+{{- $budgetMs := include "sawmills-collector.loadBalancerShutdownBudgetMilliseconds" (dict "root" . "drainRequestSeconds" $lbDrainRequestTimeoutSeconds) | int64 }}
+{{- if not $lbGraceExplicit }}
+{{- $lbTerminationGraceSeconds = int (div (add $budgetMs 999) 1000) }}
+{{- else if gt $budgetMs (mul $lbTerminationGraceSeconds 1000) }}
+{{- fail (printf "LB shutdown budget %dms exceeds loadBalancer.terminationGracePeriodSeconds (%ds)" $budgetMs (int $lbTerminationGraceSeconds)) }}
+{{- end }}
+{{- end }}
+{{- if $lbWaitForQueue }}
 {{- $reserveMs := include "sawmills-collector.durationToMilliseconds" (default "310s" $lbPressureReadiness.shutdownReserve) | atoi }}
 {{- $hookMs := max (mul (int .Values.rollout.loadBalancer.preStopSleepSeconds) 1000) (mul $lbDrainRequestTimeoutSeconds 1000) }}
-{{- if or (le $reserveMs 0) (ge (add $hookMs $reserveMs) (mul (int .Values.loadBalancer.terminationGracePeriodSeconds) 1000)) }}
+{{- if or (le $reserveMs 0) (ge (add $hookMs $reserveMs) (mul $lbTerminationGraceSeconds 1000)) }}
 {{- fail "loadBalancer.pressureReadiness.waitForQueue requires termination grace greater than the preStop budget plus shutdownReserve (exporter shutdown_timeout plus cleanup)" }}
 {{- end }}
 {{- end }}
@@ -123,7 +142,7 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      terminationGracePeriodSeconds: {{ .Values.loadBalancer.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ $lbTerminationGraceSeconds }}
       {{- if not (empty .Values.loadBalancer.nodeSelector) }}
       nodeSelector:
         {{- toYaml .Values.loadBalancer.nodeSelector | nindent 8 }}

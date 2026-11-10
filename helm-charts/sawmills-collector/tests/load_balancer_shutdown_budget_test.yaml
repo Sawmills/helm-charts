@@ -1,0 +1,206 @@
+suite: load balancer shutdown budget
+templates:
+  - load-balancer.yaml
+tests:
+  - it: rejects a five-minute memory drain inside the existing sixty-second grace
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.terminationGracePeriodSeconds: 60
+      rollout.loadBalancer.preStopSleepSeconds: 20
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.shutdown_timeout: 5m
+      loadBalancer.shutdownBudget.telemetryExport: 30s
+      loadBalancer.shutdownBudget.cleanupReserve: 10s
+    asserts:
+      - failedTemplate:
+          errorPattern: 'shutdown budget.*terminationGracePeriodSeconds'
+
+  - it: computes a six-minute grace for one default memory queue
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 360
+
+  - it: computes an eleven-minute grace for two default memory queues
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing/logs.central_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing/metrics.central_queue.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 660
+
+  - it: rounds fractional drain budgets up to a whole second
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.shutdown_timeout: 1.5s
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 62
+
+  - it: preserves the legacy grace for an unsafe queue while off
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 60
+
+  - it: preserves an explicit legacy grace while off
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.terminationGracePeriodSeconds: 60
+      loadBalancer.otelConfig.s3path: s3://synthetic/config.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 60
+
+  - it: accepts an explicit grace exactly covering the budget
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.terminationGracePeriodSeconds: 360
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 360
+
+  - it: requires a declared budget for opaque external configuration when on
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.otelConfig.s3path: s3://synthetic/config.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: 'requires.*centralQueueDrain.*external/S3'
+
+  - it: computes grace from an external aggregate budget
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.shutdownBudget.centralQueueDrain: 10m
+      loadBalancer.otelConfig.s3path: s3://synthetic/config.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 660
+
+  - it: does not let a declared budget understate inline drain time
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.shutdownBudget.centralQueueDrain: 1s
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: 'centralQueueDrain must cover the sum'
+
+  - it: ignores disabled queues when computing grace
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.enabled: false
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing.central_queue.shutdown_timeout: 1h
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 60
+
+  - it: includes the actual queue-wait hook duration
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.shutdownBudget.centralQueueDrain: 5m
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.waitForQueue: true
+      loadBalancer.pressureReadiness.drainDuration: 25s
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 370
+
+  - it: keeps a disabled LB independent of the budget
+    set:
+      loadBalancer.enabled: false
+      loadBalancer.shutdownBudget.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: rejects malformed positive duration input while on
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.shutdownBudget.telemetryExport: nope
+    asserts:
+      - failedTemplate:
+          errorPattern: 'unsupported shutdown budget duration'
+
+  - it: honors the existing queue-wait reserve when computing grace
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.shutdownBudget.centralQueueDrain: 4m
+      loadBalancer.pressureReadiness.enabled: true
+      loadBalancer.pressureReadiness.waitForQueue: true
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 331
+
+  - it: uses the external budget when S3 replaces leftover inline configuration
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.shutdownBudget.centralQueueDrain: 5m
+      loadBalancer.otelConfig.s3path: s3://synthetic/config.yaml
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing/logs.central_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing/metrics.central_queue.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 360
+
+  - it: preserves invalid explicit legacy grace instead of silently rendering zero
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.terminationGracePeriodSeconds: "60s"
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: "60s"
+
+  - it: rejects noninteger explicit grace when opted in
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.terminationGracePeriodSeconds: "60s"
+    asserts:
+      - failedTemplate:
+          errorPattern: 'requires integer.*terminationGracePeriodSeconds'
+
+  - it: accounts for sequential drains from distinct central queues
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      loadBalancer.terminationGracePeriodSeconds: 100
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing/logs.central_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing/logs.central_queue.shutdown_timeout: 30s
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing/metrics.central_queue.enabled: true
+      loadBalancer.otelCollectorConfig.exporters.loadbalancing/metrics.central_queue.shutdown_timeout: 30s
+    asserts:
+      - failedTemplate:
+          errorPattern: 'shutdown budget.*terminationGracePeriodSeconds'
