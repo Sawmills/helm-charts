@@ -1,6 +1,9 @@
 {{/* Validate the LB shutdown phases against the Pod's termination grace. */}}
 {{- define "sawmills-collector.loadBalancerShutdownBudgetMilliseconds" -}}
 {{- $root := .root -}}
+{{- if not (regexMatch "^[0-9]+$" (toString $root.Values.rollout.loadBalancer.preStopSleepSeconds)) -}}
+  {{- fail "LB shutdown budget requires integer rollout.loadBalancer.preStopSleepSeconds" -}}
+{{- end -}}
 {{- $budget := $root.Values.loadBalancer.shutdownBudget | default dict -}}
 {{- $centralMs := 0 -}}
 {{- $remote := default "" ($root.Values.loadBalancer.otelConfig | default dict).s3path -}}

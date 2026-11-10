@@ -192,6 +192,24 @@ tests:
       - failedTemplate:
           errorPattern: 'requires integer.*terminationGracePeriodSeconds'
 
+  - it: rejects a duration-shaped sleep argument that budget math cannot treat as seconds
+    set:
+      loadBalancer.enabled: true
+      loadBalancer.shutdownBudget.enabled: true
+      rollout.loadBalancer.preStopSleepSeconds: "60s"
+    asserts:
+      - failedTemplate:
+          errorPattern: 'requires integer.*preStopSleepSeconds'
+
+  - it: preserves the legacy sleep argument when budget enforcement is off
+    set:
+      loadBalancer.enabled: true
+      rollout.loadBalancer.preStopSleepSeconds: "60s"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[1]
+          value: "60s"
+
   - it: accounts for sequential drains from distinct central queues
     set:
       loadBalancer.enabled: true
