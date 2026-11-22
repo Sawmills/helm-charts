@@ -10,3 +10,8 @@
   This value defaults to `false` and requires Kubernetes 1.33 or newer.
 * With `rbac.storageClassDiscovery.enabled=true`, the remote-operator chart grants `get` and `list` on `storage.k8s.io/storageclasses` through a separate ClusterRole and binding (SAW-13246).
   A cluster permission owner must install the grant before operators can discover storage classes.
+
+### Fixed
+
+* The collector chart keeps backend outcome metrics on the LB pressure readiness endpoint so the collector can
+  detect successful sends when work is queued (SAW-14389).
