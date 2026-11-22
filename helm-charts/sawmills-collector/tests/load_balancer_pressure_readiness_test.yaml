@@ -277,6 +277,12 @@ tests:
           pattern: '(?ms)^\s*filter/pressure_readiness:\n\s+error_mode: ignore\n\s+metrics:\n\s+metric:\n\s+- not IsMatch\(name, ".*otelcol_loadbalancer_central_queue_compressed_bytes.*otelcol_loadbalancer_central_queue_oldest_item_age.*otelcol_process_memory_rss.*otelcol_receiver_refused_log_records.*otelcol_receiver_refused_log_records_total.*otelcol_receiver_refused_metric_points.*otelcol_receiver_refused_metric_points_total.*otelcol_receiver_refused_spans.*otelcol_receiver_refused_spans_total.*otelcol_processor_refused_log_records.*otelcol_processor_refused_log_records_total.*otelcol_processor_refused_metric_points.*otelcol_processor_refused_metric_points_total.*otelcol_processor_refused_spans.*otelcol_processor_refused_spans_total.*"\)\n'
       - matchRegex:
           path: data["telemetry-config.yaml"]
+          pattern: >-
+            (?m)^\s*filter/pressure_readiness:\n\s+error_mode:
+            ignore\n\s+metrics:\n\s+metric:\n\s+- not IsMatch\(name,
+            "\^\((?:[^"\n]*\|)?otelcol_loadbalancer_backend_outcome\(_total\)\?(?:\|[^"\n]*)?\)\$"\)$
+      - matchRegex:
+          path: data["telemetry-config.yaml"]
           pattern: '(?ms)^\s*metrics/pressure_readiness:\n\s+exporters:\n\s+- prometheus/pressure_readiness\n\s+processors:\n\s+- filter/pressure_readiness\n\s+receivers:\n\s+- forward\n'
 
   - it: uses telemetry.pressurePrometheus.port for the pressure exporter
