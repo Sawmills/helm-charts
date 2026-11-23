@@ -39,7 +39,7 @@ The optional Collector workload role that accepts telemetry and distributes it t
 _Avoid_: Kubernetes LoadBalancer Service, HAProxy alone
 
 **Telemetry Sidecar**:
-A separate Collector process in a Worker or Load Balancer pod that exports internal telemetry.
+A separate process in a Worker or Load Balancer pod that receives and exports internal telemetry.
 
 **Collector Workload Mode**:
 The choice between a Deployment with a replica count and a DaemonSet that runs a Worker on each eligible node.
